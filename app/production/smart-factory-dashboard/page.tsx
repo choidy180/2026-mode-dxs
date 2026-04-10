@@ -3,11 +3,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import { 
-  FiCpu, FiMoreHorizontal, FiSend, FiVideo, 
-  FiActivity, FiBox, FiCheckCircle, FiLoader, 
-  FiClock, FiAlertCircle, FiList, FiFileText, FiCheckSquare, FiTag, FiLayers,
-  FiUser, FiCalendar, FiPackage, FiTarget
+  FiVideo, FiMoreHorizontal, FiUser, FiClock, FiAlertCircle, 
+  FiCheck, FiMinus, FiPlayCircle, FiArrowUp, FiX
 } from 'react-icons/fi';
+import { FaRobot } from 'react-icons/fa';
 
 // --- 1. Global Style ---
 const GlobalStyle = createGlobalStyle`
@@ -23,35 +22,34 @@ const GlobalStyle = createGlobalStyle`
     padding: 0;
     background-color: #F1F5F9;
     color: #1E293B;
-    overflow: hidden; /* ✨ 브라우저 전체 스크롤 차단 */
+    overflow: hidden;
   }
   
-  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
 `;
 
 // --- 2. Theme ---
 const theme = {
-  primary: '#10B981', 
-  blue: '#3B82F6',
-  bg: '#F8FAFC',
+  primary: '#C1124F', 
+  lightPink: '#FCE7F3',
+  green: '#10B981',
+  lightGreen: '#ECFDF5',
+  bg: '#F4F6F8',
   cardBg: '#FFFFFF',
   textMain: '#0F172A',
   textSub: '#64748B',
-  radius: '16px',
-  shadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-  fixedGreen: '#4ADE80',
-  accent: '#6366F1'
+  radius: '20px',
+  shadow: '0 4px 24px rgba(0, 0, 0, 0.05)',
 };
 
 // --- API Interfaces ---
-interface SlotDetail { slot_id: number; occupied: boolean; entry_time: string | null; }
+interface SlotDetail { slot_id: number; occupied: boolean; entry_time: string | null; slot_name: string; }
 interface CameraData { total: number; occupied: number; empty_idxs: number[]; slots_detail: SlotDetail[]; }
-interface WorkingData { NoWkOrd: string; PrjName: string; ItemName: string; OrdQty: number; ProdQty: number; NmEmplo: string; NmWrkState: string; NmProce: string; PlnSTime: string; PlnETime: string; WrkGongSu: number; }
-interface ApiResult { success: boolean; recent_time: string; working_data: WorkingData; camData: { [key: string]: CameraData; }; }
+interface WorkingData { NoWkOrd: string; ItemName: string; OrdQty: number; ProdQty: number; NmEmplo: string; NmWrkState: string; NmProce: string; PlnSTime: string; PlnETime: string; }
+interface ApiResult { success: boolean; working_data: WorkingData; camData: { [key: string]: CameraData; }; }
 interface FlattenedSlotItem extends SlotDetail { camId: string; }
-interface LogItemType extends FlattenedSlotItem { logType: 'start' | 'end'; timestampObj: Date; workOrderNo: string; productionQty: number; }
 
 // --- Animation Keyframes ---
 const fadeIn = keyframes`
@@ -59,60 +57,28 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
-// --- Styled Components (✨ 수정됨) ---
+const backdropFadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+// --- Styled Components ---
 
 const DashboardContainer = styled.div`
   width: 100%;
-  /* ✨ 요청하신 상단 nav바 60px 제외 높이 고정 */
   height: calc(100vh - 60px); 
-  max-height: calc(100vh - 60px);
-  padding: 16px 20px; /* 공간 확보를 위해 패딩 살짝 축소 */
+  padding: 32px; 
   display: flex;
-  flex-direction: column;
   background-color: ${theme.bg};
   overflow: hidden;
 `;
 
-const Header = styled.header`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 40px; /* 공간 확보를 위해 살짝 축소 */
-  margin-bottom: 16px;
-  flex-shrink: 0;
-`;
-
-const MainTitle = styled.h1`
-  font-size: 20px;
-  font-weight: 800;
-  color: ${theme.textMain};
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const Badge = styled.span`
-  background: #E0F2FE;
-  color: #0284C7;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 700;
-`;
-
-const HeaderRight = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
 const MainGrid = styled.div`
   display: grid;
-  grid-template-columns: 1.2fr 1.4fr 1fr; 
-  gap: 16px; /* 20px -> 16px 축소 */
+  grid-template-columns: 1.2fr 1.4fr 380px; 
+  gap: 32px; 
   flex: 1;
-  min-height: 0; /* ✨ 내부 요소가 화면을 뚫고 나가지 않게 하는 핵심 */
+  min-height: 0;
   height: 100%;
 `;
 
@@ -120,19 +86,18 @@ const Card = styled.div`
   background-color: ${theme.cardBg};
   border-radius: ${theme.radius};
   box-shadow: ${theme.shadow};
-  border: 1px solid #E2E8F0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 0; /* ✨ 카드가 컨텐츠 크기대로 무한정 늘어나는 것을 방지 */
+  min-height: 0;
 `;
 
-// --- Video Styles ---
+// --- 1. Left: Video Styles ---
 const VideoColumn = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-height: 0; /* ✨ 필수 */
+  gap: 20px;
+  min-height: 0;
 `;
 
 const VideoWrapper = styled(Card)`
@@ -140,15 +105,6 @@ const VideoWrapper = styled(Card)`
   position: relative;
   background: #0f172a;
   border: none;
-  min-height: 0; /* ✨ 필수 */
-`;
-
-const StyledVideo = styled.video`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.8;
-  transform: scale(1.12);
 `;
 
 const StyledWebsocketImg = styled.img`
@@ -156,89 +112,84 @@ const StyledWebsocketImg = styled.img`
   height: 100%;
   object-fit: cover;
   opacity: 0.8;
-  transform: scale(1.12);
+  transform: scale(1.05);
   background-color: #000;
 `;
 
 const VideoOverlayTop = styled.div`
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  top: 20px;
+  left: 20px;
+  right: 20px;
   display: flex;
   justify-content: space-between;
   z-index: 10;
 `;
 
 const CamTag = styled.div`
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.6);
   color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid rgba(255,255,255,0.1);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 15px; 
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 `;
 
 const MiniDashboardOverlay = styled.div`
   position: absolute;
-  bottom: 16px;
-  left: 16px;
-  width: 180px;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  border-radius: 12px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  bottom: 24px;
+  left: 24px;
+  width: 200px; 
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 14px;
+  padding: 18px;
   color: white;
   z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: 0px;
 `;
 
 const MiniLabel = styled.div`
-  font-size: 14px;
+  font-size: 13px; 
   color: #94A3B8; 
-  text-transform: uppercase;
-  font-weight: 700;
+  font-weight: 600;
+  margin-bottom: 6px;
 `;
 
 const MiniTitle = styled.div`
-  font-size: 16px;
-  font-weight: 600;
-  color: #F1F5F9;
-  margin-bottom: 4px;
+  font-size: 16px; 
+  font-weight: 700;
+  color: #F8FAFC;
+  margin-bottom: 10px;
 `;
 
 const MiniValueRow = styled.div`
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: baseline;
+  margin-bottom: 8px;
 `;
 
 const MiniValueBig = styled.span`
-  font-size: 20px;
-  font-weight: 700;
-  color: ${theme.fixedGreen};
+  font-size: 28px; 
+  font-weight: 800;
+  color: ${theme.green};
 `;
 
 const MiniValueSub = styled.span`
-  font-size: 14px;
-  color: #CBD5E1;
-  padding-bottom: 2px;
+  font-size: 20px; 
+  color: #F1F5F9;
+  font-weight: 600;
 `;
 
 const MiniProgressBar = styled.div<{ percent: number }>`
   width: 100%;
-  height: 4px;
+  height: 6px; 
   background: rgba(255,255,255,0.2);
-  border-radius: 2px;
-  margin-top: 6px;
+  border-radius: 3px;
   position: relative;
   
   &::after {
@@ -248,438 +199,438 @@ const MiniProgressBar = styled.div<{ percent: number }>`
     top: 0;
     height: 100%;
     width: ${props => props.percent}%;
-    background-color: ${theme.fixedGreen};
-    border-radius: 2px;
-    transition: width 0.5s ease;
+    background-color: ${theme.green};
+    border-radius: 3px;
   }
 `;
 
-// --- List Column Styles ---
-const ListContainer = styled(Card)`
-  background: #F8FAFC; 
+// --- 2. Center: Middle Column Styles ---
+const MiddleColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
 `;
 
-const ListHeader = styled.div`
-  padding: 16px 20px;
-  background: white;
-  border-bottom: 1px solid #E2E8F0;
+const SectionHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 12px;
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 28px; 
+  font-weight: 700;
+  color: ${theme.textMain};
+  margin: 0;
+  padding-left: 4px;
+  letter-spacing: -1px;
+`;
+
+const ViewAllBtn = styled.button`
+  background: #E2E8F0;
+  color: #475569;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #CBD5E1;
+    color: #0F172A;
+  }
+`;
+
+const WorkInfoCard = styled(Card)`
+  padding: 28px; 
+  border-radius: 20px;
+  flex-shrink: 0;
+`;
+
+const WorkInfoTopRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0; /* ✨ 축소 방지 */
+  margin-bottom: 16px;
 `;
 
-const ListTitle = styled.h2`
-  font-size: 16px;
+const WorkOrderBadge = styled.span`
+  font-size: 18px; 
   font-weight: 700;
-  margin: 0;
-  color: ${theme.textMain};
+  color: ${theme.primary};
+  background: ${theme.lightPink};
+  padding: 6px 12px;
+  border-radius: 8px;
+`;
+
+const WorkStatusPlay = styled.div`
+  font-size: 15px; 
+  font-weight: 600;
+  color: #475569;
   display: flex;
   align-items: center;
   gap: 8px;
 `;
 
-const ViewToggle = styled.div`
-  display: flex;
-  background: #F1F5F9;
-  padding: 3px;
-  border-radius: 8px;
-  gap: 2px;
-`;
-
-const ToggleBtn = styled.button<{ $active: boolean }>`
-  border: none;
-  background: ${props => props.$active ? 'white' : 'transparent'};
-  color: ${props => props.$active ? theme.textMain : '#94A3B8'};
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  box-shadow: ${props => props.$active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'};
-  transition: all 0.2s ease;
-
-  &:hover {
-    color: ${theme.textMain};
-  }
-`;
-
-const WorkInfoCard = styled.div`
-  margin: 16px 20px 0 20px;
-  background: white;
-  border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-  animation: ${fadeIn} 0.5s ease-out;
-  flex-shrink: 0; /* ✨ 축소 방지 */
-`;
-
-const WorkInfoTitleRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #F1F5F9;
-`;
-
-const WorkInfoMain = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const WorkOrderBadge = styled.span`
-  font-size: 11px;
-  color: ${theme.textSub};
-  background: #F1F5F9;
-  padding: 2px 6px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  gap: 4px;
-`;
-
 const ItemNameText = styled.div`
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 26px; 
+  font-weight: 800;
   color: ${theme.textMain};
-  line-height: 1.3;
-`;
-
-const WorkStatusTag = styled.span`
-  background: #EEF2FF;
-  color: #4F46E5;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: fit-content;
+  margin-bottom: 28px;
 `;
 
 const WorkGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 24px;
+  margin-bottom: 28px;
 `;
 
 const WorkDetailItem = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0px;
 `;
 
 const WorkLabel = styled.span`
-  font-size: 14px;
-  color: #94A3B8;
+  font-size: 18px; 
+  color: #6c727a;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-weight: 600;
 `;
 
 const WorkValue = styled.span`
-  font-size: 16px;
-  font-weight: 600;
-  color: #334155;
+  font-size: 18px; 
+  font-weight: 700;
+  color: ${theme.textMain};
 `;
 
 const ProgressContainer = styled.div`
-  margin-top: 14px;
+  width: 100%;
 `;
 
 const ProgressLabelRow = styled.div`
   display: flex;
   justify-content: space-between;
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: ${theme.textSub};
+  margin-bottom: 10px;
+  font-size: 18px; 
+  font-weight: 700;
+  color: ${theme.textMain};
 `;
 
 const ProgressBarBg = styled.div`
   width: 100%;
-  height: 8px;
+  height: 16px; 
   background: #F1F5F9;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
 `;
 
 const ProgressBarFill = styled.div<{ $percent: number }>`
   height: 100%;
   width: ${props => props.$percent}%;
-  background: linear-gradient(90deg, ${theme.primary}, ${theme.fixedGreen});
-  border-radius: 4px;
-  transition: width 0.5s ease;
+  background: ${theme.primary};
+  border-radius: 6px;
 `;
 
 const NoticeBanner = styled.div`
-  margin: 12px 20px 0 20px;
   background: #FFFBEB;
-  color: #92400E;
-  padding: 10px 14px;
+  color: #D97706;
+  padding: 16px 20px; 
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px; 
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid #FDE68A;
-  flex-shrink: 0; /* ✨ 축소 방지 */
+  gap: 10px;
+  border: 1px solid #FEF3C7;
+  flex-shrink: 0;
 `;
 
 const ListScrollArea = styled.div`
-  padding: 16px 20px;
   overflow-y: auto;
-  flex: 1; /* ✨ 남은 공간 꽉 채우기 */
-  min-height: 0; /* ✨ 스크롤 동작 필수값 */
+  flex: 1; 
+  min-height: 0; 
   display: flex;
   flex-direction: column;
   gap: 12px;
   
-  &::-webkit-scrollbar { width: 4px; }
-  &::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 2px; }
-`;
-
-const ContentWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: ${fadeIn} 0.4s ease-out;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
 `;
 
 const SlotItem = styled.div<{ $occupied: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 20px 24px; 
   border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: ${props => props.$occupied ? 'white' : '#F1F5F9'};
-  border: ${props => props.$occupied ? '1px solid #10B981' : '1px solid #E2E8F0'};
-  box-shadow: ${props => props.$occupied ? '0 4px 12px rgba(16, 185, 129, 0.15)' : 'none'};
-  opacity: ${props => props.$occupied ? 1 : 0.7};
-  filter: ${props => props.$occupied ? 'none' : 'grayscale(100%)'};
+  background: white;
+  border: 1px solid ${props => props.$occupied ? theme.green : '#E2E8F0'};
+  opacity: ${props => props.$occupied ? 1 : 0.6};
 `;
 
 const ItemLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 `;
 
-const IconBox = styled.div<{ $occupied: boolean }>`
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: ${props => props.$occupied ? '#ECFDF5' : '#E2E8F0'};
-  color: ${props => props.$occupied ? '#10B981' : '#94A3B8'};
+const IconCircle = styled.div<{ $occupied: boolean }>`
+  width: 32px; 
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid ${props => props.$occupied ? theme.green : '#CBD5E1'};
+  color: ${props => props.$occupied ? theme.green : '#CBD5E1'};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 18px; 
 `;
 
 const ItemInfo = styled.div`
   display: flex;
   flex-direction: column;
+  gap: 6px;
 `;
 
 const ItemTitle = styled.span<{ $occupied: boolean }>`
-  font-size: 15px;
-  font-weight: 700;
-  color: ${props => props.$occupied ? '#0F172A' : '#475569'};
-  margin-bottom: 4px;
+  font-size: 17px; 
+  font-weight: 800;
+  color: ${props => props.$occupied ? '#0F172A' : '#64748B'};
 `;
 
 const ItemSub = styled.span`
-  font-size: 12px;
+  font-size: 14px; 
   color: #94A3B8;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 `;
 
-const StatusBadge = styled.span<{ $occupied: boolean }>`
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 99px;
-  font-size: 11px;
-  font-weight: 700;
-  background: ${props => props.$occupied ? '#10B981' : '#E2E8F0'};
-  color: ${props => props.$occupied ? 'white' : '#64748B'};
-`;
-
-// --- Log Style Components ---
-const LogItem = styled.div`
+const StatusTextRow = styled.div<{ $occupied: boolean }>`
   display: flex;
-  gap: 16px;
-  padding: 0 4px;
-  position: relative;
-`;
-
-const LogTimeline = styled.div`
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  min-width: 24px;
-
-  &::after {
-    content: '';
-    width: 2px;
-    flex: 1;
-    background: #E2E8F0;
-    margin-top: 4px;
-  }
-  ${LogItem}:last-child &::after {
-    display: none;
-  }
-`;
-
-const LogDot = styled.div<{ $type: 'start' | 'end' }>`
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: ${props => props.$type === 'start' ? theme.primary : theme.blue};
-  box-shadow: 0 0 0 4px ${props => props.$type === 'start' ? '#ECFDF5' : '#EFF6FF'};
-  margin-top: 6px;
-  z-index: 1;
-`;
-
-const LogContent = styled.div`
-  flex: 1;
-  background: white;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid #F1F5F9;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-  transition: transform 0.2s ease;
-  
-  &:hover {
-    transform: translateX(4px);
-  }
-`;
-
-const LogHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-`;
-
-const LogMetaRow = styled.div`
-  display: flex;
   gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  font-size: 15px; 
+  font-weight: 700;
+  color: ${props => props.$occupied ? theme.green : '#94A3B8'};
 `;
 
-const MetaTag = styled.span`
-  background: #F1F5F9;
-  color: #64748B;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+const StatusDot = styled.div<{ $occupied: boolean }>`
+  width: 8px; 
+  height: 8px;
+  border-radius: 50%;
+  background-color: ${props => props.$occupied ? theme.green : 'transparent'};
 `;
 
-const LogTime = styled.span`
-  font-size: 12px;
-  color: #64748B;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
 
-const LogMessage = styled.div`
-  font-size: 13px;
-  color: #334155;
-  line-height: 1.5;
-  
-  strong {
-    color: #0F172A;
-    font-weight: 700;
-  }
-`;
-
-// --- Chat Styles ---
+// --- 3. Right: Chat Styles ---
 const ChatContainer = styled(Card)`
   padding: 0;
-  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
 `;
 
 const ChatHeader = styled.div`
-  padding: 16px 20px;
+  padding: 24px;
   border-bottom: 1px solid #F1F5F9;
-  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   flex-shrink: 0;
+`;
+
+const AiAvatar = styled.div`
+  width: 48px; 
+  height: 48px;
+  background-color: ${theme.lightPink};
+  color: ${theme.primary};
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px; 
+`;
+
+const AiTitleInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const AiTitle = styled.div`
+  font-size: 18px; 
+  font-weight: 800;
+  color: ${theme.textMain};
+`;
+
+const AiSub = styled.div`
+  font-size: 13px; 
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
 const ChatBody = styled.div`
   flex: 1;
-  background: #F8FAFC;
-  padding: 16px;
+  background: white;
+  padding: 24px;
   overflow-y: auto;
-  min-height: 0; /* ✨ 스크롤 동작 필수값 */
+  min-height: 0; 
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 24px;
 `;
 
-const Bubble = styled.div<{ $isUser?: boolean }>`
-  align-self: ${props => props.$isUser ? 'flex-end' : 'flex-start'};
-  background: ${props => props.$isUser ? '#3B82F6' : 'white'};
+const MessageRow = styled.div<{ $isUser: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: ${props => props.$isUser ? 'flex-end' : 'flex-start'};
+  gap: 6px;
+  animation: ${fadeIn} 0.3s ease-out;
+`;
+
+const Bubble = styled.div<{ $isUser: boolean }>`
+  background: ${props => props.$isUser ? theme.primary : '#F8FAFC'};
   color: ${props => props.$isUser ? 'white' : '#1E293B'};
-  padding: 10px 14px;
-  border-radius: 12px;
-  border-bottom-right-radius: ${props => props.$isUser ? '2px' : '12px'};
-  border-top-left-radius: ${props => props.$isUser ? '12px' : '2px'};
-  font-size: 13px;
+  padding: 16px 20px; 
+  border-radius: 20px;
+  border-bottom-right-radius: ${props => props.$isUser ? '4px' : '20px'};
+  border-top-left-radius: ${props => props.$isUser ? '20px' : '4px'};
+  font-size: 16px; 
   max-width: 85%;
-  line-height: 1.4;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-  border: ${props => props.$isUser ? 'none' : '1px solid #E2E8F0'};
+  line-height: 1.5;
+`;
+
+const TimeText = styled.div`
+  font-size: 15px; 
+  color: #757b81;
+  margin: 0 2px;
 `;
 
 const InputArea = styled.form`
-  padding: 12px;
+  padding: 20px 24px;
   background: white;
   border-top: 1px solid #F1F5F9;
-  display: flex;
-  gap: 8px;
   flex-shrink: 0;
+`;
 
-  button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+const InputWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  background: #F8FAFC;
+  border-radius: 99px;
+  padding: 8px 8px 8px 24px; 
+  border: 1px solid #E2E8F0;
 `;
 
 const Input = styled.input`
   flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 16px; 
+  outline: none;
+  color: ${theme.textMain};
+  &::placeholder {
+    color: #94A3B8;
+  }
+`;
+
+const SendBtn = styled.button`
+  width: 44px; 
+  height: 44px;
+  border-radius: 50%;
+  background: ${theme.primary};
+  border: none;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 22px; 
+  transition: transform 0.1s;
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+// --- 4. Modal Styles ---
+const ModalBackdrop = styled.div`
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ${backdropFadeIn} 0.2s ease-out;
+`;
+
+const ModalContainer = styled.div`
+  background: white;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 85vh;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  animation: ${fadeIn} 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+`;
+
+const ModalHeader = styled.div`
+  padding: 24px 32px;
+  border-bottom: 1px solid #F1F5F9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: ${theme.textMain};
+`;
+
+const CloseBtn = styled.button`
   background: #F1F5F9;
   border: none;
-  border-radius: 8px;
-  padding: 0 12px;
+  width: 36px;
   height: 36px;
-  font-size: 13px;
-  outline: none;
-  &:focus { background: #E2E8F0; }
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #64748B;
+  transition: background 0.2s;
+  
+  &:hover {
+    background: #E2E8F0;
+    color: #0F172A;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 24px 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  &::-webkit-scrollbar { width: 8px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
 `;
 
 
@@ -688,109 +639,64 @@ const WsVideoStream = ({ wsUrl }: { wsUrl: string }) => {
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(wsUrl);
-    ws.binaryType = 'blob'; 
-
-    ws.onmessage = (event) => {
-      if (!imgRef.current) return;
-      
-      if (typeof event.data === 'string') {
-        imgRef.current.src = event.data.startsWith('data:image') 
-          ? event.data 
-          : `data:image/jpeg;base64,${event.data}`;
-      } else {
-        const url = URL.createObjectURL(event.data);
-        imgRef.current.src = url;
-        imgRef.current.onload = () => {
-          URL.revokeObjectURL(url);
-        };
-      }
-    };
-
-    return () => {
-      ws.close();
-    };
+    return () => {};
   }, [wsUrl]);
 
-  return <StyledWebsocketImg ref={imgRef} alt="Live Stream" />;
+  return <StyledWebsocketImg ref={imgRef} alt="Live Stream" src="https://via.placeholder.com/600x400/1e293b/1e293b" />;
 };
 
 
 // --- Mock Data ---
 const MOCK_DATA: ApiResult = {
   "success": true,
-  "recent_time": "2026-01-21T14:58:09.000Z",
   "working_data": {
-    "NoWkOrd": "WO26012000019",
-    "PrjName": "M-Next3 DID",
-    "ItemName": "Door Foam Assembly,Ref.(DID)",
-    "OrdQty": 535,
-    "ProdQty": 535,
+    "NoWkOrd": "WO-260305-003",
+    "ItemName": "Door Foam Assembly,Refrigerato",
+    "OrdQty": 750,
+    "ProdQty": 750,
     "NmEmplo": "박태용",
-    "NmWrkState": "완료",
-    "NmProce": "총조립",
-    "PlnSTime": "2026-01-21 09:12:00",
-    "PlnETime": "2026-01-21 15:40:00",
-    "WrkGongSu": 9,
-  } as any, 
+    "NmWrkState": "가동중",
+    "NmProce": "발포 / 조립 1라인",
+    "PlnSTime": "09:00 ~ 17:35",
+    "PlnETime": "09:00 ~ 17:35",
+  }, 
   "camData": {
     "207": {
       "total": 7,
-      "occupied": 0,
-      "empty_idxs": [1, 2, 3, 4, 5, 6, 7],
+      "occupied": 4,
+      "empty_idxs": [],
       "slots_detail": [
-        { "slot_id": 1, "occupied": false, "entry_time": null },
-        { "slot_id": 2, "occupied": false, "entry_time": null },
-        { "slot_id": 3, "occupied": false, "entry_time": null },
-        { "slot_id": 4, "occupied": false, "entry_time": null },
-        { "slot_id": 5, "occupied": false, "entry_time": null },
-        { "slot_id": 6, "occupied": false, "entry_time": null },
-        { "slot_id": 7, "occupied": false, "entry_time": null }
+        { "slot_id": 1, "occupied": true, "entry_time": "06:14:39", "slot_name": "S-01" },
+        { "slot_id": 2, "occupied": true, "entry_time": "06:14:39", "slot_name": "S-01" },
+        { "slot_id": 3, "occupied": true, "entry_time": "06:14:39", "slot_name": "S-01" },
+        { "slot_id": 4, "occupied": true, "entry_time": "06:14:39", "slot_name": "S-01" },
+        { "slot_id": 5, "occupied": false, "entry_time": "06:14:39", "slot_name": "S-03" }
       ]
     },
     "218": {
       "total": 3,
       "occupied": 2,
-      "empty_idxs": [1],
-      "slots_detail": [
-        { "slot_id": 1, "occupied": false, "entry_time": null },
-        { "slot_id": 2, "occupied": true, "entry_time": "2026-01-21T23:58:09" },
-        { "slot_id": 3, "occupied": true, "entry_time": "2026-01-21T20:06:21" }
-      ]
+      "empty_idxs": [],
+      "slots_detail": []
     }
   }
 };
 
 const SmartFactoryDashboard: React.FC = () => {
-  const [apiData, setApiData] = useState<ApiResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'list' | 'log'>('list');
+  const [apiData] = useState<ApiResult>(MOCK_DATA);
   const [mounted, setMounted] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); // ✨ 모달 상태 추가
 
   // Chat State
   const [messages, setMessages] = useState([
-    { id: 1, text: "시스템 가동. 실시간 공정 데이터 수신중.", user: false },
-    { id: 2, text: "현재 'Door Foam Assembly' 작업이 진행중입니다.", user: false },
+    { id: 1, text: "시스템 가동. 실시간 공정 데이터 수신중.\n\n현재 'Door Foam Assembly' 작업이 진행중입니다.", user: false, time: '09:40 AM' },
+    { id: 2, text: "생산 진행를 알려주세요", user: true, time: '09:40 AM' },
   ]);
   const [chatInput, setChatInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // API Fetch
   useEffect(() => {
     setMounted(true);
-    const fetchData = async () => {
-      try {
-        const res = await fetch('http://1.254.24.170:24828/api/DX_API000018');
-        if (!res.ok) throw new Error('Fetch error');
-        const data = await res.json();
-        setApiData(data);
-      } catch (err) {
-        setApiData(MOCK_DATA);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
   }, []);
 
   useEffect(() => {
@@ -800,343 +706,231 @@ const SmartFactoryDashboard: React.FC = () => {
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
-    setMessages(prev => [...prev, { id: Date.now(), text: chatInput, user: true }]);
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    setMessages(prev => [...prev, { id: Date.now(), text: chatInput, user: true, time: now }]);
     setChatInput("");
-    setTimeout(() => {
-      setMessages(prev => [...prev, { id: Date.now()+1, text: "지시사항이 전달되었습니다.", user: false }]);
-    }, 800);
-  };
-
-  const formatTime = (timeStr: string | null) => {
-    if (!timeStr) return "-";
-    try {
-      const date = new Date(timeStr);
-      if (isNaN(date.getTime())) return "-";
-      return date.toTimeString().split(' ')[0];
-    } catch {
-      return "-";
-    }
   };
 
   const allSlots: FlattenedSlotItem[] = useMemo(() => {
-    if (!apiData || !apiData.camData) return [];
-
-    const list = Object.entries(apiData.camData).flatMap(([key, data]) => {
-      const details = data?.slots_detail || [];
-      return details.map(slot => ({
-        camId: key,
-        ...slot
-      }));
-    });
-
-    return list.sort((a, b) => {
-      if (a.occupied !== b.occupied) {
-        return a.occupied ? -1 : 1;
-      }
-      if (a.camId !== b.camId) {
-        return a.camId.localeCompare(b.camId);
-      }
-      return a.slot_id - b.slot_id;
-    });
+    return apiData.camData["207"].slots_detail.map(slot => ({
+      camId: "207",
+      ...slot
+    }));
   }, [apiData]);
 
-  const mixedLogData = useMemo(() => {
-    if (allSlots.length === 0) return [];
-
-    const startItems: LogItemType[] = allSlots
-      .filter(item => item.entry_time)
-      .map(item => {
-        const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        const workOrder = apiData?.working_data?.NoWkOrd || `WO-20240121-${randomNum}`;
-        const qty = Math.floor(Math.random() * 450) + 50;
-
-        const dateObj = new Date(item.entry_time!);
-        const safeDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
-
-        return {
-          ...item,
-          logType: 'start',
-          timestampObj: safeDate,
-          workOrderNo: workOrder,
-          productionQty: qty
-        };
-      });
-
-    const endItems: LogItemType[] = startItems.map(item => {
-      const durationMin = 2 + Math.floor(Math.random() * 4);
-      const endTime = new Date(item.timestampObj.getTime() + durationMin * 60000);
-      
-      return {
-        ...item,
-        logType: 'end',
-        timestampObj: endTime,
-        entry_time: endTime.toISOString()
-      };
-    });
-
-    return [...startItems, ...endItems].sort((a, b) => 
-      b.timestampObj.getTime() - a.timestampObj.getTime()
-    );
-  }, [allSlots, apiData]);
-
-  const cam207Data = apiData?.camData ? apiData.camData["207"] : null;
-  const cam207Ratio = cam207Data ? cam207Data.occupied / cam207Data.total : 0;
-  const cam218Data = apiData?.camData ? apiData.camData["218"] : null;
-  const cam218Ratio = cam218Data ? cam218Data.occupied / cam218Data.total : 0;
-  
-  const wkData = apiData?.working_data;
-  const progressPercent = wkData ? Math.min((wkData.ProdQty / wkData.OrdQty) * 100, 100) : 0;
+  const wkData = apiData.working_data;
+  const progressPercent = Math.min((wkData.ProdQty / wkData.OrdQty) * 100, 100);
 
   return (
     <>
       <GlobalStyle />
       <DashboardContainer>
-        <Header>
-          <MainTitle>
-            <FiActivity color={theme.primary} />
-            스마트 공정 모니터링 시스템
-            <Badge>v2.7</Badge>
-          </MainTitle>
-          <HeaderRight>
-            <span style={{ fontSize: 16, color: '#64748B' }}>
-              {mounted ? new Date().toLocaleDateString() : '...'}
-            </span>
-          </HeaderRight>
-        </Header>
-
         <MainGrid>
           
           {/* 1. LEFT: Video Feed */}
           <VideoColumn>
             <VideoWrapper>
               <VideoOverlayTop>
-                <CamTag><FiVideo /> GR5 가조립 자재 #1</CamTag>
-                <FiMoreHorizontal color="white" />
+                <CamTag><FiVideo size={18} /> GR5 가조립 자재 #1</CamTag>
+                <FiMoreHorizontal color="white" size={24} />
               </VideoOverlayTop>
               
               <WsVideoStream wsUrl="ws://192.168.2.147:8132" />
 
-              {cam207Data && (
-                <MiniDashboardOverlay>
-                  <MiniLabel>실시간 적재 현황</MiniLabel>
-                  <MiniTitle>GR5 가조립 자재 #1</MiniTitle>
-                  <MiniValueRow>
-                    <MiniValueBig>{Math.round(cam207Ratio * 100)}%</MiniValueBig>
-                    <MiniValueSub>{cam207Data.occupied} / {cam207Data.total} EA</MiniValueSub>
-                  </MiniValueRow>
-                  <MiniProgressBar percent={cam207Ratio * 100} />
-                </MiniDashboardOverlay>
-              )}
+              <MiniDashboardOverlay>
+                <MiniLabel>실시간 적재 현황</MiniLabel>
+                <MiniTitle>GR5 가조립 자재 #1</MiniTitle>
+                <MiniValueRow>
+                  <MiniValueBig>57%</MiniValueBig>
+                  <MiniValueSub>4 / 7 EA</MiniValueSub>
+                </MiniValueRow>
+                <MiniProgressBar percent={57} />
+              </MiniDashboardOverlay>
             </VideoWrapper>
 
             <VideoWrapper>
               <VideoOverlayTop>
-                <CamTag><FiVideo /> GR5 가조립 자재 #2</CamTag>
-                <FiMoreHorizontal color="white" />
+                <CamTag><FiVideo size={18} /> GR5 가조립 자재 #2</CamTag>
+                <FiMoreHorizontal color="white" size={24} />
               </VideoOverlayTop>
               
               <WsVideoStream wsUrl="ws://192.168.2.147:8133" />
 
-              {cam218Data && (
-                <MiniDashboardOverlay>
-                  <MiniLabel>실시간 적재 현황</MiniLabel>
-                  <MiniTitle>GR5 가조립 자재 #2</MiniTitle>
-                  <MiniValueRow>
-                    <MiniValueBig>{Math.round(cam218Ratio * 100)}%</MiniValueBig>
-                    <MiniValueSub>{cam218Data.occupied} / {cam218Data.total} EA</MiniValueSub>
-                  </MiniValueRow>
-                  <MiniProgressBar percent={cam218Ratio * 100} />
-                </MiniDashboardOverlay>
-              )}
+              <MiniDashboardOverlay>
+                <MiniLabel>실시간 적재 현황</MiniLabel>
+                <MiniTitle>GR5 가조립 자재 #2</MiniTitle>
+                <MiniValueRow>
+                  <MiniValueBig>67%</MiniValueBig>
+                  <MiniValueSub>2 / 3 EA</MiniValueSub>
+                </MiniValueRow>
+                <MiniProgressBar percent={67} />
+              </MiniDashboardOverlay>
             </VideoWrapper>
           </VideoColumn>
 
-          {/* 2. CENTER: Slot Detail List & Logs */}
-          <ListContainer>
-            <ListHeader>
-              <ListTitle>
-                <FiBox color={theme.primary} /> 
-                {viewMode === 'list' ? '실시간 생산/적재 데이터' : '공정 작업 이력 (Logs)'}
-              </ListTitle>
-              
-              <ViewToggle>
-                <ToggleBtn 
-                  $active={viewMode === 'list'} 
-                  onClick={() => setViewMode('list')}
-                >
-                  <FiList /> 리스트
-                </ToggleBtn>
-                <ToggleBtn 
-                  $active={viewMode === 'log'} 
-                  onClick={() => setViewMode('log')}
-                >
-                  <FiFileText /> 로그
-                </ToggleBtn>
-              </ViewToggle>
-            </ListHeader>
+          {/* 2. CENTER: Data List */}
+          <MiddleColumn>
+            <SectionTitle>실시간 생산 및 적재 데이터</SectionTitle>
             
-            {wkData && (
-              <WorkInfoCard>
-                <WorkInfoTitleRow>
-                  <WorkInfoMain>
-                    <WorkOrderBadge><FiFileText size={10}/> {wkData.NoWkOrd}</WorkOrderBadge>
-                    <ItemNameText>{wkData.ItemName}</ItemNameText>
-                  </WorkInfoMain>
-                  <WorkStatusTag>
-                    <FiActivity size={12}/> {wkData.NmWrkState}
-                  </WorkStatusTag>
-                </WorkInfoTitleRow>
+            <WorkInfoCard>
+              <WorkInfoTopRow>
+                <WorkOrderBadge>{wkData.NoWkOrd}</WorkOrderBadge>
+                <WorkStatusPlay>
+                  <FiPlayCircle size={20} /> {wkData.NmWrkState}
+                </WorkStatusPlay>
+              </WorkInfoTopRow>
 
-                <WorkGrid>
-                  <WorkDetailItem>
-                    <WorkLabel><FiUser size={10}/> 작업자</WorkLabel>
-                    <WorkValue>{wkData.NmEmplo}</WorkValue>
-                  </WorkDetailItem>
-                  <WorkDetailItem>
-                    <WorkLabel><FiTarget size={10}/> 공정명</WorkLabel>
-                    <WorkValue>{wkData.NmProce}</WorkValue>
-                  </WorkDetailItem>
-                  <WorkDetailItem>
-                    <WorkLabel><FiCalendar size={10}/> 계획 시작</WorkLabel>
-                    <WorkValue>{formatTime(wkData.PlnSTime)}</WorkValue>
-                  </WorkDetailItem>
-                  <WorkDetailItem>
-                    <WorkLabel><FiCalendar size={10}/> 계획 종료</WorkLabel>
-                    <WorkValue>{formatTime(wkData.PlnETime)}</WorkValue>
-                  </WorkDetailItem>
-                </WorkGrid>
+              <ItemNameText>{wkData.ItemName}</ItemNameText>
 
-                <ProgressContainer>
-                  <ProgressLabelRow>
-                    <span>생산 진행률</span>
-                    <span style={{color: theme.primary}}>{wkData.ProdQty} / {wkData.OrdQty} EA</span>
-                  </ProgressLabelRow>
-                  <ProgressBarBg>
-                    <ProgressBarFill $percent={progressPercent} />
-                  </ProgressBarBg>
-                </ProgressContainer>
-              </WorkInfoCard>
-            )}
+              <WorkGrid>
+                <WorkDetailItem>
+                  <WorkLabel><FiUser size={16}/> 작업자</WorkLabel>
+                  <WorkValue>{wkData.NmEmplo}</WorkValue>
+                </WorkDetailItem>
+                <WorkDetailItem>
+                  <WorkLabel><FiAlertCircle size={16}/> 공정명</WorkLabel>
+                  <WorkValue>{wkData.NmProce}</WorkValue>
+                </WorkDetailItem>
+                <WorkDetailItem>
+                  <WorkLabel><FiClock size={16}/> 계획 시작</WorkLabel>
+                  <WorkValue>{wkData.PlnSTime}</WorkValue>
+                </WorkDetailItem>
+                <WorkDetailItem>
+                  <WorkLabel><FiClock size={16}/> 계획 종료</WorkLabel>
+                  <WorkValue>{wkData.PlnETime}</WorkValue>
+                </WorkDetailItem>
+              </WorkGrid>
+
+              <ProgressContainer>
+                <ProgressLabelRow>
+                  <span>생산 진행률</span>
+                  <span style={{color: theme.primary}}>{wkData.ProdQty} / {wkData.OrdQty} EA</span>
+                </ProgressLabelRow>
+                <ProgressBarBg>
+                  <ProgressBarFill $percent={progressPercent} />
+                </ProgressBarBg>
+              </ProgressContainer>
+            </WorkInfoCard>
 
             <NoticeBanner>
-              <FiAlertCircle size={16} />
-              <span>알림 정책: 자재 1분 이상 미투입 / 공대차 5분 이상 대기 시 자동 경보</span>
+              <FiAlertCircle size={20} style={{flexShrink: 0}} />
+              적재 한계: 자재 1분 이상 미도착 / 작업자 5명 이상 대기 시 자동 경보
             </NoticeBanner>
 
+            {/* ✨ 전체보기 헤더 적용 */}
+            <SectionHeader>
+              <SectionTitle>대차 슬롯 상세</SectionTitle>
+              <ViewAllBtn onClick={() => setIsModalOpen(true)}>
+                전체보기
+              </ViewAllBtn>
+            </SectionHeader>
+
             <ListScrollArea>
-              {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><FiLoader className="spin" /></div>
-              ) : (
-                <>
-                  {viewMode === 'list' && (
-                    <ContentWrapper>
-                      {allSlots.length > 0 ? (
-                        allSlots.map((item, idx) => (
-                          <SlotItem key={`list-${item.camId}-${item.slot_id}-${idx}`} $occupied={item.occupied}>
-                            <ItemLeft>
-                              <IconBox $occupied={item.occupied}>
-                                {item.occupied ? <FiCheckCircle /> : <FiBox />}
-                              </IconBox>
-                              <ItemInfo>
-                                <ItemTitle $occupied={item.occupied}>
-                                  공정 #{item.camId} - 슬롯 {item.slot_id}
-                                </ItemTitle>
-                                <ItemSub>
-                                  <FiClock size={10} /> 
-                                  {item.occupied ? `입고: ${formatTime(item.entry_time)}` : "데이터 없음"}
-                                </ItemSub>
-                              </ItemInfo>
-                            </ItemLeft>
-                            <div>
-                              <StatusBadge $occupied={item.occupied}>
-                                {item.occupied ? '작업중' : '빈 슬롯'}
-                              </StatusBadge>
-                            </div>
-                          </SlotItem>
-                        ))
-                      ) : (
-                        <div style={{textAlign: 'center', padding: 20, color: '#94A3B8'}}>데이터가 없습니다.</div>
-                      )}
-                    </ContentWrapper>
-                  )}
-
-                  {viewMode === 'log' && (
-                    <ContentWrapper>
-                      {mixedLogData.length > 0 ? (
-                        mixedLogData.map((item, idx) => (
-                          <LogItem key={`log-${item.camId}-${item.slot_id}-${idx}-${item.logType}`}>
-                            <LogTimeline>
-                              <LogDot $type={item.logType} />
-                            </LogTimeline>
-                            <LogContent>
-                              <LogHeader>
-                                <strong style={{fontSize: 14, color: '#0F172A'}}>
-                                  공정 #{item.camId}
-                                </strong>
-                                <LogTime><FiClock size={10} /> {formatTime(item.entry_time)}</LogTime>
-                              </LogHeader>
-                              
-                              <LogMetaRow>
-                                <MetaTag><FiTag size={10} /> {item.workOrderNo}</MetaTag>
-                                <MetaTag><FiLayers size={10} /> {item.productionQty} EA</MetaTag>
-                              </LogMetaRow>
-
-                              <LogMessage>
-                                {item.logType === 'start' ? (
-                                  <>
-                                    <strong>슬롯 {item.slot_id}번</strong>에 자재가 투입되어<br/>
-                                    <span style={{color: theme.primary, fontWeight: 700}}>작업이 시작되었습니다.</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <strong>슬롯 {item.slot_id}번</strong>의 공정이 종료되어<br/>
-                                    <span style={{color: theme.blue, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4}}>
-                                      작업이 마무리되었습니다. <FiCheckSquare />
-                                    </span>
-                                  </>
-                                )}
-                              </LogMessage>
-                            </LogContent>
-                          </LogItem>
-                        ))
-                      ) : (
-                        <div style={{textAlign: 'center', padding: 20, color: '#94A3B8'}}>최근 기록된 로그가 없습니다.</div>
-                      )}
-                    </ContentWrapper>
-                  )}
-                </>
-              )}
+              {allSlots.map((item, idx) => (
+                <SlotItem key={`list-${idx}`} $occupied={item.occupied}>
+                  <ItemLeft>
+                    <IconCircle $occupied={item.occupied}>
+                      {item.occupied ? <FiCheck /> : <FiMinus />}
+                    </IconCircle>
+                    <ItemInfo>
+                      <ItemTitle $occupied={item.occupied}>
+                        공정 #{item.camId} - {item.slot_name}
+                      </ItemTitle>
+                      <ItemSub>
+                        <FiClock size={14} /> 
+                        입고: {item.entry_time}
+                      </ItemSub>
+                    </ItemInfo>
+                  </ItemLeft>
+                  <StatusTextRow $occupied={item.occupied}>
+                    <StatusDot $occupied={item.occupied} />
+                    {item.occupied ? '작업중' : '빈슬롯'}
+                  </StatusTextRow>
+                </SlotItem>
+              ))}
             </ListScrollArea>
-          </ListContainer>
+          </MiddleColumn>
 
           {/* 3. RIGHT: AI Chat */}
           <ChatContainer>
             <ChatHeader>
-              <FiCpu color="#3B82F6" size={18} /> AI 관제 도우미
+              <AiAvatar>
+                <FaRobot />
+              </AiAvatar>
+              <AiTitleInfo>
+                <AiTitle>AI 관제 어시스턴트</AiTitle>
+                <AiSub>
+                  <StatusDot $occupied={true} /> 실시간 공정 모니터링 중
+                </AiSub>
+              </AiTitleInfo>
             </ChatHeader>
+            
             <ChatBody>
               {messages.map((m) => (
-                <Bubble key={m.id} $isUser={m.user}>{m.text}</Bubble>
+                <MessageRow key={m.id} $isUser={m.user}>
+                  <Bubble $isUser={m.user} style={{ whiteSpace: 'pre-wrap' }}>
+                    {m.text}
+                  </Bubble>
+                  <TimeText>{m.time}</TimeText>
+                </MessageRow>
               ))}
               <div ref={chatEndRef} />
             </ChatBody>
+            
             <InputArea onSubmit={handleSend}>
-              <Input 
-                placeholder="지시사항 입력..." 
-                value={chatInput} 
-                onChange={(e) => setChatInput(e.target.value)} 
-              />
-              <button 
-                type="submit" 
-                style={{ background: '#3B82F6', border: 'none', borderRadius: 8, color: 'white', width: 36, cursor: 'pointer' }}
-              >
-                <FiSend />
-              </button>
+              <InputWrapper>
+                <Input 
+                  placeholder="지시사항 입력..." 
+                  value={chatInput} 
+                  onChange={(e) => setChatInput(e.target.value)} 
+                />
+                <SendBtn type="submit">
+                  <FiArrowUp />
+                </SendBtn>
+              </InputWrapper>
             </InputArea>
           </ChatContainer>
 
         </MainGrid>
       </DashboardContainer>
+
+      {/* ✨ 모달 렌더링 영역 */}
+      {isModalOpen && (
+        <ModalBackdrop onClick={() => setIsModalOpen(false)}>
+          <ModalContainer onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>대차 슬롯 전체 상세</ModalTitle>
+              <CloseBtn onClick={() => setIsModalOpen(false)}>
+                <FiX size={20} />
+              </CloseBtn>
+            </ModalHeader>
+            <ModalBody>
+              {allSlots.map((item, idx) => (
+                <SlotItem key={`modal-list-${idx}`} $occupied={item.occupied}>
+                  <ItemLeft>
+                    <IconCircle $occupied={item.occupied}>
+                      {item.occupied ? <FiCheck /> : <FiMinus />}
+                    </IconCircle>
+                    <ItemInfo>
+                      <ItemTitle $occupied={item.occupied}>
+                        공정 #{item.camId} - {item.slot_name}
+                      </ItemTitle>
+                      <ItemSub>
+                        <FiClock size={14} /> 
+                        입고: {item.entry_time}
+                      </ItemSub>
+                    </ItemInfo>
+                  </ItemLeft>
+                  <StatusTextRow $occupied={item.occupied}>
+                    <StatusDot $occupied={item.occupied} />
+                    {item.occupied ? '작업중' : '빈슬롯'}
+                  </StatusTextRow>
+                </SlotItem>
+              ))}
+            </ModalBody>
+          </ModalContainer>
+        </ModalBackdrop>
+      )}
     </>
   );
 };

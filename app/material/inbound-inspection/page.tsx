@@ -17,7 +17,7 @@ import AIDashboardModal from '@/components/ai-dashboard-modal';
 import WarehouseBoard from '@/components/wearable-warehouse-board';
 import { 
   Loader2, RefreshCw, Signal, AlertTriangle, Search, ListChecks, FileWarning, 
-  Maximize2, Minimize2, X, Video // 💡 Minimize2(축소 아이콘) 추가
+  Maximize2, Minimize2, X, Video
 } from "lucide-react";
 import { LuMaximize, LuMinimize } from "react-icons/lu";
 
@@ -57,7 +57,7 @@ interface MaterialListItem {
   [key: string]: any;
 }
 
-// --- Styled Components (추가된 UI 스타일) ---
+// --- Styled Components (한 줄씩 줄바꿈 적용) ---
 
 const VideoHeader = styled.div`
   display: flex;
@@ -76,10 +76,8 @@ const VideoHeader = styled.div`
   }
 `;
 
-// 💡 1분할 / 4분할을 상태에 따라 동적으로 변경
 const VideoGrid = styled(motion.div)<{ $isMaximized: boolean }>`
   display: grid;
-  /* 확대 상태일 땐 1개로, 아닐 땐 2x2로 분할 */
   grid-template-columns: ${props => props.$isMaximized ? '1fr' : 'repeat(2, 1fr)'};
   grid-template-rows: ${props => props.$isMaximized ? '1fr' : 'repeat(2, 1fr)'};
   gap: 16px;
@@ -163,63 +161,231 @@ const CamBox = styled(motion.div)`
   }
 `;
 
-// ... (기존 모달 Styled Components 유지) ...
 const ModalBackdrop = styled(motion.div)`
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px); z-index: 2000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
 `;
+
 const ModalContainer = styled(motion.div)`
-  position: fixed; top: calc(50% + 32px); left: 50%; transform: translate(-50%, -50%);
-  width: 95%; max-width: 1400px; height: 80vh; background: #ffffff; color: #334155;
-  border-radius: 20px; z-index: 2001; padding: 32px; display: flex; flex-direction: column;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid #f1f5f9;
+  position: fixed;
+  top: calc(50% + 32px);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 95%;
+  max-width: 1400px;
+  height: 80vh;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 20px;
+  z-index: 2001;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid #f1f5f9;
 `;
+
 const ModalHeader = styled.div`
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
-  h2 { color: #0f172a; font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+
+  h2 {
+    color: #0f172a;
+    font-size: 1.5rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+  }
 `;
+
 const ControlBar = styled.div`
-  display: flex; gap: 16px; margin-bottom: 20px; align-items: center;
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: center;
 `;
+
 const SearchInput = styled.div`
-  flex: 1; position: relative;
-  input { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 12px 12px 44px; border-radius: 12px; color: #334155; font-size: 0.95rem; transition: all 0.2s; &:focus { outline: none; background: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); } }
-  svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #64748b; }
+  flex: 1;
+  position: relative;
+
+  input {
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 12px 12px 12px 44px;
+    border-radius: 12px;
+    color: #334155;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+
+    &:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+  }
+
+  svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+  }
 `;
+
 const FilterGroup = styled.div`
-  display: flex; background: #f1f5f9; padding: 4px; border-radius: 12px; gap: 4px;
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
 `;
+
 const FilterButton = styled.button<{ $active: boolean }>`
-  padding: 8px 16px; border-radius: 8px; border: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
-  background: ${props => props.$active ? '#ffffff' : 'transparent'}; color: ${props => props.$active ? '#2563eb' : '#64748b'};
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${props => props.$active ? '#ffffff' : 'transparent'};
+  color: ${props => props.$active ? '#2563eb' : '#64748b'};
   box-shadow: ${props => props.$active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'};
-  &:hover { color: ${props => props.$active ? '#2563eb' : '#334155'}; }
+
+  &:hover {
+    color: ${props => props.$active ? '#2563eb' : '#334155'};
+  }
 `;
+
 const TableWrapper = styled.div`
-  flex: 1; overflow: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;
-  &::-webkit-scrollbar { width: 8px; height: 8px; }
-  &::-webkit-scrollbar-track { background: #f1f5f9; }
-  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
 `;
+
 const StyledTable = styled.table`
-  width: 100%; min-width: 1000px; border-collapse: collapse; table-layout: auto;
-  thead { position: sticky; top: 0; z-index: 10; background: #f1f5f9; }
-  th { color: #475569; font-weight: 700; text-align: left; padding: 16px 20px; font-size: 0.9rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
-  td { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.95rem; vertical-align: middle; white-space: nowrap; }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: #f8fafc; }
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: collapse;
+  table-layout: auto;
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f1f5f9;
+  }
+
+  th {
+    color: #475569;
+    font-weight: 700;
+    text-align: left;
+    padding: 16px 20px;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    font-size: 0.95rem;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover td {
+    background: #f8fafc;
+  }
 `;
+
 const StatusBadge = styled.span<{ $status: string }>`
-  padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; min-width: 80px;
-  ${props => props.$status === 'Y' ? `background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;` : `background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca;` }
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-width: 80px;
+  
+  background: ${props => props.$status === 'Y' ? '#dcfce7' : '#fee2e2'};
+  color: ${props => props.$status === 'Y' ? '#15803d' : '#b91c1c'};
+  border: 1px solid ${props => props.$status === 'Y' ? '#bbf7d0' : '#fecaca'};
 `;
+
 const CloseButton = styled.button`
-  background: #f1f5f9; border: none; color: #64748b; cursor: pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
-  &:hover { background: #e2e8f0; color: #0f172a; transform: rotate(90deg); }
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: rotate(90deg);
+  }
 `;
+
 const ViewAllButton = styled.button`
-  background: transparent; color: #94a3b8; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: color 0.2s;
-  &:hover { color: #64748b; }
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #64748b;
+  }
 `;
 
 // --- Sub Components ---
@@ -272,10 +438,14 @@ const MaterialListModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose
       <ModalContainer initial={{ scale: 0.95, opacity: 0, y: "-50%", x: "-50%" }} animate={{ scale: 1, opacity: 1, y: "-50%", x: "-50%" }} exit={{ scale: 0.95, opacity: 0, y: "-50%", x: "-50%" }}>
         <ModalHeader>
           <h2>
-            <div style={{background: '#eff6ff', padding: 10, borderRadius: 12}}><ListChecks size={24} color="#3b82f6"/></div>
+            <div style={{background: '#eff6ff', padding: 10, borderRadius: 12}}>
+              <ListChecks size={24} color="#3b82f6"/>
+            </div>
             자재 입고 현황 전체보기
           </h2>
-          <CloseButton onClick={onClose}><X size={20} /></CloseButton>
+          <CloseButton onClick={onClose}>
+            <X size={20} />
+          </CloseButton>
         </ModalHeader>
         <ControlBar>
           <SearchInput>
@@ -308,7 +478,11 @@ const MaterialListModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={5} style={{textAlign: 'center', padding: '60px', color: '#94a3b8'}}><Search size={48} style={{opacity: 0.2, marginBottom: 16}} /><br/>검색 결과가 없습니다.</td></tr>
+                <tr>
+                  <td colSpan={5} style={{textAlign: 'center', padding: '60px', color: '#94a3b8'}}>
+                    <Search size={48} style={{opacity: 0.2, marginBottom: 16}} /><br/>검색 결과가 없습니다.
+                  </td>
+                </tr>
               )}
             </tbody>
           </StyledTable>
@@ -332,7 +506,6 @@ export default function DashboardPage() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showListModal, setShowListModal] = useState(false); 
   
-  // 💡 확대된 카메라의 인덱스를 저장하는 상태 (null 이면 4분할)
   const [maximizedCam, setMaximizedCam] = useState<number | null>(null);
   
   const [now, setNow] = useState<Date | null>(null);
@@ -491,7 +664,7 @@ export default function DashboardPage() {
             else if (showMapBoard) setShowMapBoard(false);
             else if (showDashboard) setShowDashboard(false);
             else if (isFullScreen) setIsFullScreen(false);
-            else if (maximizedCam !== null) setMaximizedCam(null); // ESC로 확대된 카메라 축소
+            else if (maximizedCam !== null) setMaximizedCam(null);
         }
         if (e.key === 'Enter') {
             manualTrigger();
@@ -667,10 +840,8 @@ export default function DashboardPage() {
                         <PinkButton onClick={toggleMapBoard} style={{ background: '#D31145', borderRadius: '20px', padding: '8px 20px' }}>D동 현황 &gt;</PinkButton>
                     </VideoHeader>
 
-                    {/* 💡 그리드 레이아웃: maximizedCam 상태가 있으면 1칸만 보여줌 */}
                     <VideoGrid layout $isMaximized={maximizedCam !== null}>
                         {[1, 2, 3, 4].map((num) => {
-                          // 다른 카메라가 확대된 상태면 렌더링하지 않음
                           if (maximizedCam !== null && maximizedCam !== num) return null;
 
                           return (
@@ -690,7 +861,6 @@ export default function DashboardPage() {
                                 </div>
                               )}
                               
-                              {/* 💡 확대/축소 토글 버튼 */}
                               <button 
                                 className="fullscreen-btn"
                                 onClick={() => setMaximizedCam(maximizedCam === num ? null : num)}
@@ -719,11 +889,10 @@ export default function DashboardPage() {
 
       <AnimatePresence>
         {showListModal && <MaterialListModal isOpen={showListModal} onClose={closeListModal} data={materialList} />}
+        
+        {/* ✨ WarehouseBoard 자체가 Modal을 포함하고 있으므로 이중으로 감싸지 않고 바로 렌더링합니다. */}
         {showMapBoard && (
-            <>
-                <Backdrop initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeMapBoard} />
-                <SlidePanel initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}><WarehouseBoard onClose={closeMapBoard} /></SlidePanel>
-            </>
+            <WarehouseBoard onClose={closeMapBoard} />
         )}
       </AnimatePresence>
     </LayoutGroup>
