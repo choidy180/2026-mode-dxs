@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Suspense, useRef, useMemo, useEffect, useCallback } from "react";
-import styled, { keyframes, css } from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { Canvas, useFrame, ThreeEvent } from "@react-three/fiber";
 import {
   useGLTF,
@@ -32,7 +32,8 @@ import {
   Wrench,
   AlertOctagon,
   Pipette,
-  Layers
+  Layers,
+  ChevronRight
 } from "lucide-react";
 import * as THREE from "three";
 import {
@@ -76,20 +77,23 @@ const FLOOR_MODEL_PATH = "/models/final_final_final_final.glb";
 const FACTORY_BG_IMAGE = "/images/gmt_back.png"; 
 const API_URL = "http://1.254.24.170:24828/api/DX_API000024";
 
+// 새롭게 적용된 화이트 & 레드 테마 색상표
 const THEME = {
-  primary: "#10b981",
+  primary: "#0f172a", // 텍스트 짙은색으로 변경
   secondary: "#3b82f6",
-  danger: "#ef4444",
+  danger: "#be123c", // 이미지에 맞춘 깊은 레드 포인트 색상
   warning: "#f59e0b",
-  textMain: "#1e293b",
-  textSub: "#64748b",
-  whiteCard: "rgba(255, 255, 255, 0.85)",
-  accent: "#6366f1",
+  textMain: "#0f172a", // 짙은 네이비/블랙
+  textSub: "#64748b",  // 회색 서브 텍스트
+  whiteCard: "#ffffff", // 솔리드 화이트
+  cardBorder: "#e2e8f0",
+  listBg: "#ffffff",
+  listBorder: "#f1f5f9",
+  accent: "#be123c", // 레드 악센트
   bg: '#F3F4F6',
-  border: '#E5E7EB',
   success: '#10B981',
   successBg: '#D1FAE5',
-  dangerBg: '#FEE2E2',
+  dangerBg: '#ffe4e6', // 연한 핑크 (배지용)
 };
 
 const PROCESS_CONFIG = [
@@ -170,58 +174,62 @@ const textGlow = keyframes` 0%, 100% { text-shadow: 0 0 10px rgba(255, 0, 0, 0.5
 const PageContainer = styled.div` display: flex; flex-direction: column; width: 100%; height: calc(100vh - 64px); background-image: url('${FACTORY_BG_IMAGE}'); background-size: cover; background-position: center; background-repeat: no-repeat; background-color: #0f172a; color: #f8fafc; font-family: 'Pretendard', sans-serif; overflow: hidden; position: relative; &::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 15, 30, 0.85); z-index: 0; pointer-events: none; } `;
 const MainContent = styled.main` flex: 1; width: 100%; height: 100%; position: relative; z-index: 10; `;
 const ViewerContainer = styled.div` width: 100%; height: 100%; padding-top: 4rem; position: relative; isolation: isolate; `;
-const GlassPanel = styled.div` position: fixed; background: ${THEME.whiteCard}; backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; z-index: 20; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: auto; color: ${THEME.textMain}; font-family: 'Pretendard', sans-serif; will-change: transform; `;
 
-const DefectStatusPanel = styled(GlassPanel)` top: 5rem; right: 1.5rem; width: 320px; min-height: 160px; animation: ${slideInRight} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards; `;
-const InjectionStatusPanel = styled(GlassPanel)` bottom: 1.5rem; right: 1.5rem; width: 320px; animation: ${slideInRight} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; `;
-const BottomLeftPanel = styled(GlassPanel)` bottom: 1.5rem; left: 1.5rem; width: 320px; height: 260px; animation: ${slideInLeft} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards; opacity: 0; animation-fill-mode: forwards; `;
-const VisionAnalysisPanel = styled(GlassPanel)` bottom: 1.5rem; left: calc(1.5rem + 320px + 15px); width: 240px; animation: ${slideInLeft} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; opacity: 0; animation-fill-mode: forwards; padding: 0; overflow: hidden; `;
-const HoverInfoPanel = styled(GlassPanel)` top: 5rem; left: 1.5rem; width: 260px; padding: 14px; animation: ${slideDown} 0.3s cubic-bezier(0.16, 1, 0.3, 1); border-left: 4px solid transparent; transition: border-color 0.3s ease, box-shadow 0.3s ease; will-change: transform, border-color; `;
-const AIAdvisorPanel = styled.div` position: fixed; bottom: calc(1.5rem + 260px + 15px); left: 1.5rem; width: 320px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(24px); border-radius: 20px; box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.8); padding: 0; overflow: hidden; z-index: 25; animation: ${slideUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; flex-direction: column; font-family: 'Pretendard', sans-serif; will-change: transform; `;
+// [수정] 화이트 테마가 적용된 기본 패널 스타일
+const GlassPanel = styled.div` 
+  position: fixed; 
+  background: ${THEME.whiteCard}; 
+  border: 1px solid ${THEME.cardBorder}; 
+  border-radius: 16px; 
+  padding: 20px; 
+  display: flex; flex-direction: column; z-index: 20; 
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05); 
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
+  pointer-events: auto; color: ${THEME.textMain}; 
+  font-family: 'Pretendard', sans-serif; will-change: transform; 
+`;
 
-const AIHeader = styled.div` background: linear-gradient(135deg, #e0e7ff 0%, #f3f4f6 100%); padding: 12px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(0, 0, 0, 0.03); `;
-const AIBody = styled.div` padding: 16px; position: relative; `;
-const AIMessage = styled.div` font-size: 14px; line-height: 1.6; color: ${THEME.textMain}; font-weight: 500; `;
-const WaveBar = styled.div<{ $delay: number }>` width: 4px; height: 100%; background: ${THEME.accent}; border-radius: 2px; animation: ${soundWave} 1s ease-in-out infinite; animation-delay: ${(p) => p.$delay}s; `;
-const BlinkingCursor = styled.span` display: inline-block; width: 2px; height: 14px; background-color: ${THEME.accent}; margin-left: 4px; vertical-align: middle; animation: ${blink} 1s step-end infinite; `;
-const InfoRow = styled.div` display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(0, 0, 0, 0.05); &:last-child { border-bottom: none; } .label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: ${THEME.textSub}; font-weight: 500; } .value { font-family: 'Pretendard', sans-serif; font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: ${THEME.textMain}; } .status { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; } `;
-const ChartHeader = styled.div` display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; `;
-const ChartTitle = styled.div` font-size: 15px; font-weight: 800; color: ${THEME.textMain}; display: flex; align-items: center; gap: 6px; transition: color 0.3s; `;
-const ChartSubtitle = styled.div` font-size: 11px; color: ${THEME.textSub}; font-weight: 500; margin-top: 2px; `;
-const BigNumber = styled.div` font-size: 32px; font-weight: 800; color: ${THEME.textMain}; letter-spacing: -1px; font-family: 'Pretendard', sans-serif; font-variant-numeric: tabular-nums; `;
-const TrendBadge = styled.div<{ $isUp: boolean }>` font-size: 12px; font-weight: 700; color: ${(p) => (p.$isUp ? THEME.primary : THEME.danger)}; display: flex; align-items: center; gap: 4px; `;
+const DefectStatusPanel = styled(GlassPanel)` top: 5rem; right: 1.5rem; width: 340px; min-height: 160px; animation: ${slideInRight} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards; `;
+const InjectionStatusPanel = styled(GlassPanel)` bottom: 1.5rem; right: 1.5rem; width: 340px; animation: ${slideInRight} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; `;
+const BottomLeftPanel = styled(GlassPanel)` bottom: 1.5rem; left: 1.5rem; width: 340px; height: 280px; animation: ${slideInLeft} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards; opacity: 0; animation-fill-mode: forwards; `;
+const VisionAnalysisPanel = styled(GlassPanel)` bottom: 1.5rem; left: calc(1.5rem + 340px + 15px); width: 280px; animation: ${slideInLeft} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; opacity: 0; animation-fill-mode: forwards; overflow: hidden; `;
+const HoverInfoPanel = styled(GlassPanel)` top: 5rem; left: 1.5rem; width: 280px; padding: 20px; animation: ${slideDown} 0.3s cubic-bezier(0.16, 1, 0.3, 1); border-left: 4px solid transparent; transition: border-color 0.3s ease, box-shadow 0.3s ease; will-change: transform, border-color; `;
+const AIAdvisorPanel = styled(GlassPanel)` bottom: calc(1.5rem + 280px + 15px); left: 1.5rem; width: 340px; padding: 0; overflow: hidden; z-index: 25; animation: ${slideUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); `;
+
+// 화이트&레드 테마 전용 컴포넌트
+const TitleRow = styled.div` display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; `;
+const MainTitle = styled.div` font-size: 18px; font-weight: 800; color: ${THEME.textMain}; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; `;
+const CountBadge = styled.div` background-color: ${THEME.dangerBg}; color: ${THEME.danger}; padding: 4px 12px; border-radius: 99px; font-size: 13px; font-weight: 700; `;
+const SubTitleRow = styled.div` display: flex; justify-content: space-between; align-items: center; color: ${THEME.danger}; font-size: 15px; font-weight: 700; margin-bottom: 8px; `;
+const RedLine = styled.div` height: 5px; background-color: ${THEME.danger}; border-radius: 4px; margin-bottom: 16px; width: 100%; `;
+const SeeAllText = styled.div` font-size: 13px; color: ${THEME.textSub}; cursor: pointer; display: flex; align-items: center; &:hover { color: ${THEME.textMain}; } `;
+
+const AIHeader = styled.div` background: #f8fafc; padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid ${THEME.cardBorder}; `;
+const AIBody = styled.div` padding: 20px; position: relative; background: #ffffff; `;
+const AIMessage = styled.div` font-size: 15px; line-height: 1.6; color: ${THEME.textMain}; font-weight: 600; `;
+const WaveBar = styled.div<{ $delay: number }>` width: 4px; height: 100%; background: ${THEME.danger}; border-radius: 2px; animation: ${soundWave} 1s ease-in-out infinite; animation-delay: ${(p) => p.$delay}s; `;
+const BlinkingCursor = styled.span` display: inline-block; width: 2px; height: 14px; background-color: ${THEME.danger}; margin-left: 4px; vertical-align: middle; animation: ${blink} 1s step-end infinite; `;
+
+const InfoRow = styled.div` display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid ${THEME.listBorder}; &:last-child { border-bottom: none; } .label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: ${THEME.textSub}; font-weight: 600; } .value { font-family: 'Pretendard', sans-serif; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 800; color: ${THEME.textMain}; } .status { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; } `;
 const ChartWrapper = styled.div` flex: 1; width: 100%; min-height: 0; position: relative; `;
-const DefectItem = styled.div` display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 6px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; &:last-child { margin-bottom: 0; } `;
-const DefectName = styled.div` font-weight: 700; color: ${THEME.textMain}; display: flex; align-items: center; gap: 6px; font-size: 14px; `;
-const DefectTag = styled.div` font-size: 11px; font-weight: 700; color: #fff; background: ${THEME.danger}; padding: 2px 8px; border-radius: 99px; display: flex; align-items: center; gap: 4px; animation: ${blink} 2s infinite; `;
+
+// [수정] 리스트 아이템 디자인 이미지 2번 참조
+const ListContainer = styled.div` background: #f8fafc; border-radius: 12px; padding: 8px 12px 12px 12px; overflow-y: auto; max-height: 200px; border: 1px solid ${THEME.cardBorder}; display: flex; flex-direction: column; gap: 8px; `;
+const DefectItem = styled.div` display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: ${THEME.whiteCard}; border: 1px solid ${THEME.cardBorder}; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); `;
+const DefectName = styled.div` font-weight: 800; color: ${THEME.textMain}; font-size: 15px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; `;
+const DefectSubText = styled.div` font-size: 13px; color: ${THEME.textSub}; font-weight: 500; font-family: 'Pretendard', sans-serif; `;
+const ActionButton = styled.button` background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; padding: 6px 14px; border-radius: 16px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: 'Pretendard'; &:hover { background: #e2e8f0; color: #0f172a; } `;
+
 const NavContainer = styled.div` position: absolute; top: 1.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 20; background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(12px); padding: 6px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); `;
 const NavButton = styled.button<{ $active: boolean }>` background: ${(props) => (props.$active ? 'rgba(255, 255, 255, 0.9)' : 'transparent')}; color: ${(props) => (props.$active ? '#0f172a' : '#cbd5e1')}; border: 1px solid ${(props) => (props.$active ? '#fff' : 'transparent')}; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; font-family: 'Pretendard', sans-serif; &:hover { color: ${(props) => (props.$active ? '#0f172a' : '#fff')}; background: ${(props) => (props.$active ? '#fff' : 'rgba(255, 255, 255, 0.1)')}; } `;
 const InstructionBadge = styled.div` position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); padding: 0.8rem 1.6rem; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 9999px; font-size: 0.85rem; font-weight: 500; color: #cbd5e1; display: flex; align-items: center; gap: 8px; pointer-events: none; z-index: 90; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); animation: ${float} 4s ease-in-out infinite; span.highlight { color: #38bdf8; font-weight: 700; } `;
 
-// 긴급 알림 및 버튼 스타일 (데이터가 정상일 때는 보이지 않음)
-const CriticalAlertOverlay = styled.div` 
-  position: fixed; inset: 0; z-index: 9999; 
-  display: flex; flex-direction: column; align-items: center; justify-content: center; 
-  animation: ${emergencyBlink} 1.5s infinite ease-in-out; 
-  pointer-events: all; 
-  backdrop-filter: blur(4px);
-`;
-const AlertBox = styled.div` 
-  background: #000; border: 2px solid #ff0000; padding: 40px 80px; 
-  text-align: center; border-radius: 20px; box-shadow: 0 0 100px rgba(255, 0, 0, 0.6); 
-  transform: scale(1.2); 
-  display: flex; flex-direction: column; align-items: center;
-`;
+// 긴급 알림 및 버튼 스타일 
+const CriticalAlertOverlay = styled.div` position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; animation: ${emergencyBlink} 1.5s infinite ease-in-out; pointer-events: all; backdrop-filter: blur(4px); `;
+const AlertBox = styled.div` background: #000; border: 2px solid #ff0000; padding: 40px 80px; text-align: center; border-radius: 20px; box-shadow: 0 0 100px rgba(255, 0, 0, 0.6); transform: scale(1.2); display: flex; flex-direction: column; align-items: center; `;
 const AlertTitle = styled.h1` font-size: 80px; color: #ff0000; margin: 0; line-height: 1; font-weight: 900; letter-spacing: -2px; text-transform: uppercase; animation: ${textGlow} 1s infinite alternate; display: flex; align-items: center; gap: 20px; `;
 const AlertSub = styled.p` color: #fff; font-size: 24px; margin-top: 20px; font-weight: bold; `;
-const AlertConfirmButton = styled.button`
-  margin-top: 40px; background: #ff0000; color: #fff; border: none; padding: 12px 40px;
-  font-size: 20px; font-weight: 800; border-radius: 8px; cursor: pointer;
-  box-shadow: 0 0 20px rgba(255, 0, 0, 0.4); transition: all 0.2s ease;
-  font-family: 'Pretendard', sans-serif; text-transform: uppercase; letter-spacing: 1px;
-  &:hover { background: #ff3333; transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 0, 0.7); }
-  &:active { transform: scale(0.95); }
-`;
+const AlertConfirmButton = styled.button` margin-top: 40px; background: #ff0000; color: #fff; border: none; padding: 12px 40px; font-size: 20px; font-weight: 800; border-radius: 8px; cursor: pointer; box-shadow: 0 0 20px rgba(255, 0, 0, 0.4); transition: all 0.2s ease; font-family: 'Pretendard', sans-serif; text-transform: uppercase; letter-spacing: 1px; &:hover { background: #ff3333; transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 0, 0.7); } &:active { transform: scale(0.95); } `;
 
 const LoaderOverlay = styled.div` position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000000; z-index: 9999; flex-direction: column; `;
 const LoadingBarContainer = styled.div` width: 300px; text-align: center; `;
@@ -229,26 +237,11 @@ const LoadingText = styled.div` font-size: 15px; color: #cbd5e1; margin-bottom: 
 const Track = styled.div` width: 100%; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; `;
 const Fill = styled.div<{ $p: number }>` height: 100%; width: ${(props) => props.$p}%; background: linear-gradient(90deg, #38bdf8, #818cf8); transition: width 0.1s linear; box-shadow: 0 0 10px #38bdf8; `;
 
-const ErrorBubble = styled.div` 
-  width: 140px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); 
-  border: 1px solid ${THEME.danger}; border-radius: 8px; padding: 8px; 
-  color: white; box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); 
-  animation: ${modalPop} 0.3s ease-out; position: relative; 
-  &::after { 
-    content: ''; position: absolute; left: -6px; top: 12px; width: 0; height: 0; 
-    border-top: 6px solid transparent; border-bottom: 6px solid transparent; 
-    border-right: 6px solid ${THEME.danger}; 
-  } 
-`;
-const BubbleTitle = styled.div` font-size: 11px; font-weight: 800; color: ${THEME.danger}; display: flex; align-items: center; gap: 4px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; `;
+const ErrorBubble = styled.div` width: 140px; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); border: 1px solid #ff0000; border-radius: 8px; padding: 8px; color: white; box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); animation: ${modalPop} 0.3s ease-out; position: relative; &::after { content: ''; position: absolute; left: -6px; top: 12px; width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-right: 6px solid #ff0000; } `;
+const BubbleTitle = styled.div` font-size: 11px; font-weight: 800; color: #ff0000; display: flex; align-items: center; gap: 4px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; `;
 const BubbleText = styled.div` font-size: 10px; color: #e2e8f0; margin-bottom: 3px; line-height: 1.3; span.label { color: #94a3b8; font-weight: 600; display: block; font-size: 9px; margin-bottom: 1px; } `;
 
-const ProcessLabelContainer = styled.div<{ $color: string }>`
-  background: rgba(255, 255, 255, 0.95); padding: 6px 12px; border-radius: 8px; 
-  border: 1px solid ${(p) => p.$color}; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); 
-  display: flex; align-items: center; gap: 8px; backdrop-filter: blur(6px);
-  transform: translate(25px, -25px); white-space: nowrap; flex-direction: row; 
-`;
+const ProcessLabelContainer = styled.div<{ $color: string }>` background: rgba(255, 255, 255, 0.95); padding: 6px 12px; border-radius: 8px; border: 1px solid ${(p) => p.$color}; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); display: flex; align-items: center; gap: 8px; backdrop-filter: blur(6px); transform: translate(25px, -25px); white-space: nowrap; flex-direction: row; `;
 const ProcessDot = styled.div<{ $color: string }>` width: 10px; height: 10px; border-radius: 50%; background-color: ${(p) => p.$color}; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); `;
 const ProcessText = styled.div` font-size: 12px; font-weight: 800; color: #1e293b; font-family: 'Pretendard', sans-serif; letter-spacing: -0.2px; `;
 
@@ -277,7 +270,6 @@ const generateMockApiData = () => {
     "온조#2공급수압력(kg/㎥)": "3.5",
     "발포시간(초)": "15",
     "가조립무게(g)": "1200",
-    // [수정] 정상 범위 온도(200도 이상)로 수정하여 에러 방지
     "가조립온도(℃)": (200 + Math.random() * 10).toFixed(1),
     "삽입주변온도(℃)": "25.0",
     "지그상판온도(℃)": "55.0",
@@ -287,7 +279,6 @@ const generateMockApiData = () => {
     "취출주변온도(℃)": "26.0",
     FILENAME1: "",
     AI_TIME_STR: "",
-    // [수정] 정상 라벨 부여
     AI_LABEL: "정상",
     FILEPATH1: "",
   })) as ApiDataItem[];
@@ -342,19 +333,9 @@ const CustomTooltip = React.memo(({ active, payload, label }: CustomTooltipProps
 CustomTooltip.displayName = "CustomTooltip";
 
 function PreparingModal({ target, onClose }: { target: string | null, onClose: () => void }) {
-  const ModalOverlay = styled.div`
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
-    display: flex; align-items: center; justify-content: center; z-index: 99999;
-  `;
-  const ModalBox = styled.div`
-    width: 320px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-    animation: ${modalPop} 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; font-family: 'Pretendard', sans-serif;
-  `;
-  const CloseButton = styled.button`
-    position: absolute; top: 12px; right: 12px; background: none; border: none; color: #64748b;
-    cursor: pointer; transition: color 0.2s; &:hover { color: #fff; }
-  `;
+  const ModalOverlay = styled.div` position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 99999; `;
+  const ModalBox = styled.div` width: 320px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); animation: ${modalPop} 0.3s cubic-bezier(0.16, 1, 0.3, 1); position: relative; font-family: 'Pretendard', sans-serif; `;
+  const CloseButton = styled.button` position: absolute; top: 12px; right: 12px; background: none; border: none; color: #64748b; cursor: pointer; transition: color 0.2s; &:hover { color: #fff; } `;
   if (!target) return null;
   return (
     <ModalOverlay onClick={onClose}>
@@ -404,14 +385,11 @@ const MovingLabel = React.memo(({ labelIndex, locations, errorIndices, apiData }
 
     useFrame((state) => {
         if (!groupRef.current || locations.length === 0) return;
-
         const time = state.clock.getElapsedTime();
         const cycleIndex = Math.floor(time / CYCLE_DURATION);
         const timeInCycle = time % CYCLE_DURATION;
-
         const currentIndex = (labelIndex + cycleIndex) % locations.length;
         const nextIndex = (currentIndex + 1) % locations.length;
-
         const currentPos = locations[currentIndex].position;
         const nextPos = locations[nextIndex].position;
 
@@ -431,40 +409,29 @@ const MovingLabel = React.memo(({ labelIndex, locations, errorIndices, apiData }
         if (!isError) return { problem: "", solution: "" };
         const matched = apiData.find(d => parseInt(d.대차번호) === labelIndex + 1);
         if (matched && matched.AI_LABEL !== '정상') {
-             return {
-                 problem: matched.AI_LABEL,
-                 solution: "관리자 점검 요망"
-             }
+             return { problem: matched.AI_LABEL, solution: "관리자 점검 요망" }
         }
         return { problem: "시스템 오류 감지", solution: "현장 확인 요망" };
     }, [isError, apiData, labelIndex]);
 
     return (
         <group ref={groupRef}>
-            <Html 
-                center 
-                distanceFactor={15} 
-                style={{ pointerEvents: 'none' }}
-                zIndexRange={isError ? [99999999, 99999990] : [100, 0]}
-            >
+            <Html center distanceFactor={15} style={{ pointerEvents: 'none' }} zIndexRange={isError ? [99999999, 99999990] : [100, 0]}>
                 <div style={{ position: 'relative', width: 'fit-content' }}>
                     <div style={{
                         background: 'rgba(0, 0, 0, 0.6)', padding: '2px 6px', borderRadius: '4px',
-                        border: isError ? `1px solid ${THEME.danger}` : '1px solid rgba(255, 255, 255, 0.3)', 
-                        color: isError ? THEME.danger : 'white', fontSize: '10px',
+                        border: isError ? `1px solid #ff0000` : '1px solid rgba(255, 255, 255, 0.3)', 
+                        color: isError ? '#ff0000' : 'white', fontSize: '10px',
                         fontWeight: 'bold', whiteSpace: 'nowrap', fontFamily: 'Pretendard', 
                         backdropFilter: 'blur(2px)',
-                        boxShadow: isError ? `0 0 10px ${THEME.danger}` : 'none',
+                        boxShadow: isError ? `0 0 10px #ff0000` : 'none',
                         marginTop: '4px' 
                     }}>
                         {labelText}
                     </div>
 
                     {isError && (
-                        <div style={{ 
-                            position: 'absolute', left: '100%', top: '50%', 
-                            transform: 'translate(12px, -20%)', width: 'max-content' 
-                        }}>
+                        <div style={{ position: 'absolute', left: '100%', top: '50%', transform: 'translate(12px, -20%)', width: 'max-content' }}>
                             <ErrorBubble>
                                 <BubbleTitle><AlertOctagon size={12} /> Error Detected</BubbleTitle>
                                 <BubbleText><span className="label">PROBLEM</span>{errorReason.problem}</BubbleText>
@@ -729,12 +696,12 @@ const AIAdvisor = React.memo(({ errors }: { errors: UnitData[] }) => {
   return (
     <AIAdvisorPanel>
       <AIHeader>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: THEME.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 4px 12px ${THEME.accent}60` }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: THEME.danger, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Bot size={22} color="#fff" />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: THEME.textSub, fontWeight: 600 }}>SYSTEM ADVISOR</div>
-          <div style={{ fontSize: 15, fontWeight: 'bold', color: THEME.textMain }}>Factory AI</div>
+          <div style={{ fontSize: 13, color: THEME.textSub, fontWeight: 700 }}>SYSTEM ADVISOR</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: THEME.textMain }}>Factory AI</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 20 }}>
           <WaveBar $delay={0} /> <WaveBar $delay={0.2} /> <WaveBar $delay={0.4} /> <WaveBar $delay={0.1} />
@@ -751,8 +718,6 @@ AIAdvisor.displayName = "AIAdvisor";
 const Panels = React.memo(({ hoveredInfo, errorUnits, apiData, injectUnit }: { hoveredInfo: UnitData | null, errorUnits: UnitData[], apiData: ApiDataItem[], injectUnit: ApiDataItem | null }) => {
   const activeUnit = hoveredInfo || (errorUnits.length > 0 ? errorUnits[0] : null) || { name: 'M-01', status: 'normal' };
   const isError = activeUnit.status === 'error';
-  const statusColor = isError ? THEME.danger : THEME.success;
-  const statusBg = isError ? THEME.dangerBg : THEME.successBg;
 
   const activeNumber = activeUnit && activeUnit.name ? parseInt(activeUnit.name.replace("M-", ""), 10) : 1;
   const matchedData = apiData.find(item => parseInt(item.대차번호) === activeNumber);
@@ -761,8 +726,6 @@ const Panels = React.memo(({ hoveredInfo, errorUnits, apiData, injectUnit }: { h
     : null;
 
   const displayImage = matchedData?.FILEPATH1 || "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?q=80&w=1000&auto=format&fit=crop";
-  const displayValue1 = "0.9823121";
-  const displayValue2 = "0.9912044";
 
   const boxes = isError 
     ? [{ top: 40, left: 20, width: 10, height: 10, color: '#EF4444' }]
@@ -772,244 +735,195 @@ const Panels = React.memo(({ hoveredInfo, errorUnits, apiData, injectUnit }: { h
     <>
       {hoveredInfo && hoverMatchedData && (
         <HoverInfoPanel style={{
-          borderLeftColor: hoveredInfo.status === 'error' ? THEME.danger : THEME.primary,
-          boxShadow: hoveredInfo.status === 'error' ? `0 8px 32px ${THEME.danger}30` : undefined
+          borderLeftColor: hoveredInfo.status === 'error' ? THEME.danger : THEME.textMain,
+          boxShadow: hoveredInfo.status === 'error' ? `0 8px 32px ${THEME.danger}30` : THEME.cardBorder
         }}>
-          <ChartHeader>
-            <div>
-              <ChartTitle style={{ color: hoveredInfo.status === 'error' ? THEME.danger : THEME.textMain }}>
-                <Cpu size={18} color={hoveredInfo.status === 'error' ? THEME.danger : THEME.primary} /> {hoveredInfo.name}
-              </ChartTitle>
-              <ChartSubtitle>Real-time Sensor Data</ChartSubtitle>
-            </div>
-          </ChartHeader>
+          <TitleRow>
+            <MainTitle style={{ color: hoveredInfo.status === 'error' ? THEME.danger : THEME.textMain }}>
+              <Cpu size={20} color={hoveredInfo.status === 'error' ? THEME.danger : THEME.textMain} /> {hoveredInfo.name}
+            </MainTitle>
+          </TitleRow>
+          <SubTitleRow>
+            <span style={{ color: THEME.textMain }}>Real-time Data</span>
+          </SubTitleRow>
+          <RedLine />
+          
           <InfoRow>
-            <div className="label"><Activity size={13} /> 작동 상태</div>
+            <div className="label"><Activity size={15} /> 작동 상태</div>
             {hoveredInfo.status === 'error' ? (
               <div className="status" style={{ color: '#fff', background: THEME.danger }}>CHECK</div>
             ) : (
-              <div className="status" style={{ color: THEME.primary, background: 'rgba(16, 185, 129, 0.1)' }}>NORMAL</div>
+              <div className="status" style={{ color: THEME.success, background: THEME.successBg }}>NORMAL</div>
             )}
           </InfoRow>
           <InfoRow>
-            <div className="label"><Droplets size={13} /> R액 압력</div>
-            <div className="value" style={{ color: THEME.textMain }}>
-              {hoverMatchedData["R액 압력(kg/㎥)"] || '-'} <span style={{fontSize: 10, color: THEME.textSub, fontWeight: 500}}>bar</span>
+            <div className="label"><Droplets size={15} /> R액 압력</div>
+            <div className="value">
+              {hoverMatchedData["R액 압력(kg/㎥)"] || '-'} <span style={{fontSize: 11, color: THEME.textSub, fontWeight: 600}}>bar</span>
             </div>
           </InfoRow>
           <InfoRow>
-            <div className="label"><Gauge size={13} /> P액 압력</div>
-            <div className="value" style={{ color: THEME.textMain }}>
-               {hoverMatchedData["P액 압력(kg/㎥)"] || '-'} <span style={{fontSize: 10, color: THEME.textSub, fontWeight: 500}}>bar</span>
+            <div className="label"><Gauge size={15} /> P액 압력</div>
+            <div className="value">
+               {hoverMatchedData["P액 압력(kg/㎥)"] || '-'} <span style={{fontSize: 11, color: THEME.textSub, fontWeight: 600}}>bar</span>
             </div>
           </InfoRow>
            <InfoRow>
-            <div className="label"><Thermometer size={13} /> 가조립 온도</div>
+            <div className="label"><Thermometer size={15} /> 가조립 온도</div>
             <div className="value" style={{ color: hoveredInfo.status === 'error' ? THEME.danger : THEME.textMain }}>
-               {hoverMatchedData["가조립온도(℃)"] || '-'} <span style={{fontSize: 10, color: THEME.textSub, fontWeight: 500}}>°C</span>
+               {hoverMatchedData["가조립온도(℃)"] || '-'} <span style={{fontSize: 11, color: THEME.textSub, fontWeight: 600}}>°C</span>
             </div>
           </InfoRow>
         </HoverInfoPanel>
       )}
 
-      {/* 불량 오브젝트 현황 */}
+      {/* 불량 오브젝트 현황 - 2번 이미지(입고 대기 리스트) 디자인 패턴 적용 */}
       <DefectStatusPanel>
-        <ChartHeader>
-          <div>
-            <ChartTitle style={{ color: THEME.danger }}>
-              <AlertTriangle size={16} fill={THEME.danger} stroke="#fff" /> 불량 오브젝트
-            </ChartTitle>
-            <ChartSubtitle>Active Errors</ChartSubtitle>
-          </div>
-          <div style={{ background: THEME.danger, color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' }}>
-            {errorUnits.length} 건
-          </div>
-        </ChartHeader>
-        <div style={{ overflowY: 'auto', maxHeight: '120px', paddingRight: '4px' }}>
+        <TitleRow>
+          <MainTitle>
+            불량 오브젝트 현황
+          </MainTitle>
+          <CountBadge>총 {errorUnits.length}건</CountBadge>
+        </TitleRow>
+        
+        <SubTitleRow>
+          <span>금일 에러 발생률</span>
+          <span>{errorUnits.length > 0 ? "조치 필요" : "정상 상태"}</span>
+        </SubTitleRow>
+        <RedLine />
+
+        <ListContainer>
           {errorUnits.length > 0 ? (
             errorUnits.map((unit, idx) => (
               <DefectItem key={idx}>
-                <DefectName><span>{unit.name}</span></DefectName>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: THEME.danger, fontFamily: 'Pretendard', fontVariantNumeric: 'tabular-nums' }}>{unit.temp}°C</span>
-                    <DefectTag>CHECK</DefectTag>
-                  </div>
-                  <span style={{ fontSize: '10px', color: THEME.textSub, marginTop: '2px' }}>{unit.problem}</span>
+                <div>
+                  <DefectName>{unit.name}</DefectName>
+                  <DefectSubText>{unit.problem} / {unit.temp}°C</DefectSubText>
                 </div>
+                <ActionButton>확인</ActionButton>
               </DefectItem>
             ))
           ) : (
-            <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8', fontSize: '12px' }}>현재 감지된 이상 없음</div>
+            <div style={{ textAlign: 'center', padding: '30px 10px', color: THEME.textSub, fontSize: '14px', fontWeight: 600 }}>현재 감지된 이상 없음</div>
           )}
-        </div>
+        </ListContainer>
       </DefectStatusPanel>
       
       {/* 주입 공정 모니터링 패널 */}
       <InjectionStatusPanel>
-          <ChartHeader>
-            <div>
-              <ChartTitle style={{ color: '#22a6b3' }}>
-                <Pipette size={16} color="#22a6b3" /> 주입 공정 모니터링
-              </ChartTitle>
-              <ChartSubtitle>Injection Process Status</ChartSubtitle>
-            </div>
-             <div style={{ padding: '2px 8px', background: 'rgba(34, 166, 179, 0.1)', color: '#22a6b3', borderRadius: '12px', fontSize: 10, fontWeight: 700 }}>ACTIVE</div>
-          </ChartHeader>
+          <TitleRow>
+            <MainTitle>주입 공정 모니터링</MainTitle>
+            <SeeAllText>전체보기 <ChevronRight size={14} /></SeeAllText>
+          </TitleRow>
+          <SubTitleRow>
+            <span>현재 활성 유닛</span>
+            <span>{injectUnit ? `M-${injectUnit.대차번호.padStart(2, '0')}` : '대기 중'}</span>
+          </SubTitleRow>
+          <RedLine />
 
           {injectUnit ? (
-            <>
-              <div style={{ marginBottom: '10px', padding: '8px', background: '#f1f5f9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>Target Unit</span>
-                  <span style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>M-{injectUnit.대차번호.padStart(2, '0')}</span>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               <InfoRow>
                 <div className="label">P액 유량</div>
-                <div className="value">{injectUnit["P액 유량(g)"]} <span style={{fontSize: 10, color: THEME.textSub}}>g</span></div>
+                <div className="value">{injectUnit["P액 유량(g)"]} <span style={{fontSize: 12, color: THEME.textSub}}>g</span></div>
               </InfoRow>
               <InfoRow>
                 <div className="label">R액 유량</div>
-                <div className="value">{injectUnit["R액 유량(g)"]} <span style={{fontSize: 10, color: THEME.textSub}}>g</span></div>
+                <div className="value">{injectUnit["R액 유량(g)"]} <span style={{fontSize: 12, color: THEME.textSub}}>g</span></div>
               </InfoRow>
                <InfoRow>
                 <div className="label">헤드 온도(P)</div>
-                <div className="value">{injectUnit["P액 헤드온도(℃)"]} <span style={{fontSize: 10, color: THEME.textSub}}>°C</span></div>
+                <div className="value">{injectUnit["P액 헤드온도(℃)"]} <span style={{fontSize: 12, color: THEME.textSub}}>°C</span></div>
               </InfoRow>
                <InfoRow>
                 <div className="label">헤드 온도(R)</div>
-                <div className="value">{injectUnit["R액 헤드온도(℃)"]} <span style={{fontSize: 10, color: THEME.textSub}}>°C</span></div>
+                <div className="value">{injectUnit["R액 헤드온도(℃)"]} <span style={{fontSize: 12, color: THEME.textSub}}>°C</span></div>
               </InfoRow>
-            </>
+            </div>
           ) : (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
-                대기 중... (데이터 수신 확인 필요)
+            <div style={{ padding: '30px', textAlign: 'center', color: THEME.textSub, fontSize: '14px', fontWeight: 600 }}>
+                데이터 수신 대기 중...
             </div>
           )}
       </InjectionStatusPanel>
 
       <BottomLeftPanel>
-        <ChartHeader><div><ChartTitle><Zap size={16} fill={THEME.textMain} stroke="none" /> 연간 데이터 추이</ChartTitle><ChartSubtitle>Annual Data Trend</ChartSubtitle></div></ChartHeader>
-        <div style={{ marginBottom: 8, display: 'flex', alignItems: 'baseline', gap: 8 }}><BigNumber style={{fontSize: 28}}>0.8%</BigNumber><TrendBadge $isUp={true} style={{ color: THEME.primary }}>안정권 유지 중</TrendBadge></div>
-        <ChartWrapper>
+        <TitleRow>
+            <MainTitle>연간 데이터 추이</MainTitle>
+        </TitleRow>
+        <SubTitleRow>
+            <span>안정권 유지 중</span>
+            <span style={{ fontSize: 24, fontWeight: 900, color: THEME.textMain, letterSpacing: '-1px' }}>0.8%</span>
+        </SubTitleRow>
+        <RedLine />
+        
+        <ChartWrapper style={{ marginTop: '10px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={ANNUAL_DATA} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-              <defs><linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={THEME.primary} stopOpacity={0.3} /><stop offset="100%" stopColor={THEME.primary} stopOpacity={0} /></linearGradient></defs>
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1' }} />
-              <Area type="monotone" dataKey="rate" stroke={THEME.primary} strokeWidth={2} fill="url(#areaGradient)" />
+              <defs><linearGradient id="areaGradientRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={THEME.danger} stopOpacity={0.2} /><stop offset="100%" stopColor={THEME.danger} stopOpacity={0} /></linearGradient></defs>
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: THEME.cardBorder }} />
+              <Area type="monotone" dataKey="rate" stroke={THEME.danger} strokeWidth={3} fill="url(#areaGradientRed)" />
             </AreaChart>
           </ResponsiveContainer>
         </ChartWrapper>
       </BottomLeftPanel>
 
-      <VisionAnalysisPanel>
-          <div style={{ 
-            padding: '12px 16px', 
-            borderBottom: `1px solid ${THEME.border}`, 
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            backgroundColor: '#F9FAFB'
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px', fontWeight: 800, color: THEME.textMain, letterSpacing: '-0.5px' }}>
-                    {activeUnit.name || 'M-??'}
-                </span>
-                
-                <div style={{ 
-                    padding: '2px 8px', borderRadius: '16px', 
-                    backgroundColor: statusBg, color: statusColor,
-                    fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px'
-                }}>
-                    {isError ? <AlertTriangle size={10} strokeWidth={3} /> : <CheckCircle size={10} strokeWidth={3} />}
-                    {matchedData?.AI_LABEL || (isError ? '불량' : '정상')}
-                </div>
-            </div>
-            
-            <ScanLine size={16} color={THEME.textSub} />
+      {/* <VisionAnalysisPanel>
+          <TitleRow style={{ marginBottom: 8 }}>
+             <MainTitle>{activeUnit.name || 'M-??'}</MainTitle>
+             <CountBadge style={{ 
+                 backgroundColor: isError ? THEME.dangerBg : THEME.successBg, 
+                 color: isError ? THEME.danger : THEME.success 
+             }}>
+                {matchedData?.AI_LABEL || (isError ? '불량' : '정상')}
+             </CountBadge>
+          </TitleRow>
+          <RedLine style={{ marginBottom: 12 }} />
+
+        <div style={{ width: '100%', height: '130px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#000', position: 'relative', border: `1px solid ${THEME.cardBorder}` }}>
+            <img 
+                src={displayImage}
+                alt="Factory Cart Analysis" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?q=80&w=1000&auto=format&fit=crop";
+                }}
+            />
+            {boxes.map((box, idx) => (
+            <div key={idx} style={{
+                position: 'absolute',
+                top: `${box.top}%`, left: `${box.left}%`,
+                width: `${box.width}%`, height: `${box.height}%`,
+                border: `2px solid ${box.color}`,
+                boxShadow: `0 0 10px ${box.color}`,
+                zIndex: 10
+            }} />
+            ))}
         </div>
 
-        <div style={{ padding: '12px 16px 0 16px' }}>
-            <div style={{ 
-                position: 'relative', width: '100%', height: '120px',
-                borderRadius: '12px', overflow: 'hidden', backgroundColor: '#000',
-                border: `1px solid ${THEME.border}`, boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
-            }}>
-                <img 
-                    src={displayImage}
-                    alt="Factory Cart Analysis" 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?q=80&w=1000&auto=format&fit=crop";
-                    }}
-                />
-                {boxes.map((box, idx) => (
-                <div key={idx} style={{
-                    position: 'absolute',
-                    top: `${box.top}%`, left: `${box.left}%`,
-                    width: `${box.width}%`, height: `${box.height}%`,
-                    border: `2px solid ${box.color}`,
-                    boxShadow: `0 0 10px ${box.color}`,
-                    zIndex: 10
-                }} />
-                ))}
+        <div style={{ marginTop: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Activity size={14} color={THEME.danger} />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: THEME.textMain }}>모터 부하율</span>
+            </div>
+            <span style={{ fontSize: '11px', color: THEME.danger, fontWeight: '800' }}>Live</span>
+            </div>
+            <div style={{ height: '50px', width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={MOTOR_DATA}>
+                <defs>
+                    <linearGradient id="motorGradientWhite" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={THEME.danger} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={THEME.danger} stopOpacity={0}/>
+                    </linearGradient>
+                </defs>
+                <Area type="monotone" dataKey="load" stroke={THEME.danger} strokeWidth={2} fill="url(#motorGradientWhite)" />
+                </AreaChart>
+            </ResponsiveContainer>
             </div>
         </div>
-
-        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div style={{ 
-                  flex: 1,
-                  display: 'flex', flexDirection: 'column',
-                  padding: '8px 10px', borderRadius: '10px', backgroundColor: '#F3F4F6',
-                  border: `1px solid ${THEME.border}`
-              }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Database size={12} color={THEME.accent} />
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: THEME.textSub }}>상반기</span>
-                  </div>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: THEME.textMain }}>
-                      {displayValue1}
-                  </span>
-              </div>
-
-              <div style={{ 
-                  flex: 1,
-                  display: 'flex', flexDirection: 'column',
-                  padding: '8px 10px', borderRadius: '10px', backgroundColor: '#F3F4F6',
-                  border: `1px solid ${THEME.border}`
-              }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <BarChart3 size={12} color={THEME.success} />
-                      <span style={{ fontSize: '10px', fontWeight: 600, color: THEME.textSub }}>하반기</span>
-                  </div>
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: THEME.textMain }}>
-                      {displayValue2}
-                  </span>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '4px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Activity size={10} color={THEME.warning} />
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: THEME.textSub }}>모터 부하율</span>
-                </div>
-                <span style={{ fontSize: '10px', color: THEME.warning, fontWeight: 'bold' }}>Live</span>
-              </div>
-              <div style={{ height: '40px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={MOTOR_DATA}>
-                    <defs>
-                      <linearGradient id="motorGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={THEME.warning} stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor={THEME.warning} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <Area type="monotone" dataKey="load" stroke={THEME.warning} strokeWidth={1.5} fill="url(#motorGradient)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-        </div>
-      </VisionAnalysisPanel>
+      </VisionAnalysisPanel> */}
     </>
   );
 });
@@ -1059,7 +973,6 @@ export default function GlbViewerPage() {
         const response = await fetch(API_URL);
         const json = await response.json();
         if (json.success && json.data && json.data.length > 0) {
-            // [데이터 정상화] API에서 불량 코드가 와도 강제로 '정상'으로 덮어씁니다.
             const cleanData = json.data.map((d: any) => ({
               ...d,
               AI_LABEL: "정상", 
@@ -1104,7 +1017,6 @@ export default function GlbViewerPage() {
 
   return (
     <PageContainer>
-      {/* 에러가 발생했을 때만 보이는 오버레이 (데이터 강제 정상화로 인해 뜨지 않음) */}
       {criticalUnit && !alertDismissed && (
         <CriticalAlertOverlay>
           <Siren size={120} color="#ff0000" style={{ animation: 'pulse 1s infinite' }} />
@@ -1113,7 +1025,7 @@ export default function GlbViewerPage() {
                <Octagon size={80} strokeWidth={3} /> STOP
              </AlertTitle>
              <AlertSub>라인 긴급 정지 요망</AlertSub>
-             <div style={{ color: '#ffaaaa', marginTop: '10px', fontSize: '18px', fontWeight: 'bold' }}>
+             <div style={{ color: '#ffaaaa', margin: '20px 0', fontSize: '18px', fontWeight: 'bold' }}>
                {criticalUnit.name} 초기 투입 구간 결함 감지
              </div>
              <AlertConfirmButton onClick={() => setAlertDismissed(true)}>

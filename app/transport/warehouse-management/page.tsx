@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
 import GmtLoadingScreen from '@/components/loading/gmt-loading';
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
-import { X, ZoomIn, ZoomOut, Maximize2, Video, Clock, Activity } from 'lucide-react'; 
+import { X, ZoomIn, ZoomOut, Maximize, Video, Clock, Activity, Search, MapPin } from 'lucide-react'; 
 
 // =============================================================================
 // 0. GLOBAL STYLE & THEME
@@ -16,13 +16,14 @@ const GlobalStyle = createGlobalStyle`
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
     background-color: #F5F7FA;
-    color: #1A202C;
+    color: #1E293B;
     overflow: hidden;
   }
   * { box-sizing: border-box; }
 `;
+
+const THEME_COLOR = "#00B87C"; // 두 번째 이미지의 메인 청록색(Teal)
 
 // =============================================================================
 // 1. DATA DEFINITIONS
@@ -73,7 +74,7 @@ const GD_GRID = [
 ];
 
 // =============================================================================
-// 2. STYLED COMPONENTS
+// 2. STYLED COMPONENTS (전면 개편)
 // =============================================================================
 
 const W_JIG = '58px';
@@ -91,490 +92,236 @@ const Layout = styled.div`
   display: flex;
   width: 100vw;
   height: calc(100vh - 64px);
-  padding: 20px;
-  gap: 20px;
-  background-color: #F5F7FA;
-  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+  background-color: #F1F5F9;
 `;
 
-const MainBody = styled.div`
-  display: flex;
-  flex: 1;
-  gap: 20px;
-  overflow: hidden;
-`;
-
+// --- 좌측 패널 (3단 구조) ---
 const LeftColumn = styled.div`
-  width: 290px;
-  height: 100%;
+  width: 320px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex-shrink: 0;
 `;
 
-const Panel = styled.div`
+const PanelBlock = styled.div`
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #EDF2F7;
-  overflow: hidden;
-`;
-
-const ZoneStatusCard = styled(Panel)`
-  flex: 1; 
-  min-height: 0;
-`;
-
-const MonitoringCard = styled(Panel)`
-  flex-shrink: 0;
-  height: auto;
-`;
-
-const RightPanel = styled(Panel)` width: 260px; height: 100%; `;
-
-const Header = styled.div`
-  padding: 16px 20px;
-  font-size: 15px;
-  font-weight: 800;
-  color: #1A202C;
-  border-bottom: 1px solid #F1F5F9;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-  background-color: #FFFFFF;
-`;
-
-const MapCanvas = styled.div`
-  flex: 1;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center; 
-  padding: 0;
-  overflow: hidden; 
-  background: #F5F7FA;
-`;
-
-const MapScaleWrapper = styled.div`
-  transform: scale(0.75); 
-  transform-origin: center center;
-  width: fit-content;
-  height: fit-content;
-`;
-
-const MapContentWrapper = styled.div`
-  display: flex;
-  gap: 40px;
-`;
-
-const ColLeft = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-  width: fit-content;
-`;
-
-const ColRight = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
-  padding-top: 5px;
-`;
-
-const GridContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: fit-content;
-  border-top: 1px solid #A0AEC0;
-  border-left: 1px solid #A0AEC0;
-  background-color: white;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
-`;
-
-const Row = styled.div` display: flex; `;
-
-const CellBox = styled.div<{ w: string }>`
-  width: ${props => props.w};
-  height: ${CELL_HEIGHT};
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid #A0AEC0;
-  border-bottom: 1px solid #A0AEC0;
-  background-color: white;
-  position: relative;
-  &:hover {
-    z-index: 10;
-    box-shadow: inset 0 0 0 2px #4299e1;
-  }
-`;
-
-const CellHeader = styled.div`
-  height: 14px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: #141414;
-  background-color: #EDF2F7;
-  border-bottom: 1px solid #E2E8F0;
-`;
-
-const CellValue = styled.div<{ $active?: boolean }>`
-  flex: 1;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 800;
-  background-color: ${props => props.$active ? '#48BB78' : 'white'};
-  color: ${props => props.$active ? 'white' : 'transparent'};
-  transition: background-color 0.2s;
-  cursor: pointer;
-`;
-
-const SectionTitleWrapper = styled.div<{ $isActive: boolean }>`
-  font-size: 15px;
-  font-weight: 800;
-  color: ${props => props.$isActive ? '#3182CE' : '#718096'}; 
-  margin-bottom: 8px;
-  margin-left: 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-`;
-
-const LiveDot = styled.div`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #48BB78;
-  animation: ${pulse} 1.5s infinite ease-in-out;
-`;
-
-const SectionTitle = ({ children, isActive = false }: { children: React.ReactNode, isActive?: boolean }) => (
-  <SectionTitleWrapper $isActive={isActive}>
-    {children}
-    {isActive && <LiveDot />}
-  </SectionTitleWrapper>
-);
-
-// --- [Grouping Components] ---
-
-const JigZoneBox = styled.div`
-  background-color: rgba(214, 188, 250, 0.3); 
-  border: 1px solid #D6BCFA;
-  border-radius: 12px;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-`;
-
-// [NEW] Active Zone Group (GA, GB, GC) - Blue theme
-const ActiveZoneBox = styled.div`
-  background-color: rgba(235, 248, 255, 0.5); /* 아주 연한 블루 */
-  border: 1px solid #90CDF4; /* 하늘색 테두리 */
-  border-radius: 12px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 30px; /* 내부 섹션 간 간격 */
-  position: relative;
-  box-shadow: 0 4px 6px rgba(49, 130, 206, 0.05);
 `;
 
-// [NEW] Inactive Zone Group (GF, GE, GD) - Gray theme
-const InactiveZoneBox = styled.div`
-  background-color: #dfe4ea; /* 연한 회색 */
-  border: 1px solid #747d8c; /* 회색 테두리 */
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 30px; /* 내부 섹션 간 간격 */
-`;
-
-// -----------------------------
-
-const StatusCard = styled.div`
-  padding: 10px 20px;
-  border-bottom: 1px solid #F7FAFC;
-  cursor: pointer;
-  transition: all 0.2s;
-  &:hover { background-color: #F8FAFC; }
-`;
-
-const StatLabelRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-  font-size: 13px;
+const PanelTitle = styled.h2<{ flex?: boolean }>`
+  font-size: 16px;
   font-weight: 600;
-  color: #4A5568;
-`;
-
-const ProgressBarBg = styled.div`
-  width: 100%;
-  height: 6px;
-  background-color: #EDF2F7;
-  border-radius: 3px;
-  overflow: hidden;
-`;
-
-const ProgressBarFill = styled.div<{ percent: number }>`
-  width: ${props => props.percent}%;
-  height: 100%;
-  background-color: ${props => props.percent > 80 ? '#F6AD55' : '#48BB78'};
-  border-radius: 3px;
-`;
-
-const InvCard = styled.div`
-  display: flex;
-  justify-content: space-between;
+  color: #0F172A;
+  margin: 0 0 16px 0;
+  display: ${props => props.flex ? 'flex' : 'block'};
+  justify-content: ${props => props.flex ? 'space-between' : 'flex-start'};
   align-items: center;
-  padding: 12px 15px;
-  border-bottom: 1px solid #EDF2F7;
-  transition: background 0.2s;
-  &:hover { background-color: #F0FFF4; }
 `;
 
-const InvCode = styled.div` font-size: 12px; font-weight: 600; color: #4A5568; `;
-const InvQty = styled.div`
-  font-size: 13px; font-weight: 800; color: #2F855A;
-  background: #F0FFF4; padding: 2px 8px; border-radius: 10px;
+const SummaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 `;
 
-const TooltipBox = styled.div`
-  position: fixed;
-  z-index: 3000;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  padding: 12px;
-  min-width: 200px;
-  pointer-events: none;
+const SummaryItem = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  backdrop-filter: blur(4px);
-  
-  .tooltip-header {
-    font-size: 14px; font-weight: 800; color: #2D3748;
-    border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; margin-bottom: 4px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .tooltip-row {
-    display: flex; justify-content: space-between; font-size: 12px;
-    .label { color: #718096; font-weight: 500; }
-    .value { color: #2D3748; font-weight: 700; }
-  }
-  .status-badge {
-    padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700;
-    &.occupied { background: #C6F6D5; color: #22543D; }
-    &.empty { background: #EDF2F7; color: #718096; }
-  }
+  gap: 4px;
+
+  .lbl { font-size: 12px; color: #64748B; font-weight: 600; }
+  .val { font-size: 28px; font-weight: 600; color: #0F172A; display: flex; align-items: baseline; gap: 2px;}
+  .val.big { font-size: 28px; }
+  .val.red { color: #E11D48; }
+  small { font-size: 20px; font-weight: 600; color: #94A3B8; margin-left: 2px; }
 `;
 
-// =============================================================================
-// 좌측 패널 내부 스타일
-// =============================================================================
-
-const ScrollableList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-  background-color: #FFFFFF;
-  &::-webkit-scrollbar { width: 4px; }
-  &::-webkit-scrollbar-thumb { background-color: #E2E8F0; border-radius: 2px; }
+const Divider = styled.div`
+  width: 100%; height: 1px; background: #F1F5F9; margin: 16px 0;
 `;
 
-const TotalStatusFooter = styled.div`
-  padding: 12px 20px;
-  background-color: #F8FAFC;
-  border-top: 1px solid #EDF2F7;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+const ZoneStatList = styled.div`
+  display: flex; flex-direction: column; gap: 12px;
+`;
+
+const ZoneStatItem = styled.div`
+  display: flex; flex-direction: column; gap: 6px;
+  .header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #475569; }
+  .bar-bg { width: 100%; height: 4px; background: #F1F5F9; border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; background: ${THEME_COLOR}; border-radius: 2px; }
 `;
 
 const VideoWrapper = styled.div`
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background-color: #1A202C;
-  position: relative;
+  width: 100%; aspect-ratio: 16 / 9; background: #1E293B; border-radius: 8px; overflow: hidden; margin-bottom: 12px;
+`;
+const StyledVideo = styled.video` width: 100%; height: 100%; object-fit: cover; `;
+
+const VideoInfoRow = styled.div`
+  display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0;
+  .lbl { color: #64748B; font-weight: 600; }
+  .val { color: #0F172A; font-weight: 800; }
+`;
+
+// --- 중앙 패널 (지도 영역) ---
+const CenterColumn = styled.div`
+  flex: 1;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 `;
 
-const StyledVideo = styled.video`
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-`;
-
-const CompactInfo = styled.div`
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const CompactRow = styled.div`
+const CenterHeader = styled.div`
+  padding: 16px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
-  
-  span.label { color: #718096; font-weight: 500; display: flex; align-items: center; gap: 4px; }
-  span.value { color: #2D3748; font-weight: 700; }
+  border-bottom: 1px solid #F1F5F9;
 `;
 
-// =============================================================================
-// Bottom & Modal
-// =============================================================================
-
-const BottomBar = styled.div`
-  height: 60px;
+const HeaderControls = styled.div`
   display: flex;
-  justify-content: center;
   align-items: center;
-  margin-top: 0;
-  flex-shrink: 0;
+  gap: 20px;
 `;
 
-const ExpandButton = styled.button`
-  background-color: #FFFFFF;
-  color: #2D3748;
-  border: 1px solid #E2E8F0;
-  padding: 12px 28px;
-  border-radius: 50px;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 10px;
+const Legend = styled.div`
+  display: flex; gap: 12px; font-size: 13px; font-weight: 700; color: #475569;
+  .item { display: flex; align-items: center; gap: 6px; }
+  .box { width: 14px; height: 14px; border-radius: 4px; }
+  .box.empty { border: 1px solid #CBD5E1; background: white; }
+  .box.full { background: ${THEME_COLOR}; }
+`;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    border-color: #BEE3F8;
-    color: #3182CE;
-  }
-  &:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+const ZoomButtonGroup = styled.div`
+  display: flex; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden;
+  button {
+    background: white; border: none; padding: 6px 12px; cursor: pointer; color: #475569;
+    display: flex; align-items: center; justify-content: center; transition: background 0.2s;
+    &:hover { background: #F8FAFC; color: #0F172A; }
+    &:not(:last-child) { border-right: 1px solid #E2E8F0; }
   }
 `;
 
-const ZoomModalOverlay = styled.div`
-  position: fixed;
-  top: 64px;
-  left: 0;
-  width: 100vw;
-  height: calc(100vh - 64px);
-  background-color: rgba(255, 255, 255, 0.98); 
-  backdrop-filter: blur(8px);
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-top: 1px solid #E2E8F0;
-`;
-
-const ZoomContentArea = styled.div<{ $isDragging: boolean }>`
+const MapScrollArea = styled.div<{ $isDragging: boolean }>`
   flex: 1;
   overflow: auto;
   position: relative;
+  background: #F8FAFC;
   cursor: ${(props) => (props.$isDragging ? 'grabbing' : 'grab')};
-  user-select: none;
-  &::-webkit-scrollbar { width: 12px; height: 12px; }
-  &::-webkit-scrollbar-track { background: #F1F5F9; }
-  &::-webkit-scrollbar-thumb { background-color: #CBD5E0; border-radius: 6px; border: 3px solid #F1F5F9; }
-  &::-webkit-scrollbar-thumb:hover { background-color: #A0AEC0; }
+  &::-webkit-scrollbar { width: 8px; height: 8px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 4px; }
 `;
 
-const ZoomControls = styled.div`
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
+// --- 우측 패널 (재고 목록) ---
+const RightColumn = styled.div`
+  width: 320px;
   background: white;
-  padding: 10px 24px;
-  border-radius: 50px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
   display: flex;
-  align-items: center;
-  gap: 16px;
-  z-index: 2010;
-  border: 1px solid #E2E8F0;
+  flex-direction: column;
+  flex-shrink: 0;
 `;
 
-const ZoomBtn = styled.button`
-  width: 36px; height: 36px; border-radius: 50%; border: 1px solid #E2E8F0;
-  background: white; color: #4A5568; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.2s;
-  &:hover { background: #EDF2F7; color: #2D3748; transform: scale(1.1); }
-  &:active { transform: scale(0.95); }
+const RightHeader = styled.div`
+  padding: 20px 20px 16px 20px;
+  border-bottom: 1px solid #F1F5F9;
 `;
 
-const StyledRange = styled.input`
-  -webkit-appearance: none; width: 150px; height: 6px; border-radius: 3px; background: #E2E8F0; outline: none;
-  &::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%;
-    background: #3182CE; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 3px solid white; transition: transform 0.1s;
-  }
-  &::-webkit-slider-thumb:hover { transform: scale(1.15); }
+const LiveBadge = styled.span`
+  font-size: 11px; background: #FEF2F2; color: #E11D48; padding: 2px 8px; border-radius: 99px; font-weight: 800;
+  display: flex; align-items: center; gap: 4px;
+  &::before { content: ''; width: 4px; height: 4px; background: #E11D48; border-radius: 50%; animation: ${pulse} 1.5s infinite; }
 `;
 
-const CloseZoomButton = styled.button`
-  position: absolute; top: 20px; right: 30px; background: white; border: 1px solid #E2E8F0; color: #4A5568;
-  padding: 10px 20px; border-radius: 30px; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700;
-  cursor: pointer; z-index: 2010; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: all 0.2s;
-  &:hover { background: #FFF5F5; border-color: #FEB2B2; color: #C53030; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
-  &:active { transform: translateY(0); }
+const SearchBox = styled.div`
+  display: flex; align-items: center; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px; margin-top: 16px;
+  input { border: none; background: transparent; outline: none; margin-left: 8px; font-size: 13px; font-family: inherit; width: 100%; color: #0F172A; }
+  input::placeholder { color: #94A3B8; }
+`;
+
+const InventoryListContainer = styled.div`
+  flex: 1; overflow-y: auto; padding: 12px 20px; display: flex; flex-direction: column; gap: 10px;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background-color: #E2E8F0; border-radius: 4px; }
+`;
+
+const InventoryCard = styled.div`
+  display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F1F5F9;
+  .left { display: flex; flex-direction: column; gap: 4px; }
+  .code { font-size: 13px; font-weight: 800; color: #1E293B; }
+  .loc { font-size: 11px; font-weight: 600; color: #64748B; display: flex; align-items: center; gap: 4px; }
+  .right-qty { font-size: 12px; font-weight: 800; color: ${THEME_COLOR}; background: #F0FDF4; border: 1px solid #BBF7D0; padding: 4px 10px; border-radius: 6px; }
+`;
+
+// --- 스마트 맵 구성요소 ---
+const MapContentWrapper = styled.div` display: flex; gap: 40px; `;
+const ColLeftMap = styled.div` display: flex; flex-direction: column; gap: 25px; width: fit-content; `;
+const ColRightMap = styled.div` display: flex; flex-direction: column; gap: 25px; padding-top: 5px; `;
+
+const GridContainer = styled.div`
+  display: flex; flex-direction: column; width: fit-content; border-top: 1px solid #CBD5E1; border-left: 1px solid #CBD5E1; background: white;
+`;
+const Row = styled.div` display: flex; `;
+
+const CellBox = styled.div<{ w: string }>`
+  width: ${props => props.w}; height: ${CELL_HEIGHT}; display: flex; flex-direction: column; border-right: 1px solid #CBD5E1; border-bottom: 1px solid #CBD5E1; background: white; position: relative;
+  &:hover { z-index: 10; box-shadow: inset 0 0 0 2px #3B82F6; }
+`;
+
+const CellHeader = styled.div`
+  height: 14px; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #475569; background: #F8FAFC; border-bottom: 1px solid #E2E8F0;
+`;
+
+const CellValue = styled.div<{ $active?: boolean }>`
+  flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+  background-color: ${props => props.$active ? THEME_COLOR : 'white'};
+  color: ${props => props.$active ? 'white' : 'transparent'};
+  transition: background-color 0.2s; cursor: pointer;
+`;
+
+const MapSectionTitle = styled.div<{ $isActive: boolean }>`
+  font-size: 14px; font-weight: 800; color: ${props => props.$isActive ? '#3B82F6' : '#64748B'}; margin-bottom: 8px; margin-left: 2px; display: flex; align-items: center; gap: 6px;
+`;
+
+const JigZoneBox = styled.div` background: rgba(243, 232, 255, 0.5); border: 1px solid #E9D5FF; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; `;
+const ActiveZoneBox = styled.div` background: rgba(239, 246, 255, 0.5); border: 1px solid #BFDBFE; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 30px; `;
+const InactiveZoneBox = styled.div` background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 30px; `;
+
+const TooltipBox = styled.div`
+  position: fixed; z-index: 3000; background: rgba(255, 255, 255, 0.98); border: 1px solid #E2E8F0; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 12px; min-width: 200px; pointer-events: none; display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(4px);
+  .tooltip-header { font-size: 14px; font-weight: 800; color: #0F172A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+  .tooltip-row { display: flex; justify-content: space-between; font-size: 12px; .label { color: #64748B; font-weight: 600; } .value { color: #0F172A; font-weight: 800; } }
+  .status-badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; &.occupied { background: #F0FDF4; color: ${THEME_COLOR}; border: 1px solid #BBF7D0; } &.empty { background: #F1F5F9; color: #64748B; } }
 `;
 
 // =============================================================================
-// 3. TYPES & 4. SUB-COMPONENTS
+// 3. TYPES & SUB-COMPONENTS
 // =============================================================================
 
-interface ApiSlotDetail {
-  slot_id: number;
-  occupied: boolean;
-  loc_code: string;
-  label001: string | null;
-  vehicle_id: string | null;
-  entry_time: string | null;
-}
-
-interface ApiZoneData {
-  total: number;
-  occupied: number;
-  slots_detail: ApiSlotDetail[];
-}
-
+interface ApiSlotDetail { slot_id: number; occupied: boolean; loc_code: string; label001: string | null; vehicle_id: string | null; entry_time: string | null; }
+interface ApiZoneData { total: number; occupied: number; slots_detail: ApiSlotDetail[]; }
 type ApiResponse = Record<string, ApiZoneData>;
 interface SlotDataMap { [locCode: string]: ApiSlotDetail; }
-interface InventoryItem { code: string; qty: number; }
+interface InventoryItem { code: string; loc: string; zone: string; qty: number; }
 interface ZoneStat { name: string; total: number; used: number; }
 interface TooltipState { x: number; y: number; data: ApiSlotDetail | null; locCode: string; }
-interface WarehouseLayoutProps { renderCell: (id: string, w: string) => React.ReactNode; }
 
-const CellItem = React.memo(({ id, w, data, onHover }: { 
-  id: string, w: string, data: ApiSlotDetail | undefined, 
-  onHover: (e: React.MouseEvent, id: string, data: ApiSlotDetail | undefined) => void 
-}) => {
+const CellItem = React.memo(({ id, w, data, onHover }: { id: string, w: string, data: ApiSlotDetail | undefined, onHover: (e: React.MouseEvent, id: string, data: ApiSlotDetail | undefined) => void }) => {
   const isOccupied = data?.occupied;
-  const displayVal = isOccupied ? (data?.label001 ? data.label001.slice(-4) : '0000') : '';
+  const displayVal = isOccupied ? (data?.label001 ? 'CNZKRO' : '0000') : ''; // 이미지에 CNZKRO라고 적혀있음
   return (
     <CellBox w={w} onMouseEnter={(e) => onHover(e, id, data)} onMouseLeave={(e) => onHover(e, id, undefined)}>
       <CellHeader>{id}</CellHeader>
@@ -584,38 +331,30 @@ const CellItem = React.memo(({ id, w, data, onHover }: {
 }, (prev, next) => prev.id === next.id && prev.w === next.w && prev.data === next.data);
 CellItem.displayName = "CellItem";
 
-
-const WarehouseLayout = React.memo(({ renderCell }: WarehouseLayoutProps) => {
+const WarehouseLayout = React.memo(({ renderCell }: { renderCell: (id: string, w: string) => React.ReactNode }) => {
   const JigStrip = ({ ids }: { ids: string[] }) => ( <Row>{ids.map(id => renderCell(id, W_JIG))}</Row> );
-  
   return (
     <MapContentWrapper>
-      {/* 1. Left Column: JIG ZONE + ACTIVE ZONE GROUP */}
-      <ColLeft>
+      <ColLeftMap>
         <JigZoneBox>
-          <SectionTitle>JIG ZONE</SectionTitle>
+          <MapSectionTitle $isActive={false} style={{color:'#A855F7'}}>JIG ZONE</MapSectionTitle>
           <div style={{display:'flex', gap:'20px', alignItems:'flex-end'}}>
             <GridContainer><JigStrip ids={JIG_1_L} /><JigStrip ids={JIG_1_L} /></GridContainer>
             <GridContainer><JigStrip ids={JIG_1_R} /><JigStrip ids={JIG_1_R} /></GridContainer>
           </div>
-          <div style={{marginTop:'10px', marginLeft:'60px'}}>
-            <GridContainer><JigStrip ids={JIG_BTM} /><JigStrip ids={JIG_BTM} /></GridContainer>
-          </div>
+          <div style={{marginTop:'10px', marginLeft:'60px'}}><GridContainer><JigStrip ids={JIG_BTM} /><JigStrip ids={JIG_BTM} /></GridContainer></div>
         </JigZoneBox>
 
-        {/* [GROUP 1: Active Zones] */}
         <ActiveZoneBox>
-          {/* GA */}
           <div>
-            <SectionTitle isActive={true}>GA</SectionTitle>
+            <MapSectionTitle $isActive={true}>GA</MapSectionTitle>
             <GridContainer>
               <Row>{GA_TOP_1.slice(0,3).map((n) => renderCell(`GA${n}`, W_NARROW))}{GA_TOP_1.slice(3).map((n) => renderCell(`GA${n}`, W_WIDE))}</Row>
               <Row>{GA_TOP_2.slice(0,3).map((n) => renderCell(`GA${n}`, W_NARROW))}{GA_TOP_2.slice(3).map((n) => renderCell(`GA${n}`, W_WIDE))}</Row>
             </GridContainer>
           </div>
-          {/* GA / GB */}
           <div>
-            <SectionTitle isActive={true}>GA / GB</SectionTitle>
+            <MapSectionTitle $isActive={true}>GA / GB</MapSectionTitle>
             <GridContainer>
               {GA_ROWS.map((row, i) => (
                 <Row key={i}>{row.l.map(n => renderCell(`GA${n}`, W_NARROW))}{row.r.map(n => renderCell(`GA${n}`, W_WIDE))}</Row>
@@ -624,24 +363,20 @@ const WarehouseLayout = React.memo(({ renderCell }: WarehouseLayoutProps) => {
               <Row>{GB_17_L.map(n => renderCell(`GB${n}`, W_NARROW))}{GB_17_R.map(n => renderCell(`GB${n}`, W_NARROW))}</Row>
             </GridContainer>
           </div>
-          {/* GC */}
           <div>
-            <SectionTitle isActive={true}>GC</SectionTitle>
+            <MapSectionTitle $isActive={true}>GC</MapSectionTitle>
             <div style={{display:'flex', gap:'20px'}}>
               <GridContainer><Row>{GC_L_TOP.map(n => renderCell(`GC${n}`, W_NARROW))}</Row><Row>{GC_L_BTM.map(n => renderCell(`GC${n}`, W_NARROW))}</Row></GridContainer>
               <GridContainer><Row>{GC_R_TOP.map(n => renderCell(`GC${n}`, W_NARROW))}</Row><Row>{GC_R_BTM.map(n => renderCell(`GC${n}`, W_NARROW))}</Row></GridContainer>
             </div>
           </div>
         </ActiveZoneBox>
-      </ColLeft>
+      </ColLeftMap>
 
-      {/* 2. Right Column: INACTIVE ZONE GROUP */}
-      <ColRight>
-        {/* [GROUP 2: Inactive Zones] */}
+      <ColRightMap>
         <InactiveZoneBox>
-          {/* GF */}
           <div>
-            <SectionTitle>GF</SectionTitle>
+            <MapSectionTitle $isActive={false}>GF</MapSectionTitle>
             <div style={{display:'flex', gap:'15px'}}>
                 <GridContainer>
                     <Row>
@@ -652,9 +387,8 @@ const WarehouseLayout = React.memo(({ renderCell }: WarehouseLayoutProps) => {
                 <GridContainer>{GF_GRID.map((row, i) => (<Row key={i}>{row.map(n => renderCell(`GF${n}`, W_NARROW))}</Row>))}</GridContainer>
             </div>
           </div>
-          {/* GE / GD */}
           <div>
-            <SectionTitle>GE / GD</SectionTitle>
+            <MapSectionTitle $isActive={false}>GE / GD</MapSectionTitle>
             <div style={{display:'flex', gap:'20px'}}>
                 <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}>
                     <GridContainer style={{marginRight: W_NARROW}}>{renderCell(`GE${GE_L[0]}`, W_NARROW)}</GridContainer>
@@ -672,14 +406,14 @@ const WarehouseLayout = React.memo(({ renderCell }: WarehouseLayoutProps) => {
             </div>
           </div>
         </InactiveZoneBox>
-      </ColRight>
+      </ColRightMap>
     </MapContentWrapper>
   );
 });
 WarehouseLayout.displayName = "WarehouseLayout";
 
 // =============================================================================
-// 5. MAIN COMPONENT
+// 4. MAIN COMPONENT
 // =============================================================================
 
 export default function FinalDashboard() {
@@ -687,8 +421,8 @@ export default function FinalDashboard() {
   const [mapData, setMapData] = useState<SlotDataMap>({});
   const [hoverInfo, setHoverInfo] = useState<TooltipState | null>(null);
   
-  const [isZoomMode, setIsZoomMode] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomLevel, setZoomLevel] = useState(0.85); // 화면 맞춤용 초기 배율
+  const [searchTerm, setSearchTerm] = useState("");
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -697,7 +431,6 @@ export default function FinalDashboard() {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
 
-  // [설정] 비디오 URL
   const VIDEO_URL = "http://1.254.24.170:24828/api/DX_API000031?videoName=G_STOCK.mp4"; 
 
   useEffect(() => {
@@ -739,21 +472,26 @@ export default function FinalDashboard() {
     return result;
   }, [mapData]);
 
-  const inventory = useMemo<InventoryItem[]>(() => {
-    const invMap: Record<string, number> = {};
+  // 재고 목록 개별 출력 (loc_code 기준)
+  const inventoryList = useMemo<InventoryItem[]>(() => {
+    const list: InventoryItem[] = [];
     Object.values(mapData).forEach(slot => {
       if (slot.occupied && slot.label001) {
-        const code = slot.label001;
-        invMap[code] = (invMap[code] || 0) + 1;
+        const zone = slot.loc_code.substring(0, 2);
+        list.push({ code: slot.label001, loc: slot.loc_code, zone: zone, qty: 1 });
       }
     });
-    return Object.entries(invMap).map(([code, qty]) => ({ code, qty })).sort((a, b) => b.qty - a.qty);
+    return list.sort((a, b) => a.code.localeCompare(b.code));
   }, [mapData]);
+
+  const filteredInventory = inventoryList.filter(item => 
+    item.code.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    item.loc.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const recentEntry = useMemo<ApiSlotDetail | null>(() => {
     let latest: ApiSlotDetail | null = null;
     let maxTime = 0;
-
     Object.values(mapData).forEach(slot => {
       if (slot.occupied && slot.entry_time) {
         const time = new Date(slot.entry_time).getTime();
@@ -780,9 +518,7 @@ export default function FinalDashboard() {
 
   const handleCellHover = useCallback((e: React.MouseEvent, id: string, data: ApiSlotDetail | undefined) => {
     if (data || id) { 
-      setHoverInfo(data !== undefined ? {
-        x: e.clientX, y: e.clientY, data: data || null, locCode: id
-      } : null);
+      setHoverInfo(data !== undefined ? { x: e.clientX, y: e.clientY, data: data || null, locCode: id } : null);
     }
   }, []);
 
@@ -790,8 +526,8 @@ export default function FinalDashboard() {
     return <CellItem key={id} id={id} w={w} data={mapData[id]} onHover={handleCellHover} />;
   }, [mapData, handleCellHover]);
 
+  // Drag to scroll logic for map
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
     if (!containerRef.current) return;
     setIsDragging(true);
     setStartX(e.pageX - containerRef.current.offsetLeft);
@@ -817,144 +553,132 @@ export default function FinalDashboard() {
       <GlobalStyle />
       {loading && <GmtLoadingScreen />}
       
+      {/* 마우스 툴팁 */}
       {hoverInfo && (
         <TooltipBox style={{ top: hoverInfo.y + 15, left: hoverInfo.x + 15 }}>
           <div className="tooltip-header">
             <span>{hoverInfo.locCode}</span>
             <span className={`status-badge ${hoverInfo.data?.occupied ? 'occupied' : 'empty'}`}>
-              {hoverInfo.data?.occupied ? '적재됨' : '빈 공간'}
+              {hoverInfo.data?.occupied ? '적재 완료' : '빈 슬롯'}
             </span>
           </div>
           {hoverInfo.data?.occupied ? (
             <>
-              <div className="tooltip-row"><span className="label">Label ID</span><span className="value">{hoverInfo.data.label001 || '0000'}</span></div>
-              <div className="tooltip-row"><span className="label">Vehicle</span><span className="value">{hoverInfo.data.vehicle_id || '-'}</span></div>
+              <div className="tooltip-row"><span className="label">라벨</span><span className="value">{hoverInfo.data.label001 || '-'}</span></div>
+              <div className="tooltip-row"><span className="label">차량</span><span className="value">{hoverInfo.data.vehicle_id || '-'}</span></div>
               <div className="tooltip-row"><span className="label">입고 시간</span><span className="value">{formatTime(hoverInfo.data.entry_time)}</span></div>
             </>
           ) : (
-            <div className="tooltip-row" style={{justifyContent: 'center', color: '#A0AEC0', padding: '10px 0'}}>데이터 없음</div>
+            <div className="tooltip-row" style={{justifyContent: 'center', color: '#94A3B8', padding: '10px 0'}}>데이터 없음</div>
           )}
         </TooltipBox>
       )}
 
-      {isZoomMode && (
-        <ZoomModalOverlay>
-          <CloseZoomButton onClick={() => { setIsZoomMode(false); setZoomLevel(1); }}>
-            <X size={18} /> 닫기 / 축소
-          </CloseZoomButton>
-          <ZoomContentArea 
+      <Layout>
+        {/* 🟢 왼쪽 패널: 전체 운영 요약, 구역별 현황, 영상 모니터링 */}
+        <LeftColumn>
+          <PanelBlock>
+            <PanelTitle>전체 운영 요약</PanelTitle>
+            <SummaryGrid>
+              <SummaryItem>
+                <span className="lbl">전체 적재율</span>
+                <span className="val big">{totalPercent}<small>%</small></span>
+              </SummaryItem>
+              <SummaryItem>
+                <span className="lbl">점유 슬롯</span>
+                <span className="val">{totalUsed} <small>/ {totalCap}</small></span>
+              </SummaryItem>
+              <SummaryItem>
+                <span className="lbl">금일 입고</span>
+                <span className="val red">{totalUsed} <small>건</small></span>
+              </SummaryItem>
+              <SummaryItem>
+                <span className="lbl">잔여 슬롯</span>
+                <span className="val">{totalCap - totalUsed} <small>개</small></span>
+              </SummaryItem>
+            </SummaryGrid>
+          </PanelBlock>
+
+          <PanelBlock style={{ flex: 1, minHeight: 0 }}>
+            <PanelTitle>구역별 현황</PanelTitle>
+            <ZoneStatList style={{ overflowY: 'auto', paddingRight: '4px' }}>
+              {stats.map(s => {
+                const pct = s.total > 0 ? Math.round((s.used / s.total) * 100) : 0;
+                return (
+                  <ZoneStatItem key={s.name}>
+                    <div className="header"><span>{s.name} 구역</span><span>{s.used} / {s.total} ({pct}%)</span></div>
+                    <div className="bar-bg"><div className="bar-fill" style={{ width: `${pct}%` }} /></div>
+                  </ZoneStatItem>
+                );
+              })}
+            </ZoneStatList>
+          </PanelBlock>
+
+          <PanelBlock>
+            <PanelTitle>영상 모니터링</PanelTitle>
+            <VideoWrapper>
+              <StyledVideo src={VIDEO_URL} autoPlay loop muted playsInline />
+            </VideoWrapper>
+            {recentEntry ? (
+              <>
+                <VideoInfoRow><span className="lbl">라벨</span><span className="value">{recentEntry.label001 || '-'}</span></VideoInfoRow>
+                <VideoInfoRow><span className="lbl">차량</span><span className="value">{recentEntry.vehicle_id || '-'}</span></VideoInfoRow>
+                <VideoInfoRow><span className="lbl">시간</span><span className="value">{formatTime(recentEntry.entry_time)}</span></VideoInfoRow>
+              </>
+            ) : (
+              <div style={{fontSize:'13px', color:'#94A3B8', textAlign:'center', padding:'10px 0'}}>대기 중...</div>
+            )}
+          </PanelBlock>
+        </LeftColumn>
+
+        {/* 🟢 중앙 패널: 스마트 맵 */}
+        <CenterColumn>
+          <CenterHeader>
+            <PanelTitle style={{ margin: 0 }}>제품창고 스마트 맵</PanelTitle>
+            <HeaderControls>
+              <Legend>
+                <div className="item"><div className="box empty" /> 빈 슬롯</div>
+                <div className="item"><div className="box full" /> 적재 완료</div>
+              </Legend>
+              <ZoomButtonGroup>
+                <button onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.1))}><ZoomOut size={16}/></button>
+                <button onClick={() => setZoomLevel(prev => Math.min(2.5, prev + 0.1))}><ZoomIn size={16}/></button>
+                <button onClick={() => setZoomLevel(0.85)}><Maximize size={16}/></button>
+              </ZoomButtonGroup>
+            </HeaderControls>
+          </CenterHeader>
+          <MapScrollArea 
             ref={containerRef} $isDragging={isDragging}
             onMouseDown={handleMouseDown} onMouseLeave={handleMouseLeave}
             onMouseUp={handleMouseUp} onMouseMove={handleMouseMove}
           >
-            <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: '0 0', padding: '100px', width: 'fit-content', height: 'fit-content' }}>
+            <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left', padding: '60px', width: 'fit-content' }}>
               <WarehouseLayout renderCell={renderCell} />
             </div>
-          </ZoomContentArea>
-          <ZoomControls>
-            <ZoomBtn onClick={() => setZoomLevel(prev => Math.max(1, prev - 0.5))}><ZoomOut size={16} /></ZoomBtn>
-            <StyledRange type="range" min="1" max="5" step="0.1" value={zoomLevel} onChange={(e) => setZoomLevel(parseFloat(e.target.value))} />
-            <ZoomBtn onClick={() => setZoomLevel(prev => Math.min(5, prev + 0.5))}><ZoomIn size={16} /></ZoomBtn>
-            <div style={{fontSize:'14px', fontWeight:'700', color:'#4A5568', width:'40px', textAlign:'right', fontVariantNumeric:'tabular-nums'}}>{zoomLevel.toFixed(1)}x</div>
-          </ZoomControls>
-        </ZoomModalOverlay>
-      )}
+          </MapScrollArea>
+        </CenterColumn>
 
-      <Layout>
-        <MainBody>
-          <LeftColumn>
-            {/* 1. 구역 현황 카드 */}
-            <ZoneStatusCard>
-              <Header>
-                <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                  <Activity size={18} color="#2D3748" />
-                  <span>구역별 현황</span>
+        {/* 🟢 우측 패널: 실시간 재고 목록 */}
+        <RightColumn>
+          <RightHeader>
+            <PanelTitle flex style={{ margin: 0 }}>실시간 재고 목록 <LiveBadge>LIVE</LiveBadge></PanelTitle>
+            <SearchBox>
+              <Search size={16} color="#94A3B8" />
+              <input placeholder="라벨 / 위치 검색" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </SearchBox>
+          </RightHeader>
+          <InventoryListContainer>
+            {filteredInventory.length > 0 ? filteredInventory.map((item, idx) => (
+              <InventoryCard key={`${item.code}-${idx}`}>
+                <div className="left">
+                  <div className="code">{item.code}</div>
+                  <div className="loc"><MapPin size={12} color="#94A3B8" /> {item.zone} 구역 ({item.loc})</div>
                 </div>
-              </Header>
-              <ScrollableList>
-                {stats.map(s => {
-                  const pct = s.total > 0 ? Math.round((s.used / s.total) * 100) : 0;
-                  return (
-                    <StatusCard key={s.name}>
-                      <StatLabelRow><span>{s.name} 구역</span><span>{s.used} / {s.total} ({pct}%)</span></StatLabelRow>
-                      <ProgressBarBg><ProgressBarFill percent={pct} /></ProgressBarBg>
-                    </StatusCard>
-                  );
-                })}
-              </ScrollableList>
-              <TotalStatusFooter>
-                <div style={{fontSize:'13px', fontWeight:'600', color:'#64748B'}}>전체 가동률</div>
-                <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                   <div style={{fontSize:'13px', fontWeight:'700', color: totalPercent > 90 ? '#E53E3E' : '#48BB78'}}>
-                    {totalPercent > 90 ? '혼잡' : '원활'}
-                  </div>
-                  <div style={{fontSize:'16px', fontWeight:'800', color:'#1A202C'}}>{totalPercent}%</div>
-                </div>
-              </TotalStatusFooter>
-            </ZoneStatusCard>
-
-            {/* 2. 모니터링 카드 */}
-            <MonitoringCard>
-              <Header style={{padding:'12px 16px', fontSize:'14px'}}>
-                 <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
-                  <Video size={16} color="#2D3748" />
-                  <span>현장 모니터링</span>
-                </div>
-              </Header>
-              <div style={{position:'relative'}}>
-                 <VideoWrapper>
-                  <StyledVideo src={VIDEO_URL} autoPlay loop muted playsInline />
-                </VideoWrapper>
-              </div>
-              
-              <CompactInfo>
-                <div style={{fontSize:'12px', fontWeight:'700', color:'#A0AEC0', marginBottom:'6px', display:'flex', alignItems:'center', gap:'4px'}}>
-                   <Clock size={12}/> 최근 입고
-                </div>
-                {recentEntry ? (
-                  <>
-                    <CompactRow>
-                      <span className="label">라벨</span>
-                      <span className="value">{recentEntry.label001 || '-'}</span>
-                    </CompactRow>
-                     <CompactRow>
-                      <span className="label">차량</span>
-                      <span className="value">{recentEntry.vehicle_id || '-'}</span>
-                    </CompactRow>
-                    <CompactRow>
-                      <span className="label">시간</span>
-                      <span className="value">{formatTime(recentEntry.entry_time)}</span>
-                    </CompactRow>
-                  </>
-                ) : (
-                  <div style={{fontSize:'12px', color:'#A0AEC0', textAlign:'center'}}>대기 중...</div>
-                )}
-              </CompactInfo>
-            </MonitoringCard>
-
-          </LeftColumn>
-
-          <MapCanvas>
-            <MapScaleWrapper>
-              <WarehouseLayout renderCell={renderCell} />
-            </MapScaleWrapper>
-          </MapCanvas>
-
-          <RightPanel>
-            <Header>실시간 재고 <span style={{fontSize:'12px', background:'#C6F6D5', color:'#22543D', padding:'2px 8px', borderRadius:'12px'}}>Live</span></Header>
-            <div style={{overflowY:'auto', flex:1, padding:'5px 0'}}>
-              {inventory.length > 0 ? inventory.map((item) => (
-                <InvCard key={item.code}><InvCode>{item.code}</InvCode><InvQty>{item.qty}</InvQty></InvCard>
-              )) : <div style={{padding:'20px', textAlign:'center', color:'#A0AEC0', fontSize:'13px'}}>데이터 없음</div>}
-            </div>
-          </RightPanel>
-        </MainBody>
-        
-        <BottomBar>
-          <ExpandButton onClick={() => setIsZoomMode(true)}>
-            <Maximize2 size={18} /> 확대해서 보기
-          </ExpandButton>
-        </BottomBar>
+                <div className="right-qty">수량 : {item.qty}</div>
+              </InventoryCard>
+            )) : <div style={{padding:'40px 20px', textAlign:'center', color:'#94A3B8', fontSize:'13px'}}>검색 결과가 없습니다.</div>}
+          </InventoryListContainer>
+        </RightColumn>
       </Layout>
     </>
   );

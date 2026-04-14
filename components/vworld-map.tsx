@@ -9,7 +9,7 @@ import { fromLonLat } from "ol/proj";
 import { Point, LineString } from "ol/geom";
 import { Vector as VectorLayer } from "ol/layer";
 import { Vector as VectorSource } from "ol/source";
-import { Style, Stroke, Icon, Circle as CircleStyle, Fill } from "ol/style";
+import { Style, Stroke, Circle as CircleStyle, Fill } from "ol/style";
 import Feature from "ol/Feature";
 import Overlay from "ol/Overlay";
 import { boundingExtent } from "ol/extent";
@@ -30,8 +30,9 @@ export interface VWorldMarker {
   cargo?: string;
   eta?: string;
   vehicleNo?: string;
-  // remainingTime은 이제 내부에서 자동 계산하므로 필수는 아니지만, 오버라이드용으로 남겨둡니다.
   remainingTime?: string; 
+  routeColor?: string;
+  routeLineStyle?: string;
 }
 
 interface EtaData { toBusan: number; toLG: number; }
@@ -109,16 +110,6 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
   const markerSourceRef = useRef<VectorSource<Feature<Geometry>> | null>(null);
   const routeGeomRef = useRef<LineString | null>(null);
 
-  const createStyles = () => ({
-    baseRoute: [
-      new Style({ stroke: new Stroke({ color: 'white', width: 10, lineCap: 'round' }), zIndex: 1 }),
-      new Style({ stroke: new Stroke({ color: '#3B82F6', width: 6, lineCap: 'round' }), zIndex: 2 })
-    ],
-    remainingRoute: [
-      new Style({ stroke: new Stroke({ color: '#22C55E', width: 6, lineCap: 'round' }), zIndex: 3 })
-    ]
-  });
-
   // 1. 맵 초기화
   useEffect(() => {
     if (!mapElement.current || mapRef.current) return;
@@ -134,7 +125,7 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
     const baseLayer = new TileLayer({
       source: new XYZ({
         url: 'https://{a-c}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',
-        attributions: '© OpenStreetMap, © CARTO',
+        attributions: '© OpenStreetMap',
       })
     });
 
@@ -146,15 +137,11 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
         new VectorLayer({ source: remainingRouteSource, zIndex: 15 }), 
         new VectorLayer({ source: markerSource, zIndex: 20 })
       ],
-      view: new View({ 
-        center: fromLonLat([128.76, 35.18]), 
-        zoom: 9, minZoom: 9, maxZoom: 12
-      }),
+      view: new View({ center: fromLonLat([128.76, 35.18]), zoom: 9, minZoom: 9, maxZoom: 12 }),
       controls: [], 
     });
     mapRef.current = map;
 
-    // 공장/본사 오버레이 추가
     const facilities = [
         { lat: 35.207843, lng: 128.666263, title: "LG전자", imageUrl: "/icons/LG.jpg" },
         { lat: 35.148734, lng: 128.859885, title: "고모텍 부산", imageUrl: "/icons/GMT.png" }
@@ -179,13 +166,15 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
       map.addOverlay(new Overlay({ position: mPos, element: el, positioning: 'center-center' }));
     });
 
-    // 기본 경로 그리기 (LG -> GMT)
     const projectedCoords = FIXED_NAV_PATH.map(coord => fromLonLat([coord[0], coord[1]]));
     const routeGeom = new LineString(projectedCoords);
     routeGeomRef.current = routeGeom;
 
     const routeFeature = new Feature({ geometry: routeGeom });
-    routeFeature.setStyle(createStyles().baseRoute);
+    routeFeature.setStyle([
+      new Style({ stroke: new Stroke({ color: 'white', width: 6 }), zIndex: 1 }),
+      new Style({ stroke: new Stroke({ color: '#94a3b8', width: 3, lineDash: [6, 6] }), zIndex: 2 })
+    ]);
     routeSource.addFeature(routeFeature);
 
     const extent = boundingExtent(projectedCoords);
@@ -193,13 +182,9 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
 
     if (onEtaUpdate) onEtaUpdate({ toBusan: 2400, toLG: 2400 });
 
-    return () => {
-      map.setTarget(undefined);
-      mapRef.current = null;
-    };
+    return () => { map.setTarget(undefined); mapRef.current = null; };
   }, []);
 
-  // 2. 마커 & 팝업 & 경로 업데이트 (스태킹 로직 적용)
   useEffect(() => {
     const markerSource = markerSourceRef.current;
     const remainingRouteSource = remainingRouteSourceRef.current;
@@ -213,39 +198,33 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
 
     const currentZoom = map.getView().getZoom() || 10; 
     const zoomFactor = Math.pow(1.2, currentZoom - 13);
-    let dynamicIconScale = 0.3 * zoomFactor;
-    dynamicIconScale = Math.max(0.05, Math.min(dynamicIconScale, 1.0));
     let dynamicDotRadius = 6 * zoomFactor;
     dynamicDotRadius = Math.max(2, dynamicDotRadius);
 
-    const currentMarkerIds = new Set(markers.filter(m => m.isFocused).map(m => `popup-${m.id}`));
+    const currentFocusedIds = new Set(markers.filter(m => m.isFocused).map(m => String(m.id)));
 
     const existingOverlays = map.getOverlays().getArray();
     [...existingOverlays].forEach(overlay => {
       const oid = overlay.get('id');
-      if (oid && String(oid).startsWith('popup-') && !currentMarkerIds.has(String(oid))) {
-        map.removeOverlay(overlay);
+      if (oid) {
+        const idStr = String(oid);
+        if (idStr.startsWith('popup-') || idStr.startsWith('icon-')) {
+            const carId = idStr.split('-')[1];
+            if (!currentFocusedIds.has(carId)) { map.removeOverlay(overlay); }
+        }
       }
     });
 
-    // 🟢 [핵심 개선] 차량 간 거리(진행도)를 비교하여 겹침을 방지하는 스태킹 계산
     const activeCars = markers.filter(m => !m.isFacility && m.isFocused).map((m, index) => {
         const progress = Math.max(0, Math.min(1, m.progress || 0));
         const isLgStart = (m.startLat || 0) > 35.18;
-        return {
-            id: m.id || index,
-            absoluteProgress: isLgStart ? progress : (1 - progress) // 동일선상의 절대 진행도
-        };
+        return { id: String(m.id || index), absoluteProgress: isLgStart ? progress : (1 - progress) };
     }).sort((a, b) => a.absoluteProgress - b.absoluteProgress);
 
     const stackIndexes: Record<string, number> = {};
     activeCars.forEach((car, i) => {
-        if (i === 0) {
-            stackIndexes[car.id] = 0;
-            return;
-        }
+        if (i === 0) { stackIndexes[car.id] = 0; return; }
         const prevCar = activeCars[i - 1];
-        // 진행도 차이가 4%(약 0.04) 이내로 가까우면 팝업을 위로 쌓아올림
         if (Math.abs(car.absoluteProgress - prevCar.absoluteProgress) < 0.04) {
             stackIndexes[car.id] = stackIndexes[prevCar.id] + 1;
         } else {
@@ -257,15 +236,14 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
       let carPos: Coordinate;
       const isTarget = car.isFocused; 
       const isLgStart = (car.startLat || 0) > 35.18;
+      const themeColor = isLgStart ? '#1e293b' : '#ce0037'; 
+      const themeRgba = isLgStart ? '30, 41, 59' : '206, 0, 55';
+
       const progress = Math.max(0, Math.min(1, car.progress || 0));
-      const carId = car.id || index;
+      const carId = String(car.id || index);
 
       if (typeof car.progress === 'number') {
-        if (isLgStart) {
-            carPos = routeGeom.getCoordinateAt(progress);
-        } else {
-            carPos = routeGeom.getCoordinateAt(1 - progress);
-        }
+        carPos = isLgStart ? routeGeom.getCoordinateAt(progress) : routeGeom.getCoordinateAt(1 - progress);
         
         if (isTarget) {
           const flatCoords = routeGeom.getCoordinates();
@@ -281,122 +259,117 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
 
           if (remainingCoords.length > 1) {
             const remainingFeature = new Feature({ geometry: new LineString(remainingCoords) });
-            remainingFeature.setStyle(new Style({ stroke: new Stroke({ color: '#22C55E', width: 6, lineCap: 'round' }), zIndex: 3 }));
+            remainingFeature.setStyle(new Style({ 
+                stroke: new Stroke({ color: themeColor, width: 8, lineCap: 'round' }),
+                zIndex: 3 
+            }));
             remainingRouteSource.addFeature(remainingFeature);
           }
 
-          // 🟢 [남은 시간 자동 계산 로직] (기존 동일)
           const totalLengthMeters = routeGeom.getLength(); 
           const remainingMeters = totalLengthMeters * (1 - progress);
           const remainingKm = remainingMeters / 1000;
           const avgSpeedKmH = 60; 
-          const remainingHoursTotal = remainingKm / avgSpeedKmH;
-          const remainingMinutesTotal = Math.round(remainingHoursTotal * 60);
+          const remainingMinutesTotal = Math.round((remainingKm / avgSpeedKmH) * 60);
 
           const hours = Math.floor(remainingMinutesTotal / 60);
           const minutes = remainingMinutesTotal % 60;
-          
           let computedRemainingTimeStr = hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`;
           if (remainingMinutesTotal <= 1) computedRemainingTimeStr = "도착 임박";
 
-          // 🟢 [팝업 오프셋 및 UI 점선 동적 생성]
           const sIndex = stackIndexes[carId] || 0;
-          const POPUP_HEIGHT = 135; // 팝업 박스의 여백 포함 높이
-          const yOffset = -35 - (sIndex * POPUP_HEIGHT); // 겹칠수록 위로 상승
+          const POPUP_HEIGHT = 160; 
+          const yOffset = -60 - (sIndex * POPUP_HEIGHT);
 
-          // 겹쳐서 위로 올라간 팝업에 대해 점선 꼬리(Tail) 연결
+          // 🟢 숨쉬는 애니메이션 제거, 정적인 아이콘 적용
+          const iconOverlayId = `icon-${carId}`;
+          let iconOverlay = map.getOverlayById(iconOverlayId);
+          
+          const iconHtml = `
+            <div style="position: relative; width: 88px; height: 88px; display: flex; align-items: center; justify-content: center; margin-top:-44px; margin-left:-44px; cursor: pointer;">
+                <div style="position: absolute; width: 100%; height: 100%; background: rgba(${themeRgba}, 0.15); border-radius: 50%;"></div>
+                <div style="position: absolute; width: 65%; height: 65%; background: ${themeColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="6" width="12" height="15" rx="2"></rect>
+                        <path d="M15 11h6l4 4v6h-10"></path>
+                        <circle cx="7" cy="21" r="2.5"></circle>
+                        <circle cx="21" cy="21" r="2.5"></circle>
+                    </svg>
+                </div>
+            </div>
+          `;
+
+          if (iconOverlay) {
+            iconOverlay.setPosition(carPos);
+            if (iconOverlay.getElement()) iconOverlay.getElement()!.innerHTML = iconHtml;
+          } else {
+            const iconEl = document.createElement('div');
+            iconEl.innerHTML = iconHtml;
+            map.addOverlay(new Overlay({ id: iconOverlayId, element: iconEl, position: carPos, positioning: 'center-center', stopEvent: false }));
+          }
+
+          const popupOverlayId = `popup-${carId}`;
+          let popupOverlay = map.getOverlayById(popupOverlayId);
+
           const tailHtml = sIndex > 0 
-              ? `<div style="position: absolute; bottom: -${sIndex * POPUP_HEIGHT}px; left: calc(50% - 1px); width: 0; height: ${(sIndex * POPUP_HEIGHT) - 8}px; border-left: 2px dashed rgba(59, 130, 246, 0.5); z-index: -1;"></div>` 
-              : '';
+              ? `<div style="position: absolute; bottom: -${(sIndex * POPUP_HEIGHT)-12}px; left: calc(50% - 1px); width: 0; height: ${(sIndex * POPUP_HEIGHT)-20}px; border-left: 2px dashed rgba(${themeRgba}, 0.4); z-index: -1;"></div>` 
+              : `<div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid white;"></div>`;
 
-          const overlayId = `popup-${carId}`;
-          let overlay = map.getOverlayById(overlayId);
-
-          // 팝업 컨테이너 디자인을 약간 더 슬림하게(컴팩트하게) 다듬었습니다.
           const popupContent = `
-            <div style="z-index: ${99999 - sIndex}; position: relative; background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(8px); padding: 10px 14px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); border: 1px solid #e2e8f0; min-width: 180px; font-family: 'Pretendard', sans-serif; pointer-events: none;">
+            <div style="z-index: ${99999 - sIndex}; position: relative; background: #ffffff; padding: 16px 20px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); width: 220px; font-family: 'Pretendard', sans-serif; pointer-events: none;">
               ${tailHtml}
-              <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid rgba(255,255,255,0.95);"></div>
-              
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <div style="width:8px; height:8px; background:#22c55e; border-radius:50%; box-shadow:0 0 5px #22c55e;"></div>
-                  <span style="font-size: 14px; font-weight: 800; color: #1e293b;">${car.vehicleNo || car.title || '차량정보 없음'}</span>
-                </div>
-                <span style="font-size: 10px; font-weight: 700; color: #3b82f6; background: #eff6ff; padding: 3px 6px; border-radius: 6px;">배송중</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 18px; font-weight: 800; color: #000; letter-spacing: -0.5px;">${car.vehicleNo || car.title || '차량정보 없음'}</span>
+                <span style="background: #eff6ff; color: #3b82f6; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 8px;">배송중</span>
               </div>
-
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
-                    <span>기사명</span>
-                    <span style="font-weight: 700; color: #334155;">${car.driver || '-'}</span>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
-                    <span>남은 시간</span>
-                    <span style="font-weight: 700; color: #EF4444;">${computedRemainingTimeStr}</span>
-                </div>
-
-                <div style="background: #f8fafc; padding: 6px 8px; border-radius: 8px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-size: 11px; font-weight: 600; color: #64748b;">도착 예정</span>
-                  <span style="font-size: 13px; font-weight: 800; color: #3b82f6;">${car.eta || '이동 중'}</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
+                  <span style="color: #64748b; font-weight: 600;">기사명</span>
+                  <span style="font-weight: 800; color: #0f172a;">${car.driver || '-'}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px;">
+                  <span style="color: #64748b; font-weight: 600;">남은 시간</span>
+                  <span style="font-weight: 800; color: ${themeColor};">${computedRemainingTimeStr}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 14px;">
+                <span style="color: #64748b; font-weight: 600;">도착 예정</span>
+                <span style="font-weight: 800; color: #3b82f6;">${car.eta || '이동 중'}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="${themeColor}" stroke="none">
+                    <path d="M5 18H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v11"/>
+                    <path d="M14 9h4l4 4v5a1 1 0 0 1-1 1h-2"/>
+                    <circle cx="7" cy="18" r="2.5" fill="white" stroke="${themeColor}" stroke-width="2"/>
+                    <circle cx="17" cy="18" r="2.5" fill="white" stroke="${themeColor}" stroke-width="2"/>
+                </svg>
+                <div style="flex: 1; height: 4px; background: #e2e8f0; border-radius: 2px; position: relative; display: flex; align-items: center;">
+                    <div style="position: absolute; left: 0; top: 0; height: 100%; width: ${Math.floor(progress*100)}%; background: ${themeColor}; border-radius: 2px;"></div>
+                    <div style="position: absolute; left: calc(${Math.floor(progress*100)}% - 5px); width: 10px; height: 10px; background: ${themeColor}; border-radius: 50%;"></div>
                 </div>
               </div>
             </div>`;
 
-          if (overlay) {
-            overlay.setPosition(carPos);
-            overlay.setOffset([0, yOffset]); // 덮어씌울 때 오프셋도 동기화
-            if (overlay.getElement()) {
-              overlay.getElement()!.innerHTML = popupContent;
-            }
+          if (popupOverlay) {
+            popupOverlay.setPosition(carPos);
+            popupOverlay.setOffset([0, yOffset]); 
+            if (popupOverlay.getElement()) popupOverlay.getElement()!.innerHTML = popupContent;
           } else {
             const popupEl = document.createElement('div');
             popupEl.innerHTML = popupContent;
-            const newOverlay = new Overlay({
-              id: overlayId,
-              element: popupEl,
-              position: carPos,
-              positioning: 'bottom-center',
-              offset: [0, yOffset], // 스태킹 적용
-              stopEvent: false,
-            });
-            map.addOverlay(newOverlay);
+            map.addOverlay(new Overlay({ id: popupOverlayId, element: popupEl, position: carPos, positioning: 'bottom-center', offset: [0, yOffset], stopEvent: false }));
           }
         }
       } else {
         carPos = routeGeom.getFirstCoordinate();
       }
 
-      // ... (아래 마커 아이콘 설정 부분은 기존과 동일하게 유지)
-      const carFeature = new Feature({ geometry: new Point(carPos) });
-      
-      if (isTarget && car.imageUrl) {
-        const scaleX = isLgStart ? -dynamicIconScale : dynamicIconScale;
-        const scaleY = dynamicIconScale;
-
+      if (!isTarget) {
+        const carFeature = new Feature({ geometry: new Point(carPos) });
         carFeature.setStyle(new Style({
-          image: new Icon({
-            src: car.imageUrl,
-            scale: [scaleX, scaleY], 
-            rotation: 0,
-            rotateWithView: true,
-            anchor: [0.5, 0.5]
-          }),
-          zIndex: 100 
-        }));
-      } else {
-        carFeature.setStyle(new Style({
-          image: new CircleStyle({
-            radius: dynamicDotRadius,
-            fill: new Fill({ color: '#EF4444' }),
-            stroke: new Stroke({ color: '#FFFFFF', width: 2 })
-          }),
+          image: new CircleStyle({ radius: dynamicDotRadius, fill: new Fill({ color: '#1e293b' }), stroke: new Stroke({ color: '#FFFFFF', width: 2 }) }),
           zIndex: 50
         }));
+        markerSource.addFeature(carFeature);
       }
-      
-      markerSource.addFeature(carFeature);
     });
 
   }, [markers]);
