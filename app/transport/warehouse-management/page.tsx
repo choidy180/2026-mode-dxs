@@ -23,7 +23,7 @@ const GlobalStyle = createGlobalStyle`
   * { box-sizing: border-box; }
 `;
 
-const THEME_COLOR = "#00B87C"; // 두 번째 이미지의 메인 청록색(Teal)
+const THEME_COLOR = "#00B87C"; 
 
 // =============================================================================
 // 1. DATA DEFINITIONS
@@ -74,7 +74,7 @@ const GD_GRID = [
 ];
 
 // =============================================================================
-// 2. STYLED COMPONENTS (전면 개편)
+// 2. STYLED COMPONENTS 
 // =============================================================================
 
 const W_JIG = '58px';
@@ -97,7 +97,6 @@ const Layout = styled.div`
   background-color: #F1F5F9;
 `;
 
-// --- 좌측 패널 (3단 구조) ---
 const LeftColumn = styled.div`
   width: 320px;
   display: flex;
@@ -143,10 +142,6 @@ const SummaryItem = styled.div`
   small { font-size: 20px; font-weight: 600; color: #94A3B8; margin-left: 2px; }
 `;
 
-const Divider = styled.div`
-  width: 100%; height: 1px; background: #F1F5F9; margin: 16px 0;
-`;
-
 const ZoneStatList = styled.div`
   display: flex; flex-direction: column; gap: 12px;
 `;
@@ -169,7 +164,6 @@ const VideoInfoRow = styled.div`
   .val { color: #0F172A; font-weight: 800; }
 `;
 
-// --- 중앙 패널 (지도 영역) ---
 const CenterColumn = styled.div`
   flex: 1;
   background: white;
@@ -223,7 +217,6 @@ const MapScrollArea = styled.div<{ $isDragging: boolean }>`
   &::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 4px; }
 `;
 
-// --- 우측 패널 (재고 목록) ---
 const RightColumn = styled.div`
   width: 320px;
   background: white;
@@ -261,7 +254,7 @@ const InventoryListContainer = styled.div`
 const InventoryCard = styled.div`
   display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #F1F5F9;
   .left { display: flex; flex-direction: column; gap: 4px; }
-  .code { font-size: 13px; font-weight: 800; color: #1E293B; }
+  .code { font-size: 14px; font-weight: 800; color: #1E293B; }
   .loc { font-size: 11px; font-weight: 600; color: #64748B; display: flex; align-items: center; gap: 4px; }
   .right-qty { font-size: 12px; font-weight: 800; color: ${THEME_COLOR}; background: #F0FDF4; border: 1px solid #BBF7D0; padding: 4px 10px; border-radius: 6px; }
 `;
@@ -286,10 +279,17 @@ const CellHeader = styled.div`
 `;
 
 const CellValue = styled.div<{ $active?: boolean }>`
-  flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;
+  flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; 
+  font-size: 11px; font-weight: 800;
   background-color: ${props => props.$active ? THEME_COLOR : 'white'};
   color: ${props => props.$active ? 'white' : 'transparent'};
   transition: background-color 0.2s; cursor: pointer;
+  
+  /* 텍스트 오버플로우 방지 및 생략 기호 처리 */
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  padding: 0 4px;
 `;
 
 const MapSectionTitle = styled.div<{ $isActive: boolean }>`
@@ -301,7 +301,7 @@ const ActiveZoneBox = styled.div` background: rgba(239, 246, 255, 0.5); border: 
 const InactiveZoneBox = styled.div` background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 30px; `;
 
 const TooltipBox = styled.div`
-  position: fixed; z-index: 3000; background: rgba(255, 255, 255, 0.98); border: 1px solid #E2E8F0; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 12px; min-width: 200px; pointer-events: none; display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(4px);
+  position: fixed; z-index: 3000; background: rgba(255, 255, 255, 0.98); border: 1px solid #E2E8F0; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 12px; min-width: 220px; pointer-events: none; display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(4px);
   .tooltip-header { font-size: 14px; font-weight: 800; color: #0F172A; border-bottom: 1px solid #E2E8F0; padding-bottom: 6px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
   .tooltip-row { display: flex; justify-content: space-between; font-size: 12px; .label { color: #64748B; font-weight: 600; } .value { color: #0F172A; font-weight: 800; } }
   .status-badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; &.occupied { background: #F0FDF4; color: ${THEME_COLOR}; border: 1px solid #BBF7D0; } &.empty { background: #F1F5F9; color: #64748B; } }
@@ -321,11 +321,14 @@ interface TooltipState { x: number; y: number; data: ApiSlotDetail | null; locCo
 
 const CellItem = React.memo(({ id, w, data, onHover }: { id: string, w: string, data: ApiSlotDetail | undefined, onHover: (e: React.MouseEvent, id: string, data: ApiSlotDetail | undefined) => void }) => {
   const isOccupied = data?.occupied;
-  const displayVal = isOccupied ? (data?.label001 ? 'CNZKRO' : '0000') : ''; // 이미지에 CNZKRO라고 적혀있음
+  
+  // [수정] 라벨(label001)이 아닌 차량번호(vehicle_id)를 표시값으로 사용
+  const displayVal = isOccupied ? (data?.vehicle_id ? data.vehicle_id : '----') : ''; 
+
   return (
     <CellBox w={w} onMouseEnter={(e) => onHover(e, id, data)} onMouseLeave={(e) => onHover(e, id, undefined)}>
       <CellHeader>{id}</CellHeader>
-      <CellValue $active={isOccupied}>{displayVal}</CellValue>
+      <CellValue $active={isOccupied} title={data?.vehicle_id || ''}>{displayVal}</CellValue>
     </CellBox>
   );
 }, (prev, next) => prev.id === next.id && prev.w === next.w && prev.data === next.data);
@@ -472,13 +475,13 @@ export default function FinalDashboard() {
     return result;
   }, [mapData]);
 
-  // 재고 목록 개별 출력 (loc_code 기준)
+  // 재고 목록 출력 기준도 vehicle_id로 매핑 변경
   const inventoryList = useMemo<InventoryItem[]>(() => {
     const list: InventoryItem[] = [];
     Object.values(mapData).forEach(slot => {
-      if (slot.occupied && slot.label001) {
+      if (slot.occupied && slot.vehicle_id) {
         const zone = slot.loc_code.substring(0, 2);
-        list.push({ code: slot.label001, loc: slot.loc_code, zone: zone, qty: 1 });
+        list.push({ code: slot.vehicle_id, loc: slot.loc_code, zone: zone, qty: 1 });
       }
     });
     return list.sort((a, b) => a.code.localeCompare(b.code));
@@ -564,8 +567,8 @@ export default function FinalDashboard() {
           </div>
           {hoverInfo.data?.occupied ? (
             <>
-              <div className="tooltip-row"><span className="label">라벨</span><span className="value">{hoverInfo.data.label001 || '-'}</span></div>
-              <div className="tooltip-row"><span className="label">차량</span><span className="value">{hoverInfo.data.vehicle_id || '-'}</span></div>
+              <div className="tooltip-row"><span className="label">차량식별ID</span><span className="value">{hoverInfo.data.vehicle_id || '-'}</span></div>
+              <div className="tooltip-row"><span className="label">바코드(라벨)</span><span className="value" style={{fontWeight: 600, fontSize: '11px'}}>{hoverInfo.data.label001 || '-'}</span></div>
               <div className="tooltip-row"><span className="label">입고 시간</span><span className="value">{formatTime(hoverInfo.data.entry_time)}</span></div>
             </>
           ) : (
@@ -621,9 +624,9 @@ export default function FinalDashboard() {
             </VideoWrapper>
             {recentEntry ? (
               <>
-                <VideoInfoRow><span className="lbl">라벨</span><span className="value">{recentEntry.label001 || '-'}</span></VideoInfoRow>
-                <VideoInfoRow><span className="lbl">차량</span><span className="value">{recentEntry.vehicle_id || '-'}</span></VideoInfoRow>
-                <VideoInfoRow><span className="lbl">시간</span><span className="value">{formatTime(recentEntry.entry_time)}</span></VideoInfoRow>
+                <VideoInfoRow><span className="lbl">최근차량</span><span className="value">{recentEntry.vehicle_id || '-'}</span></VideoInfoRow>
+                <VideoInfoRow><span className="lbl">입고구역</span><span className="value">{recentEntry.loc_code || '-'}</span></VideoInfoRow>
+                <VideoInfoRow><span className="lbl">입고시간</span><span className="value">{formatTime(recentEntry.entry_time)}</span></VideoInfoRow>
               </>
             ) : (
               <div style={{fontSize:'13px', color:'#94A3B8', textAlign:'center', padding:'10px 0'}}>대기 중...</div>
@@ -664,7 +667,7 @@ export default function FinalDashboard() {
             <PanelTitle flex style={{ margin: 0 }}>실시간 재고 목록 <LiveBadge>LIVE</LiveBadge></PanelTitle>
             <SearchBox>
               <Search size={16} color="#94A3B8" />
-              <input placeholder="라벨 / 위치 검색" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <input placeholder="차량번호 / 위치 검색" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </SearchBox>
           </RightHeader>
           <InventoryListContainer>

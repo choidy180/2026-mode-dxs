@@ -43,7 +43,7 @@ interface VWorldMapProps {
   onEtaUpdate?: (eta: EtaData) => void;
 }
 
-// 🟢 [고정 경로 데이터] LG전자 -> 고모텍 부산
+// 🟢 [고정 경로 데이터] index 0: LG전자, index Last: 고모텍 부산
 const FIXED_NAV_PATH = [
   [128.665967, 35.207494], [128.667333, 35.206717], [128.666675, 35.205953], [128.666686, 35.205829],
   [128.666654, 35.20562], [128.666284, 35.205149], [128.670354, 35.202816], [128.670434, 35.202671],
@@ -236,8 +236,10 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
       let carPos: Coordinate;
       const isTarget = car.isFocused; 
       const isLgStart = (car.startLat || 0) > 35.18;
-      const themeColor = isLgStart ? '#1e293b' : '#ce0037'; 
-      const themeRgba = isLgStart ? '30, 41, 59' : '206, 0, 55';
+      
+      // [수정1] 방향에 따른 테마 컬러 지정 (LG 출발: 레드, GMT 출발: 다크/검정)
+      const themeColor = isLgStart ? '#ce0037' : '#1e293b'; 
+      const themeRgba = isLgStart ? '206, 0, 55' : '30, 41, 59';
 
       const progress = Math.max(0, Math.min(1, car.progress || 0));
       const carId = String(car.id || index);
@@ -249,20 +251,31 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
           const flatCoords = routeGeom.getCoordinates();
           let remainingCoords: Coordinate[] = [];
           
+          // [수정2] 방향에 따라 남은 선의 좌표 배열 구성을 정교화함
           if (isLgStart) {
-            const startIndex = Math.floor((flatCoords.length - 1) * progress);
-            remainingCoords = [carPos, ...flatCoords.slice(startIndex)];
+            // LG(index 0) -> GMT(index Last) 방향: 현재 위치부터 배열 끝(GMT)까지
+            const nextIndex = Math.ceil((flatCoords.length - 1) * progress);
+            remainingCoords = [carPos, ...flatCoords.slice(nextIndex)];
           } else {
-            const endIndex = Math.floor((flatCoords.length - 1) * (1 - progress));
-            remainingCoords = [...flatCoords.slice(0, endIndex), carPos];
+            // GMT(index Last) -> LG(index 0) 방향: 현재 위치부터 배열 처음(LG)까지 좌표를 뒤집어서 구성
+            const prevIndex = Math.floor((flatCoords.length - 1) * (1 - progress));
+            // 0번 인덱스(LG) 방향으로 가야 하므로 0부터 prevIndex까지 자른 후 reverse()
+            remainingCoords = [carPos, ...flatCoords.slice(0, prevIndex + 1).reverse()];
           }
 
           if (remainingCoords.length > 1) {
             const remainingFeature = new Feature({ geometry: new LineString(remainingCoords) });
-            remainingFeature.setStyle(new Style({ 
-                stroke: new Stroke({ color: themeColor, width: 8, lineCap: 'round' }),
+            
+            remainingFeature.setStyle([
+              new Style({ 
+                stroke: new Stroke({ color: '#FFFFFF', width: 6, lineDash: [12, 12], lineCap: 'round' }),
                 zIndex: 3 
-            }));
+              }),
+              new Style({ 
+                stroke: new Stroke({ color: themeColor, width: 3, lineDash: [12, 12], lineCap: 'round' }),
+                zIndex: 4 
+              })
+            ]);
             remainingRouteSource.addFeature(remainingFeature);
           }
 
@@ -281,15 +294,16 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
           const POPUP_HEIGHT = 160; 
           const yOffset = -60 - (sIndex * POPUP_HEIGHT);
 
-          // 🟢 숨쉬는 애니메이션 제거, 정적인 아이콘 적용
           const iconOverlayId = `icon-${carId}`;
           let iconOverlay = map.getOverlayById(iconOverlayId);
           
+          // [수정3] 방향에 따라 트럭 SVG 좌우 반전 처리
+          // LG(서쪽) -> GMT(동쪽): 기본 방향(오른쪽) / GMT(동쪽) -> LG(서쪽): 반전(왼쪽)
           const iconHtml = `
             <div style="position: relative; width: 88px; height: 88px; display: flex; align-items: center; justify-content: center; margin-top:-44px; margin-left:-44px; cursor: pointer;">
                 <div style="position: absolute; width: 100%; height: 100%; background: rgba(${themeRgba}, 0.15); border-radius: 50%;"></div>
                 <div style="position: absolute; width: 65%; height: 65%; background: ${themeColor}; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: ${isLgStart ? 'none' : 'scaleX(-1)'};">
                         <rect x="3" y="6" width="12" height="15" rx="2"></rect>
                         <path d="M15 11h6l4 4v6h-10"></path>
                         <circle cx="7" cy="21" r="2.5"></circle>
@@ -335,7 +349,7 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
                 <span style="font-weight: 800; color: #3b82f6;">${car.eta || '이동 중'}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px; border-top: 1px solid #f1f5f9; padding-top: 14px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="${themeColor}" stroke="none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="${themeColor}" stroke="none" style="transform: ${isLgStart ? 'none' : 'scaleX(-1)'};">
                     <path d="M5 18H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v11"/>
                     <path d="M14 9h4l4 4v5a1 1 0 0 1-1 1h-2"/>
                     <circle cx="7" cy="18" r="2.5" fill="white" stroke="${themeColor}" stroke-width="2"/>
@@ -365,7 +379,7 @@ export default function VWorldMap({ markers = [], focusedTitle, onEtaUpdate }: V
       if (!isTarget) {
         const carFeature = new Feature({ geometry: new Point(carPos) });
         carFeature.setStyle(new Style({
-          image: new CircleStyle({ radius: dynamicDotRadius, fill: new Fill({ color: '#1e293b' }), stroke: new Stroke({ color: '#FFFFFF', width: 2 }) }),
+          image: new CircleStyle({ radius: dynamicDotRadius, fill: new Fill({ color: themeColor }), stroke: new Stroke({ color: '#FFFFFF', width: 2 }) }),
           zIndex: 50
         }));
         markerSource.addFeature(carFeature);

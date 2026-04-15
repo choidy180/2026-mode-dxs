@@ -43,7 +43,7 @@ const theme = {
     border: '#E2E8F0',
     shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
     status: {
-        ok: { bg: '#ECFDF5', text: '#10B981', border: '#10B981' }, // 테두리와 텍스트 색상 초록색으로 쨍하게 변경
+        ok: { bg: '#ECFDF5', text: '#10B981', border: '#10B981' }, 
         ng: { bg: '#FEF2F2', text: '#EF4444', border: '#EF4444' },
         wait: { bg: '#F8FAFC', text: '#94A3B8', border: '#E2E8F0' }
     }
@@ -110,7 +110,7 @@ const GlobalStyles = () => (
     `}</style>
 );
 
-// ─── [HELPER] 로그 생성기 (이미지 기반 매핑) ───
+// ─── [HELPER] 로그 생성기 ───
 const generateInitialLogs = (): SystemLog[] => {
     const logs: SystemLog[] = [];
     const messages = [
@@ -267,8 +267,9 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
     );
 };
 
-// 2. 데이터 없음 반투명 모달 (이전에 고정된 완벽한 중앙 배치 방식)
-const EmptyStateModal = ({ onNavigateHome }: { onNavigateHome: () => void }) => {
+// 2. 데이터 없음 반투명 모달
+// [수정점] X 버튼을 눌러 모달을 닫을 수 있도록 onClose 프로퍼티 추가 및 연결
+const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => void, onClose: () => void }) => {
     return (
         <div style={{ 
             position: 'absolute', inset: 0, zIndex: 9999999, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)',
@@ -278,6 +279,16 @@ const EmptyStateModal = ({ onNavigateHome }: { onNavigateHome: () => void }) => 
                 backgroundColor: theme.cardBg, padding: '48px', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', border: `1px solid ${theme.border}`,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '460px', maxWidth: '90%', position: 'relative', transform: 'translateY(-20px)'
             }}>
+                {/* 닫기 (X) 버튼 추가 */}
+                <button 
+                    onClick={onClose} 
+                    style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                    <X size={24} />
+                </button>
+
                 <div className="animate-float" style={{ 
                     width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#EFF6FF', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)'
                 }}>
@@ -604,7 +615,7 @@ export default function FilmAttachmentCheck() {
               이전 검사기록 조회
           </button>
 
-          {/* 상단 헤더 영역 (이미지 UI 100% 일치) */}
+          {/* 상단 헤더 영역 */}
           <div style={{ display: 'flex', gap: layout.gap, height: layout.headerHeight, marginBottom: layout.gap, flexShrink: 0 }}>
               
               {/* 1. 전체 판정 결과 카드 */}
@@ -660,7 +671,7 @@ export default function FilmAttachmentCheck() {
 
           <div style={{ flex: 1, display: 'flex', gap: layout.gap, minHeight: 0 }}>
               
-              {/* 1. 좌측 메인 이미지 뷰어 (테두리 없이 깔끔하게 배치) */}
+              {/* 1. 좌측 메인 이미지 뷰어 */}
               <div style={{ flex: 3, display: 'flex', flexDirection: 'column', backgroundColor: theme.cardBg, borderRadius: '16px', boxShadow: theme.shadow, padding: '16px', border: `1px solid ${theme.border}` }}>
                   <div style={{ flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: '#FFFFFF', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {apiData?.FILEPATH1 ? (
@@ -682,7 +693,7 @@ export default function FilmAttachmentCheck() {
                   </div>
               </div>
 
-              {/* 2. 우측 로그 패널 (점 디자인, 하이라이트 배경 매칭) */}
+              {/* 2. 우측 로그 패널 */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.cardBg, borderRadius: '16px', boxShadow: theme.shadow, border: `1px solid ${theme.border}`, overflow: 'hidden' }}>
                   <div style={{ padding: '20px 24px', borderBottom: `1px solid ${theme.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
                       <span style={{ fontWeight: 800, fontSize: '18px', color: theme.textPrimary }}>실시간 생산 및 적재 데이터</span>
@@ -727,8 +738,13 @@ export default function FilmAttachmentCheck() {
           <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onImageClick={handleImageClick} />
           {showPermissionModal && <SoundPermissionModal onConfirm={() => { setAudioAllowed(true); setShowPermissionModal(false); }} />}
           {modalInfo && <ImageModal isOpen={modalInfo.isOpen} onClose={() => setModalInfo(null)} title={modalInfo.title} imgUrl={modalInfo.imgUrl} />}
+          
+          {/* 데이터 없음 모달 (닫기 X버튼 동작 추가) */}
           {totalStats && totalStats.total_count === 0 && !isEmptyStateClosed && (
-              <EmptyStateModal onNavigateHome={handleNavigateHome} />
+              <EmptyStateModal 
+                  onNavigateHome={handleNavigateHome} 
+                  onClose={() => setIsEmptyStateClosed(true)} 
+              />
           )}
       </div>
   );
