@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import StyledComponentsRegistry from "@/lib/registry"; 
 import { ViewProvider } from "./view-context"; // ✅ ViewProvider import 필수
-import "./globals.css";
+import "@/app/globals.css";
 import ClientLayoutWrapper from "./layout-client";
 
 export const metadata: Metadata = {

@@ -109,7 +109,7 @@ const MenuPillContainer = styled.div`
 const MenuGlider = styled.div`
   position: absolute; 
   height: calc(100% - 8px); 
-  background-color: #D31145; 
+  background-color: #D31145 !important; 
   border-radius: 30px; 
   z-index: 0;
   top: 4px;
