@@ -313,19 +313,25 @@ export default function LocalMapPage() {
     return map;
   }, [markers]);
 
-  // 통계 계산
+  // ─── [통계 계산 로직 수정] ───
   const movingVehicles = vehicles.filter(v => v.status === 'Moving');
   const arrivedVehicles = vehicles.filter(v => v.status === 'Arrived');
   
+  // 1. 전체 상태 통계
   const totalCount = vehicles.length;
   const movingCount = movingVehicles.length;
   const arrivedCount = arrivedVehicles.length;
   
-  // GMT➔LG, LG➔GMT 차량 수 계산
+  // 2. 목적지별 도착 예정 (현재 '운행 중'인 차량 기준)
+  const expectedLg = movingVehicles.filter(v => isLg(v.destPos.title)).length;
+  const expectedGmt = movingVehicles.filter(v => isGmt(v.destPos.title)).length;
+  
+  // 3. 노선별 총 배차 (운행 + 도착 모두 포함)
   const gmtToLgTotal = vehicles.filter(v => isGmt(v.startPos.title) && isLg(v.destPos.title)).length;
   const lgToGmtTotal = vehicles.filter(v => isLg(v.startPos.title) && isGmt(v.destPos.title)).length;
+  const otherRoutesTotal = totalCount - gmtToLgTotal - lgToGmtTotal; // 기타 노선 (성철사, 신창원 등)
   
-  // 복귀 예정 차량: 현재 외부(LG 등)로 향하고 있거나, 외부에 도착해서 대기중인 차량 (다음 행선지가 고모텍이 될 차량)
+  // 복귀 대상: 현재 목적지가 고모텍이 아닌 차량 (외부로 가는 중이거나 외부에 도착해 대기 중)
   const expectedReturn = vehicles.filter(v => !isGmt(v.destPos.title)).length;
 
   const calculateAvgTime = (startKeyword: string) => {
@@ -421,7 +427,7 @@ export default function LocalMapPage() {
         </div>
       </TopRightWidget>
 
-      {/* 🟢 우측 레이아웃 래퍼 (플렉스박스로 겹침 방지 및 높이 자동 할당) */}
+      {/* 🟢 우측 레이아웃 래퍼 */}
       <RightSideWrapper>
         {/* 우측 상단: 종합 운행 통계 패널 */}
         <StatsPanel>
@@ -430,6 +436,7 @@ export default function LocalMapPage() {
               당일 배차 및 운행 통계
           </StatsHeader>
           <StatsGrid>
+              {/* 1행: 전체 상태 */}
               <div className="stat-card">
                   <div className="stat-title">총 배차</div>
                   <div className="stat-val">{totalCount}대</div>
@@ -442,22 +449,38 @@ export default function LocalMapPage() {
                   <div className="stat-title"><CheckCircle2 size={14} />도착완료</div>
                   <div className="stat-val green">{arrivedCount}대</div>
               </div>
+
+              {/* 2행: 목적지별 도착 예정 (운행 중 기준) */}
               <div className="stat-card">
-                  <div className="stat-title">GMT ➔ LG</div>
+                  <div className="stat-title">LG 도착 예정</div>
+                  <div className="stat-val blue">{expectedLg}대</div>
+              </div>
+              <div className="stat-card">
+                  <div className="stat-title">GMT 도착 예정</div>
+                  <div className="stat-val blue">{expectedGmt}대</div>
+              </div>
+              <div className="stat-card">
+                  <div className="stat-title" title="현재 목적지가 외부인 복귀 대상 차량">복귀 대상</div>
+                  <div className="stat-val orange">{expectedReturn}대</div>
+              </div>
+
+              {/* 3행: 노선별 누적 현황 (도착완료 포함) */}
+              <div className="stat-card">
+                  <div className="stat-title">GMT➔LG 누적</div>
                   <div className="stat-val">{gmtToLgTotal}대</div>
               </div>
               <div className="stat-card">
-                  <div className="stat-title">LG ➔ GMT</div>
+                  <div className="stat-title">LG➔GMT 누적</div>
                   <div className="stat-val">{lgToGmtTotal}대</div>
               </div>
               <div className="stat-card">
-                  <div className="stat-title" title="목적지가 외부인 차량으로 향후 고모텍으로 복귀 예정">복귀 예정</div>
-                  <div className="stat-val blue">{expectedReturn}대</div>
+                  <div className="stat-title">기타노선 누적</div>
+                  <div className="stat-val">{otherRoutesTotal}대</div>
               </div>
           </StatsGrid>
         </StatsPanel>
 
-        {/* 우측 하단: 실시간 운행 현황 리스트 (남은 영역 모두 채움) */}
+        {/* 우측 하단: 실시간 운행 현황 리스트 */}
         <MovingListPanel>
           <MovingListHeader>
               <Navigation size={14} color="#0f172a" />
@@ -616,20 +639,18 @@ const TopRightWidget = styled.div`
   @keyframes blink { 50% { opacity: 0.4; } }
 `;
 
-/* 🟢 우측 레이아웃을 담당하는 Flex 컨테이너 추가 (겹침 방지) */
 const RightSideWrapper = styled.div`
   position: absolute; right: 20px; top: 100px; bottom: 20px; z-index: 100;
   width: 340px;
   display: flex; flex-direction: column; gap: 20px;
 `;
 
-/* 🟢 우측 중앙: 통계 패널 */
 const StatsPanel = styled.div`
   background: white; border-radius: 20px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.1);
   border: 1px solid #f1f5f9;
   display: flex; flex-direction: column; overflow: hidden;
-  flex-shrink: 0; /* 이 박스는 컨텐츠 크기만큼만 차지하고 찌그러지지 않음 */
+  flex-shrink: 0; 
 `;
 
 const StatsHeader = styled.div`
@@ -651,21 +672,22 @@ const StatsGrid = styled.div`
   .stat-card:nth-child(3n) { border-right: none; }
   .stat-card:nth-last-child(-n+3) { border-bottom: none; }
   
-  .stat-title { font-size: 12px; color: #64748b; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+  .stat-title { font-size: 12px; color: #64748b; font-weight: 700; display: flex; align-items: center; gap: 4px; text-align: center; }
   .stat-val { font-size: 20px; font-weight: 800; font-family: 'Rajdhani', sans-serif; letter-spacing: -0.5px; }
+  
   .stat-val.red { color: #ce0037; }
   .stat-val.green { color: #10b981; }
   .stat-val.blue { color: #3b82f6; }
+  .stat-val.orange { color: #f59e0b; }
 `;
 
-/* 🟢 우측 하단: 리스트 패널 */
 const MovingListPanel = styled.div`
   background: white; border-radius: 20px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.1);
   border: 1px solid #f1f5f9;
   display: flex; flex-direction: column; overflow: hidden;
-  flex: 1; /* 부모(RightSideWrapper)의 남은 높이를 모두 차지함 */
-  min-height: 0; /* 내부 스크롤이 가능하도록 min-height 속성 초기화 */
+  flex: 1; 
+  min-height: 0; 
 `;
 
 const MovingListHeader = styled.div`
@@ -677,7 +699,7 @@ const MovingListHeader = styled.div`
 
 const MiniMovingList = styled.div`
   flex: 1; 
-  overflow-y: auto; /* 공간이 부족하면 스크롤바 생성 */
+  overflow-y: auto; 
   padding: 12px 16px 16px 16px;
   display: flex; flex-direction: column; gap: 8px;
 
@@ -705,8 +727,6 @@ const CompactListItem = styled.div<{ $isWarning?: boolean }>`
   .time-info { width: 55px; text-align: right; font-size: 16px; font-weight: 800; letter-spacing: -0.5px; }
 `;
 
-
-/* 🟢 좌측 사이드바 스타일 (전체 이력 전용) */
 const SidebarModal = styled.div`
   position: absolute; left: 24px; top: 24px; bottom: 24px; width: 380px;
   background: white; z-index: 100; 

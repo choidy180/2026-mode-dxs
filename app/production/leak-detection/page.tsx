@@ -93,7 +93,7 @@ const LAYOUT_CONFIGS = {
     }
 };
 
-// --- STYLED COMPONENTS (중복 선언 완전 제거) ---
+// --- STYLED COMPONENTS ---
 
 const GlobalStyles = createGlobalStyle`
     @keyframes pulse-green-soft {
@@ -368,10 +368,11 @@ const CamBadge = styled.span<{ $isOk: boolean }>`
     font-weight: 700;
 `;
 
+// ✅ 해결: url() 안에 따옴표를 추가하여 쉼표나 특수문자가 포함된 URL도 안전하게 렌더링되도록 수정
 const CamImageArea = styled.div<{ $imgUrl: string }>`
     flex: 1;
     background-color: #F1F5F9;
-    background-image: url(${props => props.$imgUrl});
+    background-image: url('${props => props.$imgUrl}'); 
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -379,53 +380,90 @@ const CamImageArea = styled.div<{ $imgUrl: string }>`
     border-radius: 8px;
 `;
 
-// ✅ 모달 전용 완벽한 덮어쓰기 스타일
-const EmptyStateBackdrop = styled.div`
-    position: fixed; 
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 9999999; /* 모든 UI 무시하고 최상단 배치 */
-    background-color: rgba(15, 23, 42, 0.7); 
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;    
-    justify-content: center;
-`;
+const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => void, onClose: () => void }) => {
+    return (
+        <div 
+            style={{ 
+                position: 'absolute', 
+                inset: 0, 
+                zIndex: 9999999, 
+                backgroundColor: 'rgba(15, 23, 42, 0.75)', 
+                backdropFilter: 'blur(8px)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+            }}
+        >
+            <div 
+                style={{ 
+                    backgroundColor: THEME.cardBg, 
+                    padding: '48px', 
+                    borderRadius: '24px', 
+                    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', 
+                    border: `1px solid ${THEME.border}`, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    textAlign: 'center', 
+                    width: '460px', 
+                    maxWidth: '90%', 
+                    position: 'relative' 
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <button 
+                    onClick={onClose}
+                    style={{
+                        position: 'absolute', top: '16px', right: '16px',
+                        background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: THEME.textSecondary, padding: '8px', borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = THEME.textPrimary; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = THEME.textSecondary; }}
+                >
+                    <X size={24} strokeWidth={2.5} />
+                </button>
+                
+                <div className="animate-float" style={{ 
+                    width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#EFF6FF',
+                    color: THEME.accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: '24px', boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)'
+                }}>
+                    <ClipboardX size={48} strokeWidth={1.5} />
+                </div>
 
-const EmptyStateCard = styled.div`
-    background-color: ${THEME.cardBg};
-    padding: 48px;
-    border-radius: 24px;
-    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
-    border: 1px solid ${THEME.border};
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    width: 460px;
-    max-width: 90%;
-    position: relative;
-    transform: translateY(-20px); 
-`;
+                <h2 style={{ fontSize: '24px', fontWeight: 800, color: THEME.textPrimary, margin: '0 0 12px 0' }}>
+                    금일 검사 데이터가 없습니다
+                </h2>
+                <p style={{ fontSize: '15px', color: THEME.textSecondary, lineHeight: '1.6', margin: '0 0 32px 0', wordBreak: 'keep-all' }}>
+                    생산 라인이 가동 중인지 확인하거나,<br/>잠시 후 다시 시도해 주세요.
+                </p>
 
-const CloseIconButton = styled.button`
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: ${THEME.textSecondary};
-    padding: 8px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-    &:hover { background: #F1F5F9; color: ${THEME.textPrimary}; }
-`;
+                <button 
+                    onClick={onNavigateHome}
+                    style={{ 
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                        backgroundColor: '#fff', color: THEME.textPrimary, border: `1px solid ${THEME.border}`, 
+                        padding: '12px 32px', borderRadius: '12px', fontWeight: 700, fontSize: '15px',
+                        cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = THEME.accent;
+                        e.currentTarget.style.color = THEME.accent;
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = THEME.border;
+                        e.currentTarget.style.color = THEME.textPrimary;
+                    }}
+                >
+                    <Home size={18} />
+                    메인 화면으로 이동
+                </button>
+            </div>
+        </div>
+    );
+};
 
 // --- 3. 초기 데이터 ---
 const initialTopCards: CamData[] = [
@@ -574,91 +612,6 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
                     </div>
                 </div>
             )}
-        </div>
-    );
-};
-
-const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => void, onClose: () => void }) => {
-    return (
-        <div 
-            style={{ 
-                position: 'absolute', 
-                inset: 0, 
-                zIndex: 9999999, 
-                backgroundColor: 'rgba(15, 23, 42, 0.75)', 
-                backdropFilter: 'blur(8px)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-            }}
-        >
-            <div 
-                style={{ 
-                    backgroundColor: THEME.cardBg, 
-                    padding: '48px', 
-                    borderRadius: '24px', 
-                    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', 
-                    border: `1px solid ${THEME.border}`, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
-                    textAlign: 'center', 
-                    width: '460px', 
-                    maxWidth: '90%', 
-                    position: 'relative' 
-                }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <button 
-                    onClick={onClose}
-                    style={{
-                        position: 'absolute', top: '16px', right: '16px',
-                        background: 'transparent', border: 'none', cursor: 'pointer',
-                        color: THEME.textSecondary, padding: '8px', borderRadius: '50%',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = THEME.textPrimary; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = THEME.textSecondary; }}
-                >
-                    <X size={24} strokeWidth={2.5} />
-                </button>
-                
-                <div className="animate-float" style={{ 
-                    width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#EFF6FF',
-                    color: THEME.accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginBottom: '24px', boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)'
-                }}>
-                    <ClipboardX size={48} strokeWidth={1.5} />
-                </div>
-
-                <h2 style={{ fontSize: '24px', fontWeight: 800, color: THEME.textPrimary, margin: '0 0 12px 0' }}>
-                    금일 검사 데이터가 없습니다
-                </h2>
-                <p style={{ fontSize: '15px', color: THEME.textSecondary, lineHeight: '1.6', margin: '0 0 32px 0', wordBreak: 'keep-all' }}>
-                    생산 라인이 가동 중인지 확인하거나,<br/>잠시 후 다시 시도해 주세요.
-                </p>
-
-                <button 
-                    onClick={onNavigateHome}
-                    style={{ 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                        backgroundColor: '#fff', color: THEME.textPrimary, border: `1px solid ${THEME.border}`, 
-                        padding: '12px 32px', borderRadius: '12px', fontWeight: 700, fontSize: '15px',
-                        cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = THEME.accent;
-                        e.currentTarget.style.color = THEME.accent;
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = THEME.border;
-                        e.currentTarget.style.color = THEME.textPrimary;
-                    }}
-                >
-                    <Home size={18} />
-                    메인 화면으로 이동
-                </button>
-            </div>
         </div>
     );
 };
@@ -833,7 +786,9 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
                                             style={{
                                                 width: '100%', height: '240px', backgroundColor: '#020617', borderRadius: '16px',
                                                 marginBottom: '16px', cursor: 'pointer', border: `1px solid ${THEME.border}`,
-                                                backgroundImage: `url(${selectedLog.images.main})`, backgroundSize: 'contain', 
+                                                // ✅ 해결: url() 안에 따옴표를 추가
+                                                backgroundImage: `url('${selectedLog.images.main}')`,
+                                                backgroundSize: 'contain', 
                                                 backgroundPosition: 'center', backgroundRepeat: 'no-repeat', position: 'relative'
                                             }}
                                         >
@@ -857,7 +812,8 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
                                                     style={{
                                                         height: '140px', backgroundColor: '#020617', borderRadius: '16px', cursor: 'pointer',
                                                         border: `1px solid ${THEME.border}`, position: 'relative',
-                                                        backgroundImage: `url(${selectedLog.images[corner.key as keyof typeof selectedLog.images]})`,
+                                                        // ✅ 해결: url() 안에 따옴표를 추가
+                                                        backgroundImage: `url('${selectedLog.images[corner.key as keyof typeof selectedLog.images]}')`,
                                                         backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat'
                                                     }}
                                                 >
@@ -1016,7 +972,7 @@ export default function VisionDashboard() {
       setModalInfo({ isOpen: true, title, imgUrl: url });
   };
 
-  // 비프음 재생 로직 (AudioContext 중복 생성 방지)
+  // 비프음 재생 로직
   useEffect(() => {
     if (!isMounted) return;
 
@@ -1029,7 +985,6 @@ export default function VisionDashboard() {
         if (hasDefect) {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
             
-            // Ref를 이용해 한 번만 생성
             if (!audioCtxRef.current && AudioContextClass) {
                 audioCtxRef.current = new AudioContextClass();
             }
@@ -1286,7 +1241,9 @@ export default function VisionDashboard() {
                 backgroundRepeat: 'no-repeat', backgroundSize: `${ZOOM_LEVEL * 100}%`,
                 boxShadow: '0 20px 50px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: 50,
                 opacity: 0, transform: 'scale(0.8)', transition: 'opacity 0.25s, transform 0.25s',
-                willChange: 'transform, opacity', backgroundImage: `url(${GUIDE_IMAGE_URL})`
+                willChange: 'transform, opacity', 
+                // ✅ 해결: url() 안에 따옴표를 추가
+                backgroundImage: `url('${GUIDE_IMAGE_URL}')`
             }}
           >
             <div style={{ position: 'absolute', top: '50%', left: '15%', width: '70%', height: '1px', backgroundColor: THEME.accent, opacity: 0.5 }} />
