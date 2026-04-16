@@ -617,7 +617,11 @@ export default function DashboardPage() {
       const res = await fetch(API_URL_MATERIAL_LIST);
       if (!res.ok) throw new Error(`API Error: ${res.status}`);
       const json = await res.json();
-      const data: MaterialListItem[] = Array.isArray(json) ? json : [];
+      
+      // ✨ 수정: API 결과 중 '대일화학' 이름이 포함된 항목을 필터링하여 제외
+      let data: MaterialListItem[] = Array.isArray(json) ? json : [];
+      data = data.filter(item => !(item.NmCustm && item.NmCustm.includes('대일화학')));
+
       setMaterialList(data);
       const total = data.length;
       const done = data.filter(item => item.InspConf === 'Y').length;
@@ -649,13 +653,16 @@ export default function DashboardPage() {
     }
   }, [now, vehicleInfo]);
 
-  useEffect(() => { fetchMaterialData(); }, [fetchMaterialData]);
-
   const manualTrigger = useCallback(() => { 
     fetchVehicleData(); 
     fetchMaterialData();
     setShowDashboard(true); 
   }, [fetchVehicleData, fetchMaterialData]);
+
+  // ✨ 수정: 컴포넌트 마운트(화면 진입) 시 바로 manualTrigger() 실행
+  useEffect(() => {
+    manualTrigger();
+  }, [manualTrigger]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

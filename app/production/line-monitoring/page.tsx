@@ -194,7 +194,7 @@ const InjectionStatusPanel = styled(GlassPanel)` bottom: 1.5rem; right: 1.5rem; 
 const BottomLeftPanel = styled(GlassPanel)` bottom: 1.5rem; left: 1.5rem; width: 340px; height: 280px; animation: ${slideInLeft} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards; opacity: 0; animation-fill-mode: forwards; `;
 const VisionAnalysisPanel = styled(GlassPanel)` bottom: 1.5rem; left: calc(1.5rem + 340px + 15px); width: 280px; animation: ${slideInLeft} 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; opacity: 0; animation-fill-mode: forwards; overflow: hidden; `;
 const HoverInfoPanel = styled(GlassPanel)` top: 5rem; left: 1.5rem; width: 280px; padding: 20px; animation: ${slideDown} 0.3s cubic-bezier(0.16, 1, 0.3, 1); border-left: 4px solid transparent; transition: border-color 0.3s ease, box-shadow 0.3s ease; will-change: transform, border-color; `;
-const AIAdvisorPanel = styled(GlassPanel)` bottom: calc(1.5rem + 280px + 15px); left: 1.5rem; width: 340px; padding: 0; overflow: hidden; z-index: 25; animation: ${slideUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); `;
+const AIAdvisorPanel = styled(GlassPanel)` bottom: 60px; left: 1.5rem; width: 340px; padding: 0; overflow: hidden; z-index: 25; animation: ${slideUp} 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); `;
 
 // 화이트&레드 테마 전용 컴포넌트
 const TitleRow = styled.div` display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; `;
@@ -847,13 +847,13 @@ const Panels = React.memo(({ hoveredInfo, errorUnits, apiData, injectUnit }: { h
           )}
       </InjectionStatusPanel>
 
-      <BottomLeftPanel>
+      {/* <BottomLeftPanel>
         <TitleRow>
             <MainTitle>연간 데이터 추이</MainTitle>
         </TitleRow>
         <SubTitleRow>
             <span>안정권 유지 중</span>
-            <span style={{ fontSize: 24, fontWeight: 900, color: THEME.textMain, letterSpacing: '-1px' }}>0.8%</span>
+            <span style={{ fontSize: 24, fontWeight: 900, color: THEME.textMain, letterSpacing: '-1px' }}>88%</span>
         </SubTitleRow>
         <RedLine />
         
@@ -866,7 +866,7 @@ const Panels = React.memo(({ hoveredInfo, errorUnits, apiData, injectUnit }: { h
             </AreaChart>
           </ResponsiveContainer>
         </ChartWrapper>
-      </BottomLeftPanel>
+      </BottomLeftPanel> */}
 
       {/* <VisionAnalysisPanel>
           <TitleRow style={{ marginBottom: 8 }}>

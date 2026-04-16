@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { ref, onValue, query, limitToLast } from "firebase/database";
@@ -85,7 +87,7 @@ const MemoizedItemCard = React.memo(({ item, selectedId, onClick }: { item: Wear
 )); 
 MemoizedItemCard.displayName = 'MemoizedItemCard';
 
-const RPAStatusView = React.memo(({ step, isWearableConnected, streamUrl }: { step: number, isWearableConnected?: boolean, streamUrl?: string | null }) => {
+const RPAStatusView = React.memo(({ step, showVideo, handleVideoEnded }: { step: number, showVideo: boolean, handleVideoEnded: () => void }) => {
   return (
     <RPAProcessView initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }} >
       <div className="rpa-header"> 
@@ -108,11 +110,18 @@ const RPAStatusView = React.memo(({ step, isWearableConnected, streamUrl }: { st
       <div className="pip-container">
         <motion.div layoutId="camera-view" style={{ width: '100%', height: '100%' }}>
           <CameraFrame>
-            {isWearableConnected && streamUrl ? (
-                <iframe src={streamUrl} style={{ width: '100%', height: '100%', border: 'none', objectFit: 'cover' }} />
+            {showVideo ? (
+                <video 
+                  src="/sample.mp4" 
+                  autoPlay 
+                  muted 
+                  playsInline
+                  onEnded={handleVideoEnded}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
             ) : (
                 <div className="simulated-barcode-view" style={{background: '#000'}}>
-                    <div style={{opacity: 0.3}}><ScanBarcode size={40} /></div>
+                    <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>대기중...</span>
                 </div>
             )}
           </CameraFrame>
@@ -124,12 +133,14 @@ const RPAStatusView = React.memo(({ step, isWearableConnected, streamUrl }: { st
 RPAStatusView.displayName = 'RPAStatusView';
 
 export default function AIDashboardModal({ onClose, streamUrl, streamStatus, externalData }: AIDashboardModalProps) {
-  // [핵심] viewMode: 'camera' (기본값, 스트리밍) <-> 'rpa' (프로세스 진행)
   const [viewMode, setViewMode] = useState<'camera' | 'rpa'>('camera');
   
   const [items, setItems] = useState<WearableItemData[]>([]);
   const [selectedId, setSelectedId] = useState<number>(0);
   
+  // ✨ 비디오 재생 제어 상태 추가
+  const [showVideo, setShowVideo] = useState(true);
+
   const [rpaStep, setRpaStep] = useState(0);
   const [showComplete, setShowComplete] = useState(false);
   const [showFailure, setShowFailure] = useState(false);
@@ -141,9 +152,13 @@ export default function AIDashboardModal({ onClose, streamUrl, streamStatus, ext
   const lastStepTimeRef = useRef<number>(0); 
   const initialMount = useRef(true);
   
-  const isWearableConnected = streamStatus === 'ok' && !!streamUrl;
+  // ✨ 비디오 반복 로직 추가
+  const handleVideoEnded = useCallback(() => {
+    setShowVideo(false);
+    setTimeout(() => setShowVideo(true), 7000);
+  }, []);
 
-  // 1. [vuzix_log 변경 대응] 데이터만 채우고, 뷰 모드는 변경하지 않음
+  // 1. [vuzix_log 변경 대응 및 임시 데이터 주입]
   useEffect(() => {
     if (externalData && externalData.length > 0) {
         console.log("🛠️ Data Updated (vuzix_log triggered):", externalData);
@@ -164,11 +179,15 @@ export default function AIDashboardModal({ onClose, streamUrl, streamStatus, ext
         }));
         setItems(mappedItems);
         if(mappedItems.length > 0) setSelectedId(mappedItems[0].id);
-        
-        // 중요: 여기서 setViewMode('rpa')를 하지 않습니다. 
-        // 데이터만 우측에 표시하고, 왼쪽은 여전히 카메라('camera') 상태를 유지합니다.
     } else {
-        setItems([]);
+        // ✨ 데이터가 비어있을 경우 임시 목업 데이터를 생성하여 주입
+        const mockItems: WearableItemData[] = [
+          { id: 1, project: "스마트 팩토리 고도화", code: "AL-FRM-001", name: "알루미늄 프레임 A형", type: "수입검사", date: "2026-04-16", vendor: "(주)동성정밀", qty: 250, quality: "Y", dwellTime: "10분", invoiceNo: "INV-9921", totalQty: 1000, qmConf: "Y" },
+          { id: 2, project: "스마트 팩토리 고도화", code: "SN-MOD-002", name: "센서 모듈 v2.1", type: "수입검사", date: "2026-04-16", vendor: "현대모비스", qty: 100, quality: "N", dwellTime: "5분", invoiceNo: "INV-9922", totalQty: 500, qmConf: "대기" },
+          { id: 3, project: "스마트 팩토리 고도화", code: "BT-SET-003", name: "M8 볼트/너트 세트", type: "일반검사", date: "2026-04-16", vendor: "태양산업", qty: 5000, quality: "Y", dwellTime: "15분", invoiceNo: "INV-9923", totalQty: 10000, qmConf: "Y" }
+        ];
+        setItems(mockItems);
+        setSelectedId(mockItems[0].id);
     }
   }, [externalData]);
 
@@ -193,7 +212,6 @@ export default function AIDashboardModal({ onClose, streamUrl, streamStatus, ext
             if (data && data.Status) {
                 const newStatus = parseInt(data.Status, 10);
                 if (!isNaN(newStatus)) {
-                    // [핵심] logs가 변경되었으므로 RPA 모드로 전환
                     setViewMode('rpa'); 
                     
                     setStepQueue(prev => {
@@ -275,10 +293,7 @@ export default function AIDashboardModal({ onClose, streamUrl, streamStatus, ext
     setSelectedId(id);
   }, []);
 
-  // 뷰 모드를 수동으로 카메라로 돌리는 기능 (필요시 사용)
   const handleCameraClick = useCallback(() => {
-    // 이미 카메라 모드면 아무것도 안함, RPA 모드면 끄는 등 확장 가능
-    // 현재는 왼쪽 패널 클릭 시 동작 없음
   }, []);
 
   const activeItem = useMemo(() => items.find(i => i.id === selectedId) || (items.length > 0 ? items[0] : null), [items, selectedId]);
@@ -312,21 +327,28 @@ export default function AIDashboardModal({ onClose, streamUrl, streamStatus, ext
         <div className="left-pane" onClick={handleCameraClick}> 
           <LayoutGroup> 
             {viewMode === 'camera' ? (
-                // [기본 상태] 스트리밍 화면 (가이드라인/태그 제거됨, 순수 영상만)
+                // ✨ iframe을 제거하고 로컬 비디오 적용
                 <motion.div layoutId="camera-view" style={{ width: '100%', height: '100%', zIndex: 20 }}>
                     <CameraFrame>
-                        {isWearableConnected && streamUrl ? (
-                            <iframe src={streamUrl} style={{ width: '100%', height: '100%', border: 'none', objectFit: 'cover' }} />
+                        {showVideo ? (
+                            <video 
+                              src="/sample.mp4" 
+                              autoPlay 
+                              muted 
+                              playsInline
+                              onEnded={handleVideoEnded}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
                         ) : (
                             <div className="simulated-barcode-view" style={{background: '#000'}}>
-                                <div style={{opacity: 0.3}}><ScanBarcode size={40} /></div>
+                                <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>대기중...</span>
                             </div>
                         )}
                     </CameraFrame>
                 </motion.div>
             ) : (
-                // [RPA 모드] logs 변경 시에만 전환됨
-                <RPAStatusView step={rpaStep} isWearableConnected={isWearableConnected} streamUrl={streamUrl} />
+                // ✨ RPAStatusView에도 비디오 로직을 전달하여 동기화
+                <RPAStatusView step={rpaStep} showVideo={showVideo} handleVideoEnded={handleVideoEnded} />
             )}
           </LayoutGroup> 
         </div> 
@@ -418,7 +440,6 @@ export default function AIDashboardModal({ onClose, streamUrl, streamStatus, ext
                 </LogSection>
               </>
             ) : (
-              // 데이터 없음 (Placeholder UI)
               <EmptyDataPlaceholder>
                 <div className="icon"><Search size={32} /></div>
                 <p>데이터를 조회하면 입고 정보가 표시됩니다.</p>

@@ -515,7 +515,7 @@ const generateInitialDummyData = (line: string): CycleData[] => {
 // --- [Main Component] ---
 
 export default function ProcessDashboard() {
-  const [viewMode, setViewMode] = useState<1 | 2 | 3>(1); 
+  const [viewMode, setViewMode] = useState<1 | 2 | 3>(3); 
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState("Initializing System...");
 

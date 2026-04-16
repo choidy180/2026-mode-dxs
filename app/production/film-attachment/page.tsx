@@ -488,7 +488,7 @@ export default function FilmAttachmentCheck() {
 
   const fetchData = useCallback(async () => {
       try {
-          const response = await fetch("http://1.254.24.170:24828/api/DX_API000026");
+          const response = await fetch("http://1.254.24.170:24828/api/DX_API000027");
           const json = await response.json();
           
           if (json.success) {

@@ -269,7 +269,7 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
     );
 };
 
-const EmptyStateModal = ({ onNavigateHome }: { onNavigateHome: () => void }) => {
+const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => void; onClose: () => void }) => {
     return (
         <div style={{ 
             position: 'absolute', inset: 0, zIndex: 9999999, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)',
@@ -279,6 +279,18 @@ const EmptyStateModal = ({ onNavigateHome }: { onNavigateHome: () => void }) => 
                 backgroundColor: theme.cardBg, padding: '48px', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', border: `1px solid ${theme.border}`,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '460px', maxWidth: '90%', position: 'relative', transform: 'translateY(-20px)'
             }}>
+                <button 
+                    onClick={onClose} 
+                    style={{ 
+                        position: 'absolute', top: '20px', right: '20px', width: '36px', height: '36px', borderRadius: '50%', 
+                        backgroundColor: '#F8FAFC', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                        color: theme.textSecondary, transition: 'all 0.2s' 
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = theme.textPrimary; }} 
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.color = theme.textSecondary; }}
+                >
+                    <X size={20} />
+                </button>
                 <div className="animate-float" style={{ 
                     width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#EFF6FF', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)'
                 }}>
@@ -767,8 +779,13 @@ export default function FilmAttachmentCheck() {
           <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onImageClick={handleImageClick} />
           {showPermissionModal && <SoundPermissionModal onConfirm={() => { setAudioAllowed(true); setShowPermissionModal(false); }} />}
           {modalInfo && <ImageModal isOpen={modalInfo.isOpen} onClose={() => setModalInfo(null)} title={modalInfo.title} imgUrl={modalInfo.imgUrl} />}
+          
+          {/* 변경점: onClose 속성 추가 및 함수 연결 */}
           {totalStats && totalStats.total_count === 0 && !isEmptyStateClosed && (
-              <EmptyStateModal onNavigateHome={handleNavigateHome} />
+              <EmptyStateModal 
+                  onNavigateHome={handleNavigateHome} 
+                  onClose={() => setIsEmptyStateClosed(true)} 
+              />
           )}
       </div>
   );
