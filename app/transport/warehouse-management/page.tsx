@@ -154,9 +154,8 @@ const ZoneStatItem = styled.div`
 `;
 
 const VideoWrapper = styled.div`
-  width: 100%; aspect-ratio: 16 / 9; background: #1E293B; border-radius: 8px; overflow: hidden; margin-bottom: 12px;
+  width: 100%; aspect-ratio: 16 / 9; background: #1E293B; border-radius: 8px; overflow: hidden; margin-bottom: 12px; position: relative;
 `;
-const StyledVideo = styled.video` width: 100%; height: 100%; object-fit: cover; `;
 
 const VideoInfoRow = styled.div`
   display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0;
@@ -322,7 +321,7 @@ interface TooltipState { x: number; y: number; data: ApiSlotDetail | null; locCo
 const CellItem = React.memo(({ id, w, data, onHover }: { id: string, w: string, data: ApiSlotDetail | undefined, onHover: (e: React.MouseEvent, id: string, data: ApiSlotDetail | undefined) => void }) => {
   const isOccupied = data?.occupied;
   
-  // [수정] 라벨(label001)이 아닌 차량번호(vehicle_id)를 표시값으로 사용
+  // 라벨(label001)이 아닌 차량번호(vehicle_id)를 표시값으로 사용
   const displayVal = isOccupied ? (data?.vehicle_id ? data.vehicle_id : '----') : ''; 
 
   return (
@@ -416,6 +415,49 @@ const WarehouseLayout = React.memo(({ renderCell }: { renderCell: (id: string, w
 WarehouseLayout.displayName = "WarehouseLayout";
 
 // =============================================================================
+// 웹소켓 실시간 비디오 플레이어 컴포넌트 추가
+// =============================================================================
+const WsVideoPlayer = ({ wsUrl }: { wsUrl: string }) => {
+  const [imgSrc, setImgSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!wsUrl) return;
+    
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = 'blob'; // Blob 형태로 이미지 프레임 수신 가정
+
+    ws.onopen = () => console.log(`[Video WS] Connected to camera: ${wsUrl}`);
+    
+    ws.onmessage = (event) => {
+      // 전달받은 프레임을 Object URL로 변환하여 img에 렌더링
+      if (event.data instanceof Blob) {
+        const url = URL.createObjectURL(event.data);
+        setImgSrc((prev) => {
+          if (prev) URL.revokeObjectURL(prev); // 이전 메모리 해제
+          return url;
+        });
+      }
+    };
+
+    ws.onerror = (err) => console.error(`[Video WS] Error:`, err);
+    
+    return () => {
+      ws.close();
+      setImgSrc((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, [wsUrl]);
+
+  if (!imgSrc) {
+    return <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#94A3B8', fontSize:'13px'}}>실시간 카메라 연결 중...</div>;
+  }
+
+  return <img src={imgSrc} alt="Live Stream" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+};
+
+// =============================================================================
 // 4. MAIN COMPONENT
 // =============================================================================
 
@@ -433,8 +475,6 @@ export default function FinalDashboard() {
   const [startY, setStartY] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
-
-  const VIDEO_URL = "http://1.254.24.170:24828/api/DX_API000031?videoName=G_STOCK.mp4"; 
 
   useEffect(() => {
     const fetchData = async () => {
@@ -475,7 +515,7 @@ export default function FinalDashboard() {
     return result;
   }, [mapData]);
 
-  // 재고 목록 출력 기준도 vehicle_id로 매핑 변경
+  // 재고 목록 출력 기준도 vehicle_id로 매핑
   const inventoryList = useMemo<InventoryItem[]>(() => {
     const list: InventoryItem[] = [];
     Object.values(mapData).forEach(slot => {
@@ -506,6 +546,25 @@ export default function FinalDashboard() {
     });
     return latest;
   }, [mapData]);
+
+  // 최근 입고된 위치를 기반으로 웹소켓 카메라 주소 할당 (192.168.2.147:8121~8131)
+  const activeCameraUrl = useMemo(() => {
+    const baseIp = "192.168.2.147";
+    if (!recentEntry || !recentEntry.loc_code) return `ws://${baseIp}:8121`;
+    
+    const prefix = recentEntry.loc_code.substring(0, 2);
+    switch (prefix) {
+      case 'GA': return `ws://${baseIp}:8121`;
+      case 'GB': return `ws://${baseIp}:8122`;
+      case 'GC': return `ws://${baseIp}:8123`;
+      case 'GD': return `ws://${baseIp}:8124`;
+      case 'GE': return `ws://${baseIp}:8125`;
+      case 'GF': return `ws://${baseIp}:8126`;
+      case 'GJ': return `ws://${baseIp}:8127`; // JIG ZONE
+      // 필요에 따라 8128 ~ 8131 추가 구성
+      default: return `ws://${baseIp}:8121`;
+    }
+  }, [recentEntry]);
 
   const totalCap = stats.reduce((a, b) => a + b.total, 0);
   const totalUsed = stats.reduce((a, b) => a + b.used, 0);
@@ -620,13 +679,14 @@ export default function FinalDashboard() {
           <PanelBlock>
             <PanelTitle>영상 모니터링</PanelTitle>
             <VideoWrapper>
-              <StyledVideo src={VIDEO_URL} autoPlay loop muted playsInline />
+              {/* 기존 정적 비디오 대신 실시간 웹소켓 플레이어 연동 */}
+              <WsVideoPlayer wsUrl={activeCameraUrl} />
             </VideoWrapper>
             {recentEntry ? (
               <>
                 <VideoInfoRow><span className="lbl">최근차량</span><span className="value">{recentEntry.vehicle_id || '-'}</span></VideoInfoRow>
                 <VideoInfoRow><span className="lbl">입고구역</span><span className="value">{recentEntry.loc_code || '-'}</span></VideoInfoRow>
-                <VideoInfoRow><span className="lbl">입고시간</span><span className="value">{formatTime(recentEntry.entry_time)}</span></VideoInfoRow>
+                <VideoInfoRow><span className="lbl">연결카메라</span><span className="value">{activeCameraUrl.split(':').pop()}번 포트</span></VideoInfoRow>
               </>
             ) : (
               <div style={{fontSize:'13px', color:'#94A3B8', textAlign:'center', padding:'10px 0'}}>대기 중...</div>
