@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import { 
   FiVideo, FiMoreHorizontal, FiUser, FiClock, FiAlertCircle, 
-  FiCheck, FiMinus, FiPlayCircle, FiArrowUp, FiX
+  FiCheck, FiMinus, FiPlayCircle, FiArrowUp, FiX, FiPackage
 } from 'react-icons/fi';
 import { FaRobot } from 'react-icons/fa';
 
@@ -634,6 +634,221 @@ const ModalBody = styled.div`
 `;
 
 
+// --- 5. Auto Order Alert Styles ---
+const AutoOrderBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.44) 0%, rgba(15, 23, 42, 0.58) 100%);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  animation: ${backdropFadeIn} 0.18s ease-out;
+`;
+
+const AutoOrderBox = styled.div`
+  width: min(520px, calc(100vw - 48px));
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.96) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 28px;
+  box-shadow:
+    0 34px 90px rgba(15, 23, 42, 0.32),
+    0 12px 30px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+  padding: 30px;
+  animation: ${fadeIn} 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -120px;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 68%);
+    pointer-events: none;
+  }
+`;
+
+const AutoOrderHeader = styled.div`
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+`;
+
+const AutoOrderIconBadge = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #EFF6FF 0%, #DBEAFE 100%);
+  color: #2563EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.10);
+`;
+
+const AutoOrderTitleGroup = styled.div`
+  min-width: 0;
+  flex: 1;
+`;
+
+const AutoOrderEyebrow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563EB;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  margin-bottom: 9px;
+`;
+
+const AutoOrderTitle = styled.h3`
+  margin: 0;
+  color: #0F172A;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.8px;
+`;
+
+const AutoOrderDescription = styled.p`
+  margin: 8px 0 0;
+  color: #64748B;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.2px;
+`;
+
+const AutoOrderBody = styled.div`
+  position: relative;
+  z-index: 1;
+  padding: 24px;
+  border-radius: 22px;
+  background: rgba(248, 250, 252, 0.86);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+`;
+
+const AutoOrderMessage = styled.div`
+  text-align: center;
+  color: #0F172A;
+  letter-spacing: -0.35px;
+
+  strong {
+    display: block;
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 1.55;
+  }
+
+  span {
+    display: block;
+    margin-top: 6px;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.55;
+    color: #334155;
+  }
+`;
+
+const AutoOrderQuantity = styled.div`
+  margin-top: 22px;
+  height: 68px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+`;
+
+const AutoOrderQuantityLabel = styled.span`
+  color: #64748B;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+`;
+
+const AutoOrderQuantityValue = styled.span`
+  color: #0F172A;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.6px;
+
+  span {
+    color: #94A3B8;
+    font-size: 18px;
+    font-weight: 800;
+  }
+`;
+
+const AutoOrderButtonRow = styled.div`
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+`;
+
+const AutoOrderButton = styled.button<{ $variant: 'primary' | 'secondary' }>`
+  height: 48px;
+  border-radius: 15px;
+  border: 1px solid ${props => props.$variant === 'primary' ? 'rgba(37, 99, 235, 0.18)' : '#E2E8F0'};
+  background: ${props => props.$variant === 'primary'
+    ? '#2563EB'
+    : 'rgba(255, 255, 255, 0.92)'};
+  color: ${props => props.$variant === 'primary' ? '#FFFFFF' : '#334155'};
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.25px;
+  cursor: pointer;
+  box-shadow: ${props => props.$variant === 'primary'
+    ? '0 12px 24px rgba(37, 99, 235, 0.24)'
+    : '0 8px 18px rgba(15, 23, 42, 0.05)'};
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease, background 0.16s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    filter: ${props => props.$variant === 'primary' ? 'brightness(1.03)' : 'none'};
+    background: ${props => props.$variant === 'primary'
+      ? 'linear-gradient(180deg, #2563EB 0%, #1D4ED8 100%)'
+      : '#F8FAFC'};
+    box-shadow: ${props => props.$variant === 'primary'
+      ? '0 16px 30px rgba(37, 99, 235, 0.28)'
+      : '0 10px 22px rgba(15, 23, 42, 0.08)'};
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: ${props => props.$variant === 'primary'
+      ? '0 8px 18px rgba(37, 99, 235, 0.18)'
+      : '0 4px 12px rgba(15, 23, 42, 0.05)'};
+  }
+`;
+
+
 // --- [NEW] WebSocket Video Component ---
 const WsVideoStream = ({ wsUrl }: { wsUrl: string }) => {
   const imgRef = useRef<HTMLImageElement>(null);
@@ -686,6 +901,7 @@ const SmartFactoryDashboard: React.FC = () => {
   const [apiData] = useState<ApiResult>(MOCK_DATA);
   const [mounted, setMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false); // ✨ 모달 상태 추가
+  const [isAutoOrderModalOpen, setIsAutoOrderModalOpen] = useState(false);
 
   // Chat State
   const [messages, setMessages] = useState([
@@ -698,6 +914,26 @@ const SmartFactoryDashboard: React.FC = () => {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isTyping = tagName === 'input' || tagName === 'textarea' || target?.isContentEditable;
+
+      if (event.key === 'Escape') {
+        setIsAutoOrderModalOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Enter' || isTyping || isModalOpen || isAutoOrderModalOpen) return;
+      event.preventDefault();
+      setIsAutoOrderModalOpen(true);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen, isAutoOrderModalOpen]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -930,6 +1166,52 @@ const SmartFactoryDashboard: React.FC = () => {
             </ModalBody>
           </ModalContainer>
         </ModalBackdrop>
+      )}
+
+      {isAutoOrderModalOpen && (
+        <AutoOrderBackdrop onClick={() => setIsAutoOrderModalOpen(false)}>
+          <AutoOrderBox
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auto-order-alert-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <AutoOrderHeader>
+              <AutoOrderIconBadge>
+                <FiPackage size={25} strokeWidth={2.4} />
+              </AutoOrderIconBadge>
+              <AutoOrderTitleGroup>
+                <AutoOrderEyebrow>사전 재고 부족 감지</AutoOrderEyebrow>
+                <AutoOrderTitle id="auto-order-alert-title">자동 발주 알림</AutoOrderTitle>
+                <AutoOrderDescription>
+                  현재 재고와 생산 흐름을 기준으로 발주 여부를 확인합니다.
+                </AutoOrderDescription>
+              </AutoOrderTitleGroup>
+            </AutoOrderHeader>
+
+            <AutoOrderBody>
+              <AutoOrderMessage>
+                <strong>~~~~재고가 부족할 것 같습니다.</strong>
+                <span>발주를 넣으시겠습니까?</span>
+              </AutoOrderMessage>
+              <AutoOrderQuantity>
+                <AutoOrderQuantityLabel>요청 수량</AutoOrderQuantityLabel>
+                <AutoOrderQuantityValue>
+                  20 <span>/ 530</span>
+                </AutoOrderQuantityValue>
+              </AutoOrderQuantity>
+            </AutoOrderBody>
+
+            <AutoOrderButtonRow>
+              <AutoOrderButton $variant="primary" type="button" onClick={() => setIsAutoOrderModalOpen(false)}>
+                예, 발주 진행
+              </AutoOrderButton>
+              <AutoOrderButton $variant="secondary" type="button" onClick={() => setIsAutoOrderModalOpen(false)}>
+                아니오
+              </AutoOrderButton>
+            </AutoOrderButtonRow>
+          </AutoOrderBox>
+        </AutoOrderBackdrop>
       )}
     </>
   );

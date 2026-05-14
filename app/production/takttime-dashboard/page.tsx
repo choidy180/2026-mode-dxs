@@ -356,22 +356,47 @@ const TaktBox = styled.div<{ $isSingle?: boolean }>`
   display: flex; flex-direction: ${(props) => props.$isSingle ? 'column' : 'row'}; justify-content: ${(props) => props.$isSingle ? 'center' : 'space-between'}; align-items: center; 
   background: white; padding: 0 24px;
   .line-name { font-size: 0.9rem; font-weight: 700; color: ${COLORS.textMain}; display: flex; align-items: center; gap: 8px; } 
-  .val-group { display: flex; flex-direction: ${(props) => props.$isSingle ? 'column' : 'row'}; align-items: center; gap: 12px; min-width: '200px' }
+  .val-group { display: flex; flex-direction: ${(props) => props.$isSingle ? 'column' : 'row'}; align-items: center; gap: 12px; }
   .takt-val { 
-    display: flex;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
     align-items: center;
-    gap: 10px;
-    font-family: 'Rajdhani'; 
-    font-size: 1.8rem; 
-    font-weight: 800; 
-    color: ${COLORS.primary}; 
-    line-height: 1; 
-    margin-top: -6px;
-    span {
-      color: ${COLORS.textMain}; 
-      font-size: 1.2rem; 
-      margin-top: 6px !important;
-    }
+    gap: 6px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .prediction-label {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #6B7280;
+    margin-top: 6px;
+    letter-spacing: -0.2px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #F6F7F9;
+    border: 1px solid #EAECF0;
+    transform: translateY(-2px);
+    margin-right: 10px;
+  }
+  .prediction-number {
+    font-family: 'Rajdhani';
+    font-size: 1.86rem;
+    font-weight: 800;
+    color: ${COLORS.primary};
+    letter-spacing: -0.8px;
+    min-width: 60px;
+    display: flex;
+    justify-content: end;
+  }
+  .prediction-unit {
+    font-family: 'Rajdhani';
+    font-size: 1.12rem;
+    font-weight: 800;
+    color: ${COLORS.primary};
+    margin-left: -5px;
+    margin-top: 8px;
   }
 `;
 
@@ -511,141 +536,131 @@ const BottleneckAlertOverlay = styled(motion.div)`
   align-items: center;
   justify-content: center;
   padding: 32px;
-  background: rgba(17, 24, 39, 0.18);
-  backdrop-filter: blur(7px) saturate(0.96);
-  -webkit-backdrop-filter: blur(7px) saturate(0.96);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.46) 0%, rgba(255, 255, 255, 0.22) 28%, rgba(15, 23, 42, 0.30) 100%);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
 `;
 
-// const BottleneckBackdropPanel = styled(motion.div)`
-//   position: absolute;
-//   width: min(720px, calc(100vw - 64px));
-//   height: min(340px, calc(100vh - 96px));
-//   border-radius: 28px;
-//   background: rgba(255, 255, 255, 0.46);
-//   border: 1px solid rgba(255, 255, 255, 0.62);
-//   box-shadow: 0 26px 80px rgba(17, 24, 39, 0.22);
-//   backdrop-filter: blur(18px) saturate(1.02);
-//   -webkit-backdrop-filter: blur(18px) saturate(1.02);
-//   pointer-events: none;
-// `;
-
 const BottleneckAlertBox = styled(motion.div)`
-  width: min(460px, calc(100vw - 72px));
-  min-height: 238px;
+  width: min(420px, calc(100vw - 48px));
   position: relative;
-  background: linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 100%);
-  border: 1.5px solid rgba(17, 24, 39, 0.9);
-  border-radius: 16px;
-  box-shadow:
-    0 22px 54px rgba(17, 24, 39, 0.22),
-    0 0 0 6px rgba(255, 255, 255, 0.34);
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 58px 34px 30px;
-  overflow: visible;
+  padding: 30px 28px 24px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  box-shadow:
+    0 34px 90px rgba(15, 23, 42, 0.24),
+    0 12px 28px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px) saturate(1.12);
+  -webkit-backdrop-filter: blur(24px) saturate(1.12);
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.62) 34%, rgba(248, 250, 252, 0.12) 68%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(248, 250, 252, 0.52) 100%);
+  }
 
   &::after {
     content: "";
     position: absolute;
-    inset: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(17, 24, 39, 0.06);
-    pointer-events: none;
-  }
-`;
-
-const BottleneckAlertTitle = styled.div`
-  position: absolute;
-  top: -36px;
-  left: 22px;
-  min-width: 214px;
-  height: 36px;
-  background: linear-gradient(180deg, #FFF85A 0%, #FFE733 100%);
-  border: 1.5px solid rgba(17, 24, 39, 0.92);
-  border-bottom: none;
-  border-radius: 10px 10px 0 0;
-  color: #111827;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 0 16px;
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: -0.4px;
-  box-shadow: 0 -4px 12px rgba(17, 24, 39, 0.08);
-
-  &::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #111827;
-    opacity: 0.88;
+    left: 28px;
+    right: 28px;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95), transparent);
   }
 `;
 
 const BottleneckAlertIcon = styled.div`
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+  width: 58px;
+  height: 58px;
+  border-radius: 19px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #B45309;
-  background: linear-gradient(180deg, #FFF7CC 0%, #FFF1A8 100%);
-  border: 1px solid #FDE68A;
-  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.18);
-  margin-bottom: 16px;
+  background: linear-gradient(180deg, #FFF7D6 0%, #FFE9A8 100%);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  box-shadow:
+    0 14px 28px rgba(245, 158, 11, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  margin-bottom: 18px;
+`;
+
+const BottleneckAlertTitle = styled.div`
+  color: #0F172A;
+  text-align: center;
+  font-size: 1.28rem;
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -0.7px;
+  margin-bottom: 10px;
 `;
 
 const BottleneckAlertMessage = styled.div`
+  width: 100%;
   text-align: center;
-  color: #111827;
-  letter-spacing: -0.35px;
+  letter-spacing: -0.36px;
   margin-bottom: 24px;
 
   strong {
     display: block;
-    font-size: 1.12rem;
-    font-weight: 900;
+    color: #111827;
+    font-size: 1.02rem;
+    font-weight: 800;
     line-height: 1.55;
   }
 
   span {
     display: block;
-    margin-top: 4px;
-    font-size: 1.02rem;
-    font-weight: 700;
-    line-height: 1.55;
-    color: #374151;
+    margin-top: 5px;
+    color: #667085;
+    font-size: 0.94rem;
+    font-weight: 650;
+    line-height: 1.5;
   }
 `;
 
 const BottleneckConfirmButton = styled.button`
-  min-width: 136px;
-  height: 44px;
-  border: 1px solid #0B4659;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #176F8B 0%, #155F79 100%);
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1C8CFF 0%, #007AFF 100%);
   color: white;
-  font-size: 1rem;
-  font-weight: 900;
+  font-size: 0.98rem;
+  font-weight: 850;
+  letter-spacing: -0.2px;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(21, 95, 121, 0.22);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  box-shadow:
+    0 12px 24px rgba(0, 122, 255, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 12px 22px rgba(21, 95, 121, 0.28);
     filter: brightness(1.03);
+    box-shadow:
+      0 16px 30px rgba(0, 122, 255, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
   }
 
   &:active {
     transform: translateY(0);
-    box-shadow: 0 5px 12px rgba(21, 95, 121, 0.18);
+    box-shadow:
+      0 8px 18px rgba(0, 122, 255, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
   }
 `;
 
@@ -791,6 +806,14 @@ const ProcessChart = memo(({ data }: { data: CycleData[] }) => {
   );
 });
 ProcessChart.displayName = "ProcessChart";
+
+const PredictionTime = ({ value }: { value: string }) => (
+  <span className="takt-val" aria-label={`예측시간 ${value}초`}>
+    <span className="prediction-label">예측시간</span>
+    <span className="prediction-number">{value}</span>
+    <span className="prediction-unit">s</span>
+  </span>
+);
 
 // --- [더미 데이터 생성 함수] ---
 const DUMMY_CYCLE_PATTERNS: Record<string, number[]> = {
@@ -1121,11 +1144,11 @@ export default function ProcessDashboard() {
                     <TaktGrid $rows={2}>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.primary}}/> 발포라인</span>
-                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.A}s</span></div>
+                        <div className="val-group"><PredictionTime value={avgTakts.A} /></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderDark}}/> 총조립2라인</span>
-                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.C}s</span></div>
+                        <div className="val-group"><PredictionTime value={avgTakts.C} /></div>
                       </TaktBox>
                     </TaktGrid>
                   )}
@@ -1134,11 +1157,11 @@ export default function ProcessDashboard() {
                     <TaktGrid $rows={2}>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.primary}}/> 발포라인</span>
-                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.A}s</span></div>
+                        <div className="val-group"><PredictionTime value={avgTakts.A} /></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderDark}}/> 총조립2라인</span>
-                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.C}s</span></div>
+                        <div className="val-group"><PredictionTime value={avgTakts.C} /></div>
                       </TaktBox>
                     </TaktGrid>
                   )}
@@ -1147,15 +1170,15 @@ export default function ProcessDashboard() {
                     <TaktGrid $rows={3}>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.primary}}/> 발포라인</span>
-                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.A}s</span></div>
+                        <div className="val-group"><PredictionTime value={avgTakts.A} /></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderDark}}/> 총조립1라인</span>
-                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.B}s</span></div>
+                        <div className="val-group"><PredictionTime value={avgTakts.B} /></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderGray}}/> 총조립2라인</span>
-                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.C}s</span></div>
+                        <div className="val-group"><PredictionTime value={avgTakts.C} /></div>
                       </TaktBox>
                     </TaktGrid>
                   )}
@@ -1291,26 +1314,20 @@ export default function ProcessDashboard() {
               transition={{ duration: 0.16 }}
               onClick={() => setShowBottleneckAlert(false)}
             >
-              {/* <BottleneckBackdropPanel
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ duration: 0.18 }}
-              /> */}
               <BottleneckAlertBox
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="bottleneck-alert-title"
-                initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                initial={{ opacity: 0, y: 10, scale: 0.985 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 14, scale: 0.97 }}
-                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                exit={{ opacity: 0, y: 10, scale: 0.985 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <BottleneckAlertTitle id="bottleneck-alert-title">병목 예측 사전 알림</BottleneckAlertTitle>
                 <BottleneckAlertIcon>
                   <AlertTriangle size={26} strokeWidth={2.7} />
                 </BottleneckAlertIcon>
+                <BottleneckAlertTitle id="bottleneck-alert-title">병목 예측 사전 알림</BottleneckAlertTitle>
                 <BottleneckAlertMessage>
                   <strong>총조립2라인 병목이 예상됩니다.</strong>
                   <span>조립인원 추가가 필요합니다.</span>
