@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, memo, useCallback, useRef, useId } from "react";
 import styled, { createGlobalStyle } from "styled-components";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
@@ -12,19 +12,15 @@ import {
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
-  ReferenceLine,
   LabelList,
 } from "recharts";
 import {
-  Activity,
   Bell,
   TrendingUp,
   Maximize2,
   FileText,
   X,
   Refrigerator, 
-  Settings,    
-  Layers,       
   Cpu,
   ClipboardList,
   Search,
@@ -35,15 +31,13 @@ import {
   Info,
   ChevronDown,
   Check,
-  WifiOff,
   Wine,
   GlassWater
 } from "lucide-react";
 
 // --- [1. 설정 및 데이터 상수] ---
 
-const TARGET_TAKT = 45.0;
-const CHART_Y_MAX_LIMIT = 100;
+const TARGET_TAKT = 60.0;
 const REFRESH_RATE = 5000;
 
 const WS_PATHS = {
@@ -88,6 +82,11 @@ const COLORS = {
   borderRed: "#DA291C",
   borderDark: "#495057",
   borderGray: "#CED4DA",
+  normal: "#74B9FF",
+  normalLight: "#DBECFF",
+  delay: "#FF5A6A",
+  delayLight: "#FFE7EA",
+  chartLine: "#FF7A00",
 };
 
 // --- [타입 정의] ---
@@ -241,15 +240,81 @@ const StyledWebsocketImg = styled.img`
   background-color: #000;
 `;
 
-const ChartWrapper = styled.div`flex: 1; height: 100%; position: relative; min-width: 0; display: flex; flex-direction: column;`;
+const ChartWrapper = styled.div`
+  flex: 1;
+  height: 100%;
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+`;
 
-const ProcessLabel = styled.div`
-  position: absolute; top: 0; right: 0; 
-  background: white; color: ${COLORS.textMain}; 
-  border: 1px solid ${COLORS.grid}; font-weight: 700; 
-  padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; z-index: 10;
-  display: flex; align-items: center; gap: 4px;
+const ChartCanvas = styled.div`
+  flex: 1;
+  min-height: 0;
+`;
+
+const ChartFooter = styled.div`
+  position: relative;
+  height: 34px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+`;
+
+const ChartLegend = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: ${COLORS.textMain};
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+`;
+
+const LegendItem = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const LegendSwatch = styled.span<{ $type: 'normal' | 'delay' }>`
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: ${(props) => props.$type === 'normal' ? COLORS.normalLight : COLORS.delay};
+  border: 2px solid ${(props) => props.$type === 'normal' ? COLORS.normal : COLORS.delay};
+  display: inline-block;
+`;
+
+const ChartActionButton = styled.button`
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid ${COLORS.grid};
+  background: white;
+  color: ${COLORS.textMain};
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${COLORS.primary};
+    color: ${COLORS.primary};
+    background: ${COLORS.hoverBg};
+  }
 `;
 
 const KpiStack = styled.div`display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;`;
@@ -291,8 +356,23 @@ const TaktBox = styled.div<{ $isSingle?: boolean }>`
   display: flex; flex-direction: ${(props) => props.$isSingle ? 'column' : 'row'}; justify-content: ${(props) => props.$isSingle ? 'center' : 'space-between'}; align-items: center; 
   background: white; padding: 0 24px;
   .line-name { font-size: 0.9rem; font-weight: 700; color: ${COLORS.textMain}; display: flex; align-items: center; gap: 8px; } 
-  .val-group { display: flex; flex-direction: ${(props) => props.$isSingle ? 'column' : 'row'}; align-items: center; gap: 12px; }
-  .takt-val { font-family: 'Rajdhani'; font-size: 1.8rem; font-weight: 800; color: ${COLORS.primary}; line-height: 1; }
+  .val-group { display: flex; flex-direction: ${(props) => props.$isSingle ? 'column' : 'row'}; align-items: center; gap: 12px; min-width: '200px' }
+  .takt-val { 
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Rajdhani'; 
+    font-size: 1.8rem; 
+    font-weight: 800; 
+    color: ${COLORS.primary}; 
+    line-height: 1; 
+    margin-top: -6px;
+    span {
+      color: ${COLORS.textMain}; 
+      font-size: 1.2rem; 
+      margin-top: 6px !important;
+    }
+  }
 `;
 
 const AlertSection = styled.div`
@@ -423,6 +503,152 @@ const LoadingText = styled.div`
 `;
 const SubText = styled.div`font-size: 0.85rem; color: ${COLORS.textSub}; margin-top: 4px; font-weight: 500;`;
 
+const BottleneckAlertOverlay = styled(motion.div)`
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(17, 24, 39, 0.18);
+  backdrop-filter: blur(7px) saturate(0.96);
+  -webkit-backdrop-filter: blur(7px) saturate(0.96);
+`;
+
+// const BottleneckBackdropPanel = styled(motion.div)`
+//   position: absolute;
+//   width: min(720px, calc(100vw - 64px));
+//   height: min(340px, calc(100vh - 96px));
+//   border-radius: 28px;
+//   background: rgba(255, 255, 255, 0.46);
+//   border: 1px solid rgba(255, 255, 255, 0.62);
+//   box-shadow: 0 26px 80px rgba(17, 24, 39, 0.22);
+//   backdrop-filter: blur(18px) saturate(1.02);
+//   -webkit-backdrop-filter: blur(18px) saturate(1.02);
+//   pointer-events: none;
+// `;
+
+const BottleneckAlertBox = styled(motion.div)`
+  width: min(460px, calc(100vw - 72px));
+  min-height: 238px;
+  position: relative;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 100%);
+  border: 1.5px solid rgba(17, 24, 39, 0.9);
+  border-radius: 16px;
+  box-shadow:
+    0 22px 54px rgba(17, 24, 39, 0.22),
+    0 0 0 6px rgba(255, 255, 255, 0.34);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 58px 34px 30px;
+  overflow: visible;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(17, 24, 39, 0.06);
+    pointer-events: none;
+  }
+`;
+
+const BottleneckAlertTitle = styled.div`
+  position: absolute;
+  top: -36px;
+  left: 22px;
+  min-width: 214px;
+  height: 36px;
+  background: linear-gradient(180deg, #FFF85A 0%, #FFE733 100%);
+  border: 1.5px solid rgba(17, 24, 39, 0.92);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+  box-shadow: 0 -4px 12px rgba(17, 24, 39, 0.08);
+
+  &::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #111827;
+    opacity: 0.88;
+  }
+`;
+
+const BottleneckAlertIcon = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #B45309;
+  background: linear-gradient(180deg, #FFF7CC 0%, #FFF1A8 100%);
+  border: 1px solid #FDE68A;
+  box-shadow: 0 8px 18px rgba(245, 158, 11, 0.18);
+  margin-bottom: 16px;
+`;
+
+const BottleneckAlertMessage = styled.div`
+  text-align: center;
+  color: #111827;
+  letter-spacing: -0.35px;
+  margin-bottom: 24px;
+
+  strong {
+    display: block;
+    font-size: 1.12rem;
+    font-weight: 900;
+    line-height: 1.55;
+  }
+
+  span {
+    display: block;
+    margin-top: 4px;
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.55;
+    color: #374151;
+  }
+`;
+
+const BottleneckConfirmButton = styled.button`
+  min-width: 136px;
+  height: 44px;
+  border: 1px solid #0B4659;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #176F8B 0%, #155F79 100%);
+  color: white;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(21, 95, 121, 0.22);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 22px rgba(21, 95, 121, 0.28);
+    filter: brightness(1.03);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 5px 12px rgba(21, 95, 121, 0.18);
+  }
+`;
+
 const modalVariants: Variants = {
   initial: { opacity: 0, scale: 0.98, y: 10 },
   animate: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } },
@@ -430,16 +656,31 @@ const modalVariants: Variants = {
 };
 
 // --- [Helper Components] ---
-const CustomBarLabel = memo((props: any) => {
-  const { x, y, width, value } = props;
+const CustomCycleLabel = memo((props: any) => {
+  const { x, y, value } = props;
   const valNum = Number(value);
+  if (x === undefined || y === undefined || Number.isNaN(valNum)) return null;
+
   const isOver = valNum > TARGET_TAKT;
   return (
-    <text x={x + width / 2} y={y - 8} fill={isOver ? COLORS.primary : COLORS.textMain} textAnchor="middle" dominantBaseline="middle" style={{ fontFamily: 'Rajdhani', fontWeight: 800, fontSize: '13px', filter: 'drop-shadow(0px 0px 3px rgba(255,255,255, 1))' }}>
+    <text
+      x={x}
+      y={y - 14}
+      fill={isOver ? COLORS.delay : COLORS.textMain}
+      textAnchor="middle"
+      dominantBaseline="middle"
+      style={{
+        fontFamily: 'Rajdhani',
+        fontWeight: 800,
+        fontSize: '14px',
+        filter: 'drop-shadow(0px 0px 3px rgba(255,255,255, 1))'
+      }}
+    >
       {valNum.toFixed(1)}
     </text>
   );
 });
+CustomCycleLabel.displayName = "CustomCycleLabel";
 
 const WsVideoStream = memo(({ wsUrl }: { wsUrl: string }) => {
   const imgRef = useRef<HTMLImageElement>(null);
@@ -472,39 +713,116 @@ const WsVideoStream = memo(({ wsUrl }: { wsUrl: string }) => {
 
   return <StyledWebsocketImg ref={imgRef} alt="Live Stream" />;
 }, (prev, next) => prev.wsUrl === next.wsUrl);
-
+WsVideoStream.displayName = "WsVideoStream";
 
 const MonitorChart = memo(({ data }: { data: CycleData[] }) => {
+  const chartId = useId().replace(/:/g, "");
+  const normalGradientId = `${chartId}-normal-gradient`;
+  const delayGradientId = `${chartId}-delay-gradient`;
+
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 30, right: 20, left: -20, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={COLORS.grid} />
-        <XAxis dataKey="timeLabel" axisLine={false} tickLine={false} tick={{ fill: COLORS.textSub, fontSize: 10, fontWeight: 600 }} dy={10} interval={0} />
-        <YAxis hide domain={[0, CHART_Y_MAX_LIMIT + 20]} />
-        <ReferenceLine y={TARGET_TAKT} stroke={COLORS.target} strokeDasharray="3 3" strokeWidth={2} />
-        <Bar dataKey="visualCycleTime" maxBarSize={40} radius={[4, 4, 0, 0]} isAnimationActive={false}>
-          {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.isOver ? COLORS.primary : "#CED4DA"} fillOpacity={0.9} />)}
-          <LabelList dataKey="cycleTime" content={<CustomBarLabel />} />
+      <ComposedChart data={data} margin={{ top: 40, right: 16, left: 4, bottom: 8 }}>
+        <defs>
+          <linearGradient id={normalGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={COLORS.normal} stopOpacity={1} />
+            <stop offset="100%" stopColor={COLORS.normalLight} stopOpacity={0.96} />
+          </linearGradient>
+          <linearGradient id={delayGradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={COLORS.delay} stopOpacity={0.92} />
+            <stop offset="100%" stopColor={COLORS.delayLight} stopOpacity={0.92} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={COLORS.grid} />
+        <XAxis
+          dataKey="timeLabel"
+          axisLine={false}
+          tickLine={false}
+          tick={{ fill: "#9CA3AF", fontSize: 11, fontWeight: 600 }}
+          dy={10}
+          interval={0}
+        />
+        <YAxis
+          hide
+          domain={[
+            0,
+            (dataMax: number) => Math.ceil((Math.max(dataMax || 0, TARGET_TAKT) * 1.22) / 10) * 10
+          ]}
+        />
+        <Bar dataKey="cycleTime" maxBarSize={48} radius={[10, 10, 0, 0]} isAnimationActive={false}>
+          {data.map((entry, index) => (
+            <Cell
+              key={`cell-${entry.id}-${index}`}
+              fill={`url(#${entry.isOver ? delayGradientId : normalGradientId})`}
+            />
+          ))}
         </Bar>
-        <Line type="monotone" dataKey="visualCycleTime" stroke={COLORS.target} strokeWidth={2} dot={{r:3, fill:'white', stroke:COLORS.target}} activeDot={{r:5}} isAnimationActive={false} />
+        <Line
+          type="linear"
+          dataKey="cycleTime"
+          stroke={COLORS.chartLine}
+          strokeWidth={2}
+          dot={{ r: 5, fill: 'white', stroke: COLORS.chartLine, strokeWidth: 2 }}
+          activeDot={{ r: 6, fill: 'white', stroke: COLORS.chartLine, strokeWidth: 2 }}
+          isAnimationActive={false}
+        >
+          <LabelList dataKey="cycleTime" content={<CustomCycleLabel />} />
+        </Line>
       </ComposedChart>
     </ResponsiveContainer>
   );
 });
+MonitorChart.displayName = "MonitorChart";
+
+const ProcessChart = memo(({ data }: { data: CycleData[] }) => {
+  return (
+    <ChartWrapper>
+      <ChartCanvas>
+        <MonitorChart data={data} />
+      </ChartCanvas>
+      <ChartFooter>
+        <ChartLegend>
+          <LegendItem><LegendSwatch $type="normal" />정상 (60초 이내)</LegendItem>
+          <LegendItem><LegendSwatch $type="delay" />지연 (60초 초과)</LegendItem>
+        </ChartLegend>
+        <ChartActionButton type="button">공정 CT 분석</ChartActionButton>
+      </ChartFooter>
+    </ChartWrapper>
+  );
+});
+ProcessChart.displayName = "ProcessChart";
 
 // --- [더미 데이터 생성 함수] ---
+const DUMMY_CYCLE_PATTERNS: Record<string, number[]> = {
+  A: [42.3, 176.0, 125.0, 125.0, 180.0, 98.0, 101.0, 101.0, 37.7, 77.7],
+  B: [42.3, 150.0, 161.0, 60.0, 151.0, 40.2, 178.0, 48.0, 215.0, 70.0],
+  C: [48.3, 41.3, 42.7, 149.4, 145.6, 40.3, 41.0, 44.7, 43.8, 147.7],
+};
+
+const createMockCycleTime = (line: string, index?: number) => {
+  const pattern = DUMMY_CYCLE_PATTERNS[line] ?? DUMMY_CYCLE_PATTERNS.A;
+  if (typeof index === 'number') return pattern[index % pattern.length];
+
+  const shouldBeNormal = Math.random() < 0.3;
+  const value = shouldBeNormal
+    ? 37 + Math.random() * 22
+    : 70 + Math.random() * 150;
+
+  return parseFloat(value.toFixed(1));
+};
+
 const generateInitialDummyData = (line: string): CycleData[] => {
   const baseTime = new Date();
   return Array.from({ length: 10 }).map((_, i) => {
-      const ct = parseFloat((40 + Math.random() * 12).toFixed(1)); // 40.0 ~ 52.0
-      const timeObj = new Date(baseTime.getTime() - (9 - i) * 5000); 
+      const ct = createMockCycleTime(line, i);
+      const timeObj = new Date(baseTime.getTime() - (9 - i) * 5 * 60 * 1000); 
       const timeLabel = timeObj.toTimeString().split(' ')[0]; 
       return {
           id: `${line}-${i}`,
           name: `Dummy-${i}`,
           timeLabel: timeLabel,
           cycleTime: ct,
-          visualCycleTime: ct > CHART_Y_MAX_LIMIT ? CHART_Y_MAX_LIMIT : ct,
+          visualCycleTime: ct,
           target: TARGET_TAKT,
           isOver: ct > TARGET_TAKT,
           production: 50 + i,
@@ -527,10 +845,31 @@ export default function ProcessDashboard() {
   });
   const [alertLogs, setAlertLogs] = useState<LogData[]>([]);
   const [showLogModal, setShowLogModal] = useState(false);
+  const [showBottleneckAlert, setShowBottleneckAlert] = useState(false);
   
   const [searchText, setSearchText] = useState("");
   const [filterType, setFilterType] = useState<'all' | 'error' | 'warning' | 'success'>('all');
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const isTyping = tagName === 'input' || tagName === 'textarea' || target?.isContentEditable;
+
+      if (event.key === 'Escape') {
+        setShowBottleneckAlert(false);
+        return;
+      }
+
+      if (event.key !== 'Enter' || isTyping) return;
+      event.preventDefault();
+      setShowBottleneckAlert(true);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleViewChange = useCallback((newMode: 1 | 2 | 3) => {
     if (newMode === viewMode) return;
@@ -558,7 +897,7 @@ export default function ProcessDashboard() {
           const val = parseFloat(item.TACTTIME);
           return {
               id: `${item.CAM_NO}-${idx}`, name: item.RowNum, timeLabel: item.ENTRY_TIME.split(' ')[1],
-              cycleTime: val, visualCycleTime: val > CHART_Y_MAX_LIMIT ? CHART_Y_MAX_LIMIT : val,
+              cycleTime: val, visualCycleTime: val,
               target: TARGET_TAKT, isOver: val > TARGET_TAKT, production: parseInt(item.COUNT_NUM),
           };
       });
@@ -584,14 +923,14 @@ export default function ProcessDashboard() {
         setData(prev => {
           const createNext = (prevLine: CycleData[], lineStr: string) => {
               if (prevLine.length === 0) return generateInitialDummyData(lineStr);
-              const newCt = parseFloat((40 + Math.random() * 12).toFixed(1));
+              const newCt = createMockCycleTime(lineStr);
               const newTime = new Date();
               const newItem = {
                   id: `${lineStr}-${newTime.getTime()}`,
                   name: `Dummy`,
                   timeLabel: newTime.toTimeString().split(' ')[0],
                   cycleTime: newCt,
-                  visualCycleTime: newCt > CHART_Y_MAX_LIMIT ? CHART_Y_MAX_LIMIT : newCt,
+                  visualCycleTime: newCt,
                   target: TARGET_TAKT,
                   isOver: newCt > TARGET_TAKT,
                   production: prevLine[prevLine.length - 1].production + 1
@@ -691,20 +1030,14 @@ export default function ProcessDashboard() {
                           <WsVideoStream wsUrl={WS_PATHS.A} />
                           <div className="label">발포라인</div>
                         </VideoBox>
-                        <ChartWrapper>
-                          <ProcessLabel><Activity size={12}/>공정 CT 분석</ProcessLabel>
-                          <div style={{flex:1, marginTop: 8}}><MonitorChart data={displayData.A} /></div>
-                        </ChartWrapper>
+                        <ProcessChart data={displayData.A} />
                       </MultiChartCard>
                       <MultiChartCard>
                         <VideoBox $isLarge={true}>
                           <WsVideoStream wsUrl={WS_PATHS.C} />
                           <div className="label">총조립2라인</div>
                         </VideoBox>
-                        <ChartWrapper>
-                          <ProcessLabel><Activity size={12}/>공정 CT 분석</ProcessLabel>
-                          <div style={{flex:1, marginTop: 8}}><MonitorChart data={displayData.C} /></div>
-                        </ChartWrapper>
+                        <ProcessChart data={displayData.C} />
                       </MultiChartCard>
                   </ViewContainer>
                 )}
@@ -715,22 +1048,16 @@ export default function ProcessDashboard() {
                       <MultiChartCard>
                         <VideoBox $isLarge={true}>
                           <WsVideoStream wsUrl={WS_PATHS.A} />
-                          <div className="label">발포라인</div>
+                          <div className="label">발포라인2</div>
                         </VideoBox>
-                        <ChartWrapper>
-                          <ProcessLabel><Activity size={12}/>공정 CT 분석</ProcessLabel>
-                          <div style={{flex:1, marginTop: 8}}><MonitorChart data={displayData.A} /></div>
-                        </ChartWrapper>
+                        <ProcessChart data={displayData.A} />
                       </MultiChartCard>
                       <MultiChartCard>
                         <VideoBox $isLarge={true}>
                           <WsVideoStream wsUrl={WS_PATHS.C} />
                           <div className="label">총조립2라인</div>
                         </VideoBox>
-                        <ChartWrapper>
-                          <ProcessLabel><Activity size={12}/>공정 CT 분석</ProcessLabel>
-                          <div style={{flex:1, marginTop: 8}}><MonitorChart data={displayData.C} /></div>
-                        </ChartWrapper>
+                        <ProcessChart data={displayData.C} />
                       </MultiChartCard>
                   </ViewContainer>
                 )}
@@ -743,30 +1070,21 @@ export default function ProcessDashboard() {
                           <WsVideoStream wsUrl={WS_PATHS.A} />
                           <div className="label">발포라인</div>
                         </VideoBox>
-                        <ChartWrapper>
-                          <ProcessLabel><Activity size={12}/>공정 CT 분석</ProcessLabel>
-                          <div style={{flex:1, marginTop: 8}}><MonitorChart data={displayData.A} /></div>
-                        </ChartWrapper>
+                        <ProcessChart data={displayData.A} />
                       </MultiChartCard>
                       <MultiChartCard>
                         <VideoBox $isLarge={false}>
                           <WsVideoStream wsUrl={WS_PATHS.B} />
                           <div className="label">총조립1라인</div>
                         </VideoBox>
-                        <ChartWrapper>
-                          <ProcessLabel><Activity size={12}/>공정 CT 분석</ProcessLabel>
-                          <div style={{flex:1, marginTop: 8}}><MonitorChart data={displayData.B} /></div>
-                        </ChartWrapper>
+                        <ProcessChart data={displayData.B} />
                       </MultiChartCard>
                       <MultiChartCard>
                         <VideoBox $isLarge={false}>
                           <WsVideoStream wsUrl={WS_PATHS.C} />
                           <div className="label">총조립2라인</div>
                         </VideoBox>
-                        <ChartWrapper>
-                          <ProcessLabel><Activity size={12}/>공정 CT 분석</ProcessLabel>
-                          <div style={{flex:1, marginTop: 8}}><MonitorChart data={displayData.C} /></div>
-                        </ChartWrapper>
+                        <ProcessChart data={displayData.C} />
                       </MultiChartCard>
                   </ViewContainer>
                 )}
@@ -803,11 +1121,11 @@ export default function ProcessDashboard() {
                     <TaktGrid $rows={2}>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.primary}}/> 발포라인</span>
-                        <div className="val-group"><span className="takt-val">{avgTakts.A}s</span></div>
+                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.A}s</span></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderDark}}/> 총조립2라인</span>
-                        <div className="val-group"><span className="takt-val">{avgTakts.C}s</span></div>
+                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.C}s</span></div>
                       </TaktBox>
                     </TaktGrid>
                   )}
@@ -816,11 +1134,11 @@ export default function ProcessDashboard() {
                     <TaktGrid $rows={2}>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.primary}}/> 발포라인</span>
-                        <div className="val-group"><span className="takt-val">{avgTakts.A}s</span></div>
+                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.A}s</span></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderDark}}/> 총조립2라인</span>
-                        <div className="val-group"><span className="takt-val">{avgTakts.C}s</span></div>
+                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.C}s</span></div>
                       </TaktBox>
                     </TaktGrid>
                   )}
@@ -829,15 +1147,15 @@ export default function ProcessDashboard() {
                     <TaktGrid $rows={3}>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.primary}}/> 발포라인</span>
-                        <div className="val-group"><span className="takt-val">{avgTakts.A}s</span></div>
+                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.A}s</span></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderDark}}/> 총조립1라인</span>
-                        <div className="val-group"><span className="takt-val">{avgTakts.B}s</span></div>
+                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.B}s</span></div>
                       </TaktBox>
                       <TaktBox $isSingle={false}>
                         <span className="line-name"><div style={{width:8,height:8,borderRadius:'50%',background:COLORS.borderGray}}/> 총조립2라인</span>
-                        <div className="val-group"><span className="takt-val">{avgTakts.C}s</span></div>
+                        <div className="val-group"><span className="takt-val"><span style={{fontSize: '16px'}}>예측시간</span>{avgTakts.C}s</span></div>
                       </TaktBox>
                     </TaktGrid>
                   )}
@@ -961,6 +1279,47 @@ export default function ProcessDashboard() {
                 </div>
               </ModalContent>
             </ModalOverlay>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showBottleneckAlert && (
+            <BottleneckAlertOverlay
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16 }}
+              onClick={() => setShowBottleneckAlert(false)}
+            >
+              {/* <BottleneckBackdropPanel
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.18 }}
+              /> */}
+              <BottleneckAlertBox
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="bottleneck-alert-title"
+                initial={{ opacity: 0, y: 14, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 14, scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <BottleneckAlertTitle id="bottleneck-alert-title">병목 예측 사전 알림</BottleneckAlertTitle>
+                <BottleneckAlertIcon>
+                  <AlertTriangle size={26} strokeWidth={2.7} />
+                </BottleneckAlertIcon>
+                <BottleneckAlertMessage>
+                  <strong>총조립2라인 병목이 예상됩니다.</strong>
+                  <span>조립인원 추가가 필요합니다.</span>
+                </BottleneckAlertMessage>
+                <BottleneckConfirmButton type="button" onClick={() => setShowBottleneckAlert(false)}>
+                  확인
+                </BottleneckConfirmButton>
+              </BottleneckAlertBox>
+            </BottleneckAlertOverlay>
           )}
         </AnimatePresence>
 
