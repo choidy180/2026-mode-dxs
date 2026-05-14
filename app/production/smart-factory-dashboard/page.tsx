@@ -1191,7 +1191,7 @@ const SmartFactoryDashboard: React.FC = () => {
 
             <AutoOrderBody>
               <AutoOrderMessage>
-                <strong>~~~~재고가 부족할 것 같습니다.</strong>
+                <strong>MCR66488275 재고가 부족할 것 같습니다.</strong>
                 <span>발주를 넣으시겠습니까?</span>
               </AutoOrderMessage>
               <AutoOrderQuantity>
