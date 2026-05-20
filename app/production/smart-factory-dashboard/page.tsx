@@ -45,11 +45,47 @@ const theme = {
 };
 
 // --- API Interfaces ---
-interface SlotDetail { slot_id: number; occupied: boolean; entry_time: string | null; slot_name: string; }
+interface SlotDetail { slot_id: number; occupied: boolean; entry_time: string | null; slot_name?: string; }
 interface CameraData { total: number; occupied: number; empty_idxs: number[]; slots_detail: SlotDetail[]; }
+type CamDataMap = { [key: string]: CameraData; };
 interface WorkingData { NoWkOrd: string; ItemName: string; OrdQty: number; ProdQty: number; NmEmplo: string; NmWrkState: string; NmProce: string; PlnSTime: string; PlnETime: string; }
-interface ApiResult { success: boolean; working_data: WorkingData; camData: { [key: string]: CameraData; }; }
+interface ApiResult { success: boolean; working_data: WorkingData; camData: CamDataMap; }
 interface FlattenedSlotItem extends SlotDetail { camId: string; }
+
+const CAM_DATA_API_URL = 'http://192.168.2.147:24828/api/DX_API000018';
+
+const CAMERAS = [
+  { camId: '207', title: 'GR5 가조립 자재 #1', wsUrl: 'ws://192.168.2.147:8132' },
+  { camId: '218', title: 'GR5 가조립 자재 #2', wsUrl: 'ws://192.168.2.147:8133' },
+] as const;
+
+const getCamOccupancyPercent = (cameraData?: CameraData) => {
+  const total = cameraData?.total ?? 0;
+  const occupied = cameraData?.occupied ?? 0;
+
+  if (total <= 0) return 0;
+  return Math.min(Math.round((occupied / total) * 100), 100);
+};
+
+const getSlotDisplayName = (slot: SlotDetail) => {
+  return slot.slot_name ?? `슬롯 ${slot.slot_id}`;
+};
+
+const formatEntryTime = (entryTime: string | null) => {
+  if (!entryTime) return '-';
+
+  const parsedDate = new Date(entryTime);
+  if (Number.isNaN(parsedDate.getTime())) return entryTime;
+
+  return parsedDate.toLocaleString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+};
 
 // --- Animation Keyframes ---
 const fadeIn = keyframes`
@@ -141,17 +177,19 @@ const MiniDashboardOverlay = styled.div`
   position: absolute;
   bottom: 24px;
   left: 24px;
-  width: 200px; 
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 14px;
+  width: 210px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
   padding: 18px;
   color: white;
   z-index: 20;
   display: flex;
   flex-direction: column;
- color: #94A3B8; 
   font-weight: 600;
-  margin-bottom: 6px;
 `;
 
 const MiniTitle = styled.div`
@@ -187,12 +225,13 @@ const MiniValueSub = styled.span`
   font-weight: 600;
 `;
 
-const MiniProgressBar = styled.div<{ percent: number }>`
+const MiniProgressBar = styled.div<{ $percent: number }>`
   width: 100%;
   height: 6px; 
   background: rgba(255,255,255,0.2);
   border-radius: 3px;
   position: relative;
+  overflow: hidden;
   
   &::after {
     content: '';
@@ -200,10 +239,18 @@ const MiniProgressBar = styled.div<{ percent: number }>`
     left: 0;
     top: 0;
     height: 100%;
-    width: ${props => props.percent}%;
+    width: ${props => props.$percent}%;
     background-color: ${theme.green};
     border-radius: 3px;
+    transition: width 0.25s ease;
   }
+`;
+
+const MiniError = styled.div`
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #FCA5A5;
 `;
 
 // --- 2. Center: Middle Column Styles ---
@@ -944,6 +991,8 @@ const MOCK_DATA: ApiResult = {
 
 const SmartFactoryDashboard: React.FC = () => {
   const [apiData] = useState<ApiResult>(MOCK_DATA);
+  const [camData, setCamData] = useState<CamDataMap>(MOCK_DATA.camData);
+  const [camDataError, setCamDataError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false); 
   const [isAutoOrderModalOpen, setIsAutoOrderModalOpen] = useState(false);
@@ -958,6 +1007,52 @@ const SmartFactoryDashboard: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    let isAlive = true;
+    let controller: AbortController | null = null;
+
+    const fetchCamData = async () => {
+      controller?.abort();
+      controller = new AbortController();
+
+      try {
+        const response = await fetch(CAM_DATA_API_URL, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`카메라 적재 데이터 API 오류: ${response.status}`);
+        }
+
+        const payload = await response.json() as ({ camData?: CamDataMap } & CamDataMap);
+        const nextCamData = payload.camData ?? payload;
+
+        if (!nextCamData || typeof nextCamData !== 'object') {
+          throw new Error('camData 형식이 올바르지 않습니다.');
+        }
+
+        if (isAlive) {
+          setCamData(nextCamData);
+          setCamDataError(null);
+        }
+      } catch (error) {
+        if (!isAlive || (error instanceof Error && error.name === 'AbortError')) return;
+        setCamDataError(error instanceof Error ? error.message : '카메라 적재 데이터 수신 실패');
+      }
+    };
+
+    fetchCamData();
+    const intervalId = window.setInterval(fetchCamData, 10000);
+
+    return () => {
+      isAlive = false;
+      window.clearInterval(intervalId);
+      controller?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -993,11 +1088,13 @@ const SmartFactoryDashboard: React.FC = () => {
   };
 
   const allSlots: FlattenedSlotItem[] = useMemo(() => {
-    return apiData.camData["207"].slots_detail.map(slot => ({
-      camId: "207",
-      ...slot
-    }));
-  }, [apiData]);
+    return Object.entries(camData).flatMap(([camId, cameraData]) =>
+      (cameraData.slots_detail ?? []).map(slot => ({
+        camId,
+        ...slot
+      }))
+    );
+  }, [camData]);
 
   const wkData = apiData.working_data;
   const progressPercent = Math.min((wkData.ProdQty / wkData.OrdQty) * 100, 100);
@@ -1012,43 +1109,34 @@ const SmartFactoryDashboard: React.FC = () => {
           
           {/* 1. LEFT: Video Feed */}
           <VideoColumn>
-            <VideoWrapper>
-              <VideoOverlayTop>
-                <CamTag><FiVideo size={18} /> GR5 가조립 자재 #1</CamTag>
-                <FiMoreHorizontal color="white" size={24} />
-              </VideoOverlayTop>
-              
-              <WsVideoStream wsUrl="ws://192.168.2.147:8132" />
+            {CAMERAS.map((camera) => {
+              const currentCamData = camData[camera.camId];
+              const total = currentCamData?.total ?? 0;
+              const occupied = currentCamData?.occupied ?? 0;
+              const percent = getCamOccupancyPercent(currentCamData);
 
-              <MiniDashboardOverlay>
-                <MiniLabel>실시간 적재 현황</MiniLabel>
-                <MiniTitle>GR5 가조립 자재 #1</MiniTitle>
-                <MiniValueRow>
-                  <MiniValueBig>57%</MiniValueBig>
-                  <MiniValueSub>4 / 7 EA</MiniValueSub>
-                </MiniValueRow>
-                <MiniProgressBar percent={57} />
-              </MiniDashboardOverlay>
-            </VideoWrapper>
+              return (
+                <VideoWrapper key={camera.camId}>
+                  <VideoOverlayTop>
+                    <CamTag><FiVideo size={18} /> {camera.title}</CamTag>
+                    <FiMoreHorizontal color="white" size={24} />
+                  </VideoOverlayTop>
+                  
+                  <WsVideoStream wsUrl={camera.wsUrl} />
 
-            <VideoWrapper>
-              <VideoOverlayTop>
-                <CamTag><FiVideo size={18} /> GR5 가조립 자재 #2</CamTag>
-                <FiMoreHorizontal color="white" size={24} />
-              </VideoOverlayTop>
-              
-              <WsVideoStream wsUrl="ws://192.168.2.147:8133" />
-
-              <MiniDashboardOverlay>
-                <MiniLabel>실시간 적재 현황</MiniLabel>
-                <MiniTitle>GR5 가조립 자재 #2</MiniTitle>
-                <MiniValueRow>
-                  <MiniValueBig>67%</MiniValueBig>
-                  <MiniValueSub>2 / 3 EA</MiniValueSub>
-                </MiniValueRow>
-                <MiniProgressBar percent={67} />
-              </MiniDashboardOverlay>
-            </VideoWrapper>
+                  <MiniDashboardOverlay>
+                    <MiniLabel>실시간 적재 현황</MiniLabel>
+                    <MiniTitle>{camera.title}</MiniTitle>
+                    <MiniValueRow>
+                      <MiniValueBig>{percent}%</MiniValueBig>
+                      <MiniValueSub>{occupied} / {total} EA</MiniValueSub>
+                    </MiniValueRow>
+                    <MiniProgressBar $percent={percent} />
+                    {camDataError && <MiniError>API 연결 오류 · 기존 데이터 표시</MiniError>}
+                  </MiniDashboardOverlay>
+                </VideoWrapper>
+              );
+            })}
           </VideoColumn>
 
           {/* 2. CENTER: Data List */}
@@ -1116,11 +1204,11 @@ const SmartFactoryDashboard: React.FC = () => {
                     </IconCircle>
                     <ItemInfo>
                       <ItemTitle $occupied={item.occupied}>
-                        공정 #{item.camId} - {item.slot_name}
+                        공정 #{item.camId} - {getSlotDisplayName(item)}
                       </ItemTitle>
                       <ItemSub>
                         <FiClock size={14} /> 
-                        입고: {item.entry_time}
+                        입고: {formatEntryTime(item.entry_time)}
                       </ItemSub>
                     </ItemInfo>
                   </ItemLeft>
@@ -1195,11 +1283,11 @@ const SmartFactoryDashboard: React.FC = () => {
                     </IconCircle>
                     <ItemInfo>
                       <ItemTitle $occupied={item.occupied}>
-                        공정 #{item.camId} - {item.slot_name}
+                        공정 #{item.camId} - {getSlotDisplayName(item)}
                       </ItemTitle>
                       <ItemSub>
                         <FiClock size={14} /> 
-                        입고: {item.entry_time}
+                        입고: {formatEntryTime(item.entry_time)}
                       </ItemSub>
                     </ItemInfo>
                   </ItemLeft>
