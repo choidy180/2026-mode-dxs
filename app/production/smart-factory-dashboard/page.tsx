@@ -63,7 +63,6 @@ const backdropFadeIn = keyframes`
 `;
 
 // --- Styled Components ---
-
 const DashboardContainer = styled.div`
   width: 100%;
   height: calc(100vh - 60px); 
@@ -150,11 +149,7 @@ const MiniDashboardOverlay = styled.div`
   z-index: 20;
   display: flex;
   flex-direction: column;
-`;
-
-const MiniLabel = styled.div`
-  font-size: 13px; 
-  color: #94A3B8; 
+ color: #94A3B8; 
   font-weight: 600;
   margin-bottom: 6px;
 `;
@@ -164,6 +159,13 @@ const MiniTitle = styled.div`
   font-weight: 700;
   color: #F8FAFC;
   margin-bottom: 10px;
+`;
+
+const MiniLabel = styled.div`
+  font-size: 13px; 
+  color: #94A3B8; 
+  font-weight: 600;
+  margin-bottom: 6px;
 `;
 
 const MiniValueRow = styled.div`
@@ -430,7 +432,6 @@ const StatusDot = styled.div<{ $occupied: boolean }>`
   background-color: ${props => props.$occupied ? theme.green : 'transparent'};
 `;
 
-
 // --- 3. Right: Chat Styles ---
 const ChatContainer = styled(Card)`
   padding: 0;
@@ -632,7 +633,6 @@ const ModalBody = styled.div`
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
 `;
-
 
 // --- 5. Auto Order Alert Styles ---
 const AutoOrderBackdrop = styled.div`
@@ -849,15 +849,60 @@ const AutoOrderButton = styled.button<{ $variant: 'primary' | 'secondary' }>`
 `;
 
 
-// --- [NEW] WebSocket Video Component ---
+// --- [수정 완료] 실시간 비디오 스트리밍을 처리하는 WebSocket Component ---
 const WsVideoStream = ({ wsUrl }: { wsUrl: string }) => {
-  const imgRef = useRef<HTMLImageElement>(null);
+  const [imageSrc, setImageSrc] = useState<string>('');
 
   useEffect(() => {
-    return () => {};
+    // 1. 공정 카메라 웹소켓 서버 연결
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = 'blob'; // 바이너리 스트림 우선 설정
+
+    let previousUrl = '';
+
+    ws.onmessage = (event) => {
+      // 케이스 A: 백엔드가 이미지 파일 바이너리(Blob) 데이터로 프레임을 보낼 때
+      if (event.data instanceof Blob) {
+        if (previousUrl) {
+          URL.revokeObjectURL(previousUrl); // 24시간 가동되는 공정이므로 가비지 컬렉션을 위해 메모리 해제 필수
+        }
+        const url = URL.createObjectURL(event.data);
+        setImageSrc(url);
+        previousUrl = url;
+      } 
+      // 케이스 B: 백엔드가 Base64 문자열 형태로 프레임을 보낼 때
+      else if (typeof event.data === 'string') {
+        if (event.data.startsWith('data:image')) {
+          setImageSrc(event.data);
+        } else {
+          setImageSrc(`data:image/jpeg;base64,${event.data}`);
+        }
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error(`공정 CCTV 웹소켓 에러 [주소: ${wsUrl}]:`, error);
+    };
+
+    ws.onclose = () => {
+      console.warn(`공정 CCTV 웹소켓 연결이 해제되었습니다. [주소: ${wsUrl}]`);
+    };
+
+    // 컴포넌트 언마운트 시 웹소켓 정상 해제 및 메모리 정리
+    return () => {
+      ws.close();
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+    };
   }, [wsUrl]);
 
-  return <StyledWebsocketImg ref={imgRef} alt="Live Stream" src="https://via.placeholder.com/600x400/1e293b/1e293b" />;
+  return (
+    <StyledWebsocketImg 
+      src={imageSrc || "https://via.placeholder.com/600x400/1e293b/ffffff?text=Connecting+Stream..."} 
+      alt="Live Production Stream" 
+    />
+  );
 };
 
 
@@ -900,13 +945,13 @@ const MOCK_DATA: ApiResult = {
 const SmartFactoryDashboard: React.FC = () => {
   const [apiData] = useState<ApiResult>(MOCK_DATA);
   const [mounted, setMounted] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false); // ✨ 모달 상태 추가
+  const [isModalOpen, setIsModalOpen] = useState(false); 
   const [isAutoOrderModalOpen, setIsAutoOrderModalOpen] = useState(false);
 
   // Chat State
   const [messages, setMessages] = useState([
     { id: 1, text: "시스템 가동. 실시간 공정 데이터 수신중.\n\n현재 'Door Foam Assembly' 작업이 진행중입니다.", user: false, time: '09:40 AM' },
-    { id: 2, text: "생산 진행를 알려주세요", user: true, time: '09:40 AM' },
+    { id: 2, text: "생산 진행률을 알려주세요", user: true, time: '09:40 AM' },
   ]);
   const [chatInput, setChatInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -956,6 +1001,8 @@ const SmartFactoryDashboard: React.FC = () => {
 
   const wkData = apiData.working_data;
   const progressPercent = Math.min((wkData.ProdQty / wkData.OrdQty) * 100, 100);
+
+  if (!mounted) return null;
 
   return (
     <>
@@ -1053,7 +1100,6 @@ const SmartFactoryDashboard: React.FC = () => {
               적재 한계: 자재 1분 이상 미도착 / 작업자 5명 이상 대기 시 자동 경보
             </NoticeBanner>
 
-            {/* ✨ 전체보기 헤더 적용 */}
             <SectionHeader>
               <SectionTitle>대차 슬롯 상세</SectionTitle>
               <ViewAllBtn onClick={() => setIsModalOpen(true)}>
@@ -1130,7 +1176,7 @@ const SmartFactoryDashboard: React.FC = () => {
         </MainGrid>
       </DashboardContainer>
 
-      {/* ✨ 모달 렌더링 영역 */}
+      {/* 모달 렌더링 영역 */}
       {isModalOpen && (
         <ModalBackdrop onClick={() => setIsModalOpen(false)}>
           <ModalContainer onClick={(e) => e.stopPropagation()}>
