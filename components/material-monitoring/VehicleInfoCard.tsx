@@ -1,0 +1,56 @@
+import { Loader2, Search } from 'lucide-react';
+import { CardTitle, InfoRow, MiniEmptyState, TopCard, VehicleImagePlaceholder } from '@/styles/styles';
+import type { VehicleSlotDetail } from '@/types/material-monitoring';
+
+type Props = {
+  vehicleInfo: VehicleSlotDetail | null;
+  isLoaded: boolean;
+  isLoading: boolean;
+  dwellString: string;
+};
+
+export default function VehicleInfoCard({ vehicleInfo, isLoaded, isLoading, dwellString }: Props) {
+  return (
+    <TopCard style={{ borderRadius: 16, boxShadow: '0 4px 6px -1px rgba(0,0,0,.05)' }}>
+      <CardTitle style={{ fontSize: '1.2rem' }}>입고 차량 정보</CardTitle>
+
+      {isLoaded && vehicleInfo ? (
+        <div style={{ padding: '0 20px 20px' }}>
+          <VehicleImagePlaceholder style={{ height: 180, marginBottom: 20, overflow: 'hidden', borderRadius: 12 }}>
+            <img
+              src={vehicleInfo.FILEPATH}
+              alt="Vehicle"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={event => { event.currentTarget.style.display = 'none'; }}
+            />
+          </VehicleImagePlaceholder>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <InfoRow style={{ padding: 0, border: 0 }}>
+              <span className="label" style={{ color: '#64748b', fontWeight: 500 }}>차량번호</span>
+              <span className="value" style={{ fontWeight: 800, fontSize: '1.1rem' }}>{vehicleInfo.PLATE || '번호미상'}</span>
+            </InfoRow>
+            <InfoRow style={{ padding: 0, border: 0 }}>
+              <span className="label" style={{ color: '#64748b', fontWeight: 500 }}>도착시간</span>
+              <span className="value" style={{ fontWeight: 700 }}>{vehicleInfo.entry_time?.split(' ')[1] || '-'}</span>
+            </InfoRow>
+            <InfoRow style={{ padding: 0, border: 0 }}>
+              <span className="label" style={{ color: '#64748b', fontWeight: 500 }}>체류시간</span>
+              <span className="value" style={{ fontWeight: 700 }}>{dwellString}</span>
+            </InfoRow>
+            <InfoRow style={{ padding: 0, border: 0 }}>
+              <span className="label" style={{ color: '#64748b', fontWeight: 500 }}>상태</span>
+              <span className="value" style={{ padding: '4px 12px', borderRadius: 16, background: '#f1f5f9', color: '#475569', fontSize: '.85rem' }}>입고대기</span>
+            </InfoRow>
+          </div>
+        </div>
+      ) : (
+        <MiniEmptyState>
+          <div className="icon-circle">{isLoading ? <Loader2 className="spin" size={28} /> : <Search size={28} />}</div>
+          <h3>{isLoading ? '데이터 조회 중...' : '차량 데이터 대기'}</h3>
+          <p>{isLoading ? '잠시만 기다려주세요.' : '바코드를 스캔하면 차량정보가 표시됩니다.'}</p>
+        </MiniEmptyState>
+      )}
+    </TopCard>
+  );
+}

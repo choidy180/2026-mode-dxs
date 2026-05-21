@@ -1615,22 +1615,23 @@ export const InfoInputBox = styled.div`
   align-items: center;
 
   .label-area {
-    width: 90px;
+    width: auto;
     background: #1e293b;
     height: 100%;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: start;
     color: #94a3b8;
     font-size: 0.8rem;
     font-weight: 700;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
     gap: 6px;
+    padding-left: 4px;
   }
 
   .value-area {
     flex: 1;
-    padding: 0 12px;
+    padding: 0 4px;
     color: #fff;
     font-weight: 600;
     font-size: 1rem;
@@ -1744,7 +1745,7 @@ export const LogSection = styled.div`
   }
 
   .log-body {
-    font-family: 'Pretendard', monospace;
+    /* font-family: 'Pretendard', monospace; */
     font-size: 0.75rem;
     color: #cbd5e1;
     line-height: 1.5;
@@ -1755,7 +1756,7 @@ export const LogSection = styled.div`
 
 export const ItemCardStyled = styled.div<{ $active: boolean }>`
   min-width: 130px;
-  height: 90px; 
+  height: 80px; 
   background: ${(props) => (props.$active ? 'rgba(59, 130, 246, 0.2)' : 'rgba(30, 41, 59, 0.5)')};
   border: 1px solid ${(props) => (props.$active ? '#60a5fa' : 'rgba(255, 255, 255, 0.1)')};
   border-radius: 8px;
