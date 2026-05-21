@@ -110,14 +110,14 @@ export default function MaterialMonitoringClient() {
             />
 
             <AnimatePresence>
-              {showDashboard && (
+              {/* {showDashboard && (
                 <AIDashboardModal
                   onClose={() => setShowDashboard(false)}
                   streamUrl={connectedIp ? `http://${connectedIp}:${PORT}/` : ''}
                   streamStatus={connectedIp ? 'ok' : 'error'}
                   externalData={scannedInvoiceData}
                 />
-              )}
+              )} */}
             </AnimatePresence>
           </VideoCard>
         </Column>

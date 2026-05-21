@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { 
   Monitor, Clock, CheckCircle2, XCircle, 
@@ -13,6 +14,10 @@ import styled, { createGlobalStyle } from 'styled-components';
 
 // ─── [CONFIG] 설정 및 테마 ───
 type ScreenMode = 'FHD' | 'QHD';
+type InspectionTone = 'ok' | 'ng' | 'wait';
+type InspectionViewType = 'guide' | 'split' | 'rightStack';
+type SummaryFilter = 'ng' | 'ok' | 'all';
+type CornerKey = 'tl' | 'tr' | 'bl' | 'br';
 
 interface ApiData {
   TIMEVALUE: string;
@@ -40,54 +45,107 @@ interface TotalData {
   normal_count: number;
 }
 
+interface ConnectorLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+interface CornerItem {
+  key: CornerKey;
+  code: string;
+  title: string;
+  camera: string;
+  status: string;
+  imgUrl: string;
+  anchor: {
+    left: string;
+    top: string;
+  };
+  description: string;
+}
+
+const CORNER_KEYS: CornerKey[] = ['tl', 'tr', 'bl', 'br'];
+
 const LAYOUT_CONFIGS = {
   FHD: {
-    padding: '24px',
-    gap: '20px',
-    headerHeight: '110px',
+    padding: '20px',
+    gap: '16px',
+    headerHeight: '96px',
     fontSize: { title: '20px', sub: '14px', badge: '13px', metaLabel: '12px', metaValue: '15px' },
     iconSize: 20,
-    cornerCardWidth: '320px',
+    cornerPanelWidth: 'clamp(204px, 12vw, 260px)',
   },
   QHD: {
-    padding: '40px',
-    gap: '32px',
-    headerHeight: '140px',
+    padding: '30px',
+    gap: '20px',
+    headerHeight: '112px',
     fontSize: { title: '28px', sub: '18px', badge: '16px', metaLabel: '14px', metaValue: '18px' },
     iconSize: 28,
-    cornerCardWidth: '450px',
+    cornerPanelWidth: 'clamp(260px, 11vw, 340px)',
   }
 };
 
 const theme = {
-  bg: '#F1F5F9',
-  cardBg: '#FFFFFF',
-  textPrimary: '#1E293B',
-  textSecondary: '#64748B',
-  accent: '#3B82F6', 
-  success: '#10B981',
-  danger: '#EF4444',
-  border: '#E2E8F0',
-  shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+  bg: '#F7F8FA',
+  cardBg: 'rgba(255, 255, 255, 0.92)',
+  surface: '#FFFFFF',
+  textPrimary: '#111827',
+  textSecondary: '#667085',
+  textMuted: '#98A2B3',
+  accent: '#E11D2E',
+  accentSoft: '#FFF1F2',
+  accentMuted: '#FFE4E8',
+  success: '#12B76A',
+  danger: '#E11D2E',
+  border: 'rgba(17, 24, 39, 0.08)',
+  hairline: 'rgba(17, 24, 39, 0.12)',
+  shadow: '0 24px 80px rgba(15, 23, 42, 0.08)',
+  shadowStrong: '0 34px 100px rgba(15, 23, 42, 0.14)',
   status: {
-    ok: { bg: '#F0FDF4', text: '#15803D', border: '#22C55E' },
-    ng: { bg: '#FEF2F2', text: '#B91C1C', border: '#EF4444' },
-    wait: { bg: '#F8FAFC', text: '#94A3B8', border: '#E2E8F0' }
+    ok: { bg: '#ECFDF3', text: '#027A48', border: '#12B76A' },
+    ng: { bg: '#FFF1F2', text: '#B42318', border: '#E11D2E' },
+    wait: { bg: '#F8FAFC', text: '#98A2B3', border: '#D0D5DD' }
   }
 };
 
-// ─── [GLOBAL STYLES (누락 수정됨)] ───
+const getInspectionTone = (status?: string): InspectionTone => {
+  const normalized = (status || '').trim();
+  if (!normalized || normalized === '-' || normalized === '대기') return 'wait';
+  if (normalized === '정상' || normalized.toUpperCase() === 'OK') return 'ok';
+  return 'ng';
+};
+
+const getToneColor = (tone: InspectionTone) => {
+  if (tone === 'ok') return theme.status.ok.border;
+  if (tone === 'ng') return theme.status.ng.border;
+  return theme.status.wait.border;
+};
+
+const getToneBg = (tone: InspectionTone) => {
+  if (tone === 'ok') return theme.status.ok.bg;
+  if (tone === 'ng') return theme.status.ng.bg;
+  return theme.status.wait.bg;
+};
+
+const formatStatusLabel = (status?: string) => {
+  const normalized = (status || '').trim();
+  return normalized && normalized !== '-' ? normalized : '대기';
+};
+
+// ─── [GLOBAL STYLES] ───
 const GlobalStyles = createGlobalStyle`
   @keyframes pulse-green-soft {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.2); }
-    70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(18, 183, 106, 0.18); }
+    70% { box-shadow: 0 0 0 10px rgba(18, 183, 106, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(18, 183, 106, 0); }
   }
   
   @keyframes pulse-red-soft {
-    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2); }
-    70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(225, 29, 46, 0.24); }
+    70% { box-shadow: 0 0 0 12px rgba(225, 29, 46, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(225, 29, 46, 0); }
   }
   
   @keyframes float {
@@ -97,186 +155,177 @@ const GlobalStyles = createGlobalStyle`
   }
   
   @keyframes slideDownFade {
-    from { 
-      opacity: 0; 
-      transform: translateY(-10px); 
-    }
-    to { 
-      opacity: 1; 
-      transform: translateY(0); 
-    }
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes connector-flow {
+    to { stroke-dashoffset: -32; }
   }
   
-  .animate-ok { 
-    animation: pulse-green-soft 2s infinite; 
-  }
+  .animate-ok { animation: pulse-green-soft 2s infinite; }
+  .animate-ng { animation: pulse-red-soft 2s infinite; }
+  .animate-float { animation: float 3s ease-in-out infinite; }
+  .connector-flow { animation: connector-flow 1.8s linear infinite; }
   
-  .animate-ng { 
-    animation: pulse-red-soft 2s infinite; 
-  }
-  
-  .animate-float { 
-    animation: float 3s ease-in-out infinite; 
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar { 
-    width: 8px; 
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-track { 
-    background: #F1F5F9; 
-    border-radius: 4px; 
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb { 
-    background: #CBD5E1; 
-    border-radius: 4px; 
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { 
-    background: #94A3B8; 
-  }
+  .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: #F8FAFC; border-radius: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #D0D5DD; border-radius: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #98A2B3; }
   
   body {
     margin: 0;
     padding: 0;
     background-color: ${theme.bg};
-    font-family: "Inter", -apple-system, sans-serif;
     overflow: hidden;
+    color: ${theme.textPrimary};
   }
   
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
+  strong, b { font-weight: 700; }
 `;
 
 // ─── [STYLED COMPONENTS] ───
-
 const Container = styled.div`
-  background-color: ${theme.bg};
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  font-family: "Inter", -apple-system, sans-serif;
   width: 100%;
   height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
+  min-height: 0;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: ${theme.bg};
 `;
 
 const HeaderRow = styled.div`
-  display: flex;
+  display: grid;
+  grid-template-columns: clamp(276px, 17vw, 360px) minmax(0, 1fr);
   flex-shrink: 0;
 `;
 
+const HeaderInfoArea = styled.div`
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) clamp(178px, 12vw, 236px) clamp(82px, 5vw, 104px) clamp(164px, 9.5vw, 210px);
+  gap: clamp(8px, 0.55vw, 12px);
+  align-items: stretch;
+  justify-content: stretch;
+`;
+
 const ResultCard = styled.div<{ $status: 'ok' | 'ng' | 'wait' }>`
-  width: 320px;
-  background-color: ${theme.cardBg};
-  border-radius: 16px;
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 0 32px;
-  gap: 20px;
-  position: relative;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 18px;
   overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid ${({ $status }) => $status === 'ok' ? 'rgba(18, 183, 106, 0.28)' : $status === 'ng' ? 'rgba(225, 29, 46, 0.34)' : theme.border};
+  background: #FFFFFF;
   box-shadow: ${theme.shadow};
-  border: 2px solid ${props => 
-    props.$status === 'ok' ? theme.status.ok.border : 
-    props.$status === 'ng' ? theme.status.ng.border : 
-    theme.status.wait.border
-  };
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 18px;
+    bottom: 18px;
+    width: 5px;
+    border-radius: 3px;
+    background: ${({ $status }) => $status === 'ok' ? theme.success : $status === 'ng' ? theme.danger : theme.status.wait.border};
+  }
 `;
 
 const ResultIconBox = styled.div<{ $status: 'ok' | 'ng' | 'wait' }>`
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
+  width: clamp(48px, 2.7vw, 58px);
+  height: clamp(48px, 2.7vw, 58px);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background-color: ${props => 
-    props.$status === 'ok' ? theme.status.ok.bg : 
-    props.$status === 'ng' ? theme.status.ng.bg : 
-    theme.status.wait.bg
-  };
-  color: ${props => 
-    props.$status === 'ok' ? theme.status.ok.border : 
-    props.$status === 'ng' ? theme.status.ng.border : 
-    theme.status.wait.border
-  };
+  background: ${({ $status }) => $status === 'ok' ? theme.status.ok.bg : $status === 'ng' ? theme.status.ng.bg : theme.status.wait.bg};
+  color: ${({ $status }) => $status === 'ok' ? theme.status.ok.border : $status === 'ng' ? theme.status.ng.border : theme.status.wait.border};
+  border: 1px solid ${({ $status }) => $status === 'ok' ? 'rgba(18, 183, 106, 0.18)' : $status === 'ng' ? 'rgba(225, 29, 46, 0.20)' : theme.border};
 `;
 
 const ResultTextBox = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 `;
 
 const ResultLabel = styled.span`
-  font-size: 13px;
-  color: ${theme.textSecondary};
-  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-size: 12px;
+  color: ${theme.textSecondary};
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 `;
 
 const ResultValue = styled.span<{ $status: 'ok' | 'ng' | 'wait' }>`
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1.1;
-  color: ${props => 
-    props.$status === 'ok' ? theme.status.ok.text : 
-    props.$status === 'ng' ? theme.status.ng.text : 
-    theme.status.wait.text
-  };
+  font-size: clamp(22px, 2vw, 30px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: ${({ $status }) => $status === 'ok' ? theme.status.ok.text : $status === 'ng' ? theme.status.ng.text : theme.status.wait.text};
 `;
 
 const SoundToggleBtn = styled.button`
   position: absolute;
-  top: 12px;
-  right: 12px;
-  background: transparent;
-  border: 1px solid ${theme.border};
-  border-radius: 8px;
+  top: 10px;
+  right: 10px;
   width: 32px;
   height: 32px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  border: 1px solid ${theme.border};
+  background: rgba(255,255,255,0.72);
   color: ${theme.textSecondary};
-  transition: all 0.2s;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: #F1F5F9;
-    color: ${theme.textPrimary};
+    border-color: rgba(225, 29, 46, 0.28);
+    background: ${theme.accentSoft};
+    color: ${theme.accent};
   }
 `;
 
 const InfoTableCard = styled.div`
   flex: 1;
-  background-color: ${theme.cardBg};
-  border-radius: 16px;
-  border: 1px solid ${theme.border};
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid ${theme.border};
+  background: #FFFFFF;
   box-shadow: ${theme.shadow};
 `;
 
 const InfoTableHeader = styled.div`
   display: flex;
   width: 100%;
-  height: 40%;
-  background-color: #F8FAFC;
+  height: 34%;
+  background: #F8FAFC;
   border-bottom: 1px solid ${theme.border};
 `;
 
 const InfoTableBody = styled.div`
   display: flex;
   width: 100%;
-  height: 60%;
+  height: 66%;
 `;
 
 const Th = styled.div<{ $isLast?: boolean }>`
@@ -284,101 +333,797 @@ const Th = styled.div<{ $isLast?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: ${theme.textSecondary};
-  border-right: ${props => props.$isLast ? 'none' : `1px solid ${theme.border}`};
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-right: ${({ $isLast }) => $isLast ? 'none' : `1px solid ${theme.border}`};
 `;
 
 const Td = styled.div<{ $isLast?: boolean }>`
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-right: ${props => props.$isLast ? 'none' : `1px solid ${theme.border}`};
+  border-right: ${({ $isLast }) => $isLast ? 'none' : `1px solid ${theme.border}`};
 `;
 
 const TdValueText = styled.span<{ $color?: string }>`
-  font-size: 20px;
-  font-weight: 800;
-  color: ${props => props.$color || theme.textPrimary};
-`;
-
-const BodyLayout = styled.div`
-  flex: 1;
-  display: flex;
-  min-height: 0;
-`;
-
-const SideColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const CornerCardWrapper = styled.div<{ $isOk: boolean }>`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: ${theme.cardBg};
-  border-radius: 16px;
-  box-shadow: ${theme.shadow};
+  max-width: 100%;
+  font-size: clamp(16px, 1.15vw, 20px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: ${({ $color }) => $color || theme.textPrimary};
+  white-space: nowrap;
   overflow: hidden;
-  border: 2px solid ${props => props.$isOk ? theme.status.ok.border : theme.status.ng.border};
+  text-overflow: ellipsis;
 `;
 
-const CornerCardHeader = styled.div`
-  padding: 12px 16px;
+const InspectionWorkspace = styled.div<{ $panelWidth: string }>`
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
+`;
+
+const MainInspectionPanel = styled.section`
+  position: relative;
+  z-index: 10;
+  min-width: 0;
+  min-height: 0;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid ${theme.border};
+  background: #FFFFFF;
+  box-shadow: ${theme.shadowStrong};
+`;
+
+const MainPanelHeader = styled.div`
+  flex-shrink: 0;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: clamp(10px, 0.7vw, 14px) 20px;
   border-bottom: 1px solid ${theme.border};
-  background-color: #FFFFFF;
+  background: #FFFFFF;
 `;
 
-const CornerTitle = styled.span`
-  font-size: 16px;
-  font-weight: 800;
+const MainPanelEyebrow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: ${theme.accent};
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+`;
+
+const LiveBadge = styled.div<{ $isDefect: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid ${({ $isDefect }) => $isDefect ? 'rgba(225, 29, 46, 0.26)' : 'rgba(18, 183, 106, 0.24)'};
+  background: ${({ $isDefect }) => $isDefect ? theme.status.ng.bg : theme.status.ok.bg};
+  color: ${({ $isDefect }) => $isDefect ? theme.status.ng.text : theme.status.ok.text};
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+`;
+
+const LiveDot = styled.span<{ $isDefect: boolean }>`
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: ${({ $isDefect }) => $isDefect ? theme.danger : theme.success};
+  box-shadow: 0 0 0 5px ${({ $isDefect }) => $isDefect ? 'rgba(225, 29, 46, 0.12)' : 'rgba(18, 183, 106, 0.12)'};
+`;
+
+const MainImageStage = styled.div`
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: clamp(6px, 0.55vw, 10px);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.07);
+  background: #FFFFFF;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 1px solid rgba(225, 29, 46, 0.12);
+    border-radius: 10px;
+    pointer-events: none;
+  }
+`;
+
+const GuideImage = styled.img`
+  position: relative;
+  z-index: 2;
+  max-width: 99%;
+  max-height: 97%;
+  object-fit: contain;
+  filter: drop-shadow(0 32px 48px rgba(15, 23, 42, 0.16));
+  user-select: none;
+`;
+
+const StageSplitGrid = styled.div`
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr) minmax(220px, 0.28fr);
+  gap: clamp(10px, 0.8vw, 16px);
+  padding: clamp(10px, 0.8vw, 16px);
+
+  @media (max-width: 1800px) {
+    grid-template-columns: minmax(190px, 0.26fr) minmax(0, 1fr) minmax(190px, 0.26fr);
+  }
+`;
+
+const StageRightStackGrid = styled.div`
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(680px, 36vw, 840px);
+  gap: clamp(12px, 0.9vw, 18px);
+  padding: clamp(10px, 0.8vw, 16px);
+
+  @media (min-width: 2200px) {
+    grid-template-columns: minmax(0, 1fr) clamp(840px, 34vw, 1040px);
+  }
+
+  @media (max-width: 1800px) {
+    grid-template-columns: minmax(0, 1fr) clamp(600px, 36vw, 740px);
+  }
+`;
+
+const CameraStackGrid = styled.div`
+  align-self: center;
+  justify-self: stretch;
+  width: 100%;
+  max-height: 100%;
+  aspect-ratio: 16 / 9;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 0.8vw, 14px);
+`;
+
+const BoxConnectorSvg = styled.svg`
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+`;
+
+const CenterGuideViewport = styled.div<{ $solo?: boolean }>`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: ${({ $solo }) => $solo ? '16px' : '14px'};
+  border: ${({ $solo }) => $solo ? 'none' : `1px solid ${theme.border}`};
+  background: #FFFFFF;
+`;
+
+const CameraRail = styled.div`
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 0.8vw, 14px);
+`;
+
+const CameraTile = styled.button<{ $tone: InspectionTone; $active: boolean; $imgUrl: string }>`
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid ${({ $tone, $active }) => $active ? getToneColor($tone) : $tone === 'wait' ? theme.border : `${getToneColor($tone)}45`};
+  background-color: #F2F4F7;
+  background-image: ${({ $imgUrl }) => $imgUrl ? `url(${$imgUrl})` : 'none'};
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: ${({ $active }) => $active ? '0 24px 56px rgba(15, 23, 42, 0.16)' : '0 14px 36px rgba(15, 23, 42, 0.08)'};
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  text-align: left;
+  transform: ${({ $active }) => $active ? 'translateY(-2px)' : 'translateY(0)'};
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: ${({ $tone }) => getToneColor($tone)};
+    box-shadow: 0 24px 58px rgba(15, 23, 42, 0.15);
+  }
+`;
+
+const CameraTileHeader = styled.div`
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  z-index: 2;
+`;
+
+const CameraTileCode = styled.span<{ $tone: InspectionTone }>`
+  min-width: 36px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid ${({ $tone }) => `${getToneColor($tone)}35`};
+  color: ${({ $tone }) => getToneColor($tone)};
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+`;
+
+const CameraTileStatus = styled.span<{ $tone: InspectionTone }>`
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid ${({ $tone }) => `${getToneColor($tone)}30`};
+  color: ${({ $tone }) => $tone === 'ok' ? theme.status.ok.text : $tone === 'ng' ? theme.status.ng.text : theme.status.wait.text};
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+`;
+
+const CameraTileFooter = styled.div`
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const CameraTileName = styled.span`
+  min-width: 0;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
   color: ${theme.textPrimary};
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
-const CornerBadge = styled.span<{ $isOk: boolean }>`
-  background-color: ${props => props.$isOk ? theme.status.ok.border : theme.status.ng.border};
-  color: #FFFFFF;
-  padding: 4px 10px;
-  border-radius: 6px;
+const CameraTileZoom = styled.span`
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.94);
+  color: ${theme.accent};
+  border: 1px solid rgba(225, 29, 46, 0.20);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+`;
+
+const CornerHotspot = styled.button<{ $tone: InspectionTone; $isActive: boolean }>`
+  position: absolute;
+  z-index: 30;
+  transform: translate(-50%, -50%);
+  width: clamp(44px, 3.4vw, 58px);
+  height: clamp(44px, 3.4vw, 58px);
+  border-radius: 12px;
+  border: 1px solid ${({ $tone }) => getToneColor($tone)};
+  background: rgba(255, 255, 255, 0.92);
+  color: ${({ $tone }) => getToneColor($tone)};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  box-shadow: ${({ $isActive, $tone }) => $isActive
+    ? `0 16px 36px ${getToneColor($tone)}2B, 0 0 0 7px ${getToneBg($tone)}`
+    : '0 14px 30px rgba(15, 23, 42, 0.10)'};
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 12px;
+    border: 1px solid ${({ $tone }) => getToneColor($tone)};
+    opacity: 0.36;
+  }
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: #FFFFFF;
+  }
+`;
+
+const MainPanelFooter = styled.div`
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px clamp(8px, 0.65vw, 12px) 20px;
+  color: ${theme.textSecondary};
   font-size: 12px;
   font-weight: 700;
 `;
 
-const CornerImageArea = styled.div`
-  flex: 1;
-  margin: 12px;
-  border-radius: 12px;
-  overflow: hidden;
+const LegendGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const LegendItem = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+`;
+
+const LegendDot = styled.span<{ $tone: InspectionTone }>`
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: ${({ $tone }) => getToneColor($tone)};
+`;
+
+const CornerInspectorPanel = styled.aside`
   position: relative;
-  background-color: #F1F5F9;
+  z-index: 20;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  gap: clamp(10px, 1vh, 14px);
 `;
 
-const CenterColumn = styled.div`
-  flex: 1;
-  background-color: ${theme.cardBg};
-  border-radius: 16px;
-  box-shadow: ${theme.shadow};
-  overflow: hidden;
-  padding: 16px;
+const PanelHeadingCard = styled.div`
+  flex-shrink: 0;
+  border-radius: 12px;
   border: 1px solid ${theme.border};
+  background: #FFFFFF;
+  box-shadow: ${theme.shadow};
+  padding: clamp(10px, 0.75vw, 14px);
 `;
 
-const CenterImageWrapper = styled.div`
+
+const HeaderSummaryCard = styled.div`
+  min-width: 0;
+  height: 100%;
+  border-radius: 12px;
+  border: 1px solid ${theme.border};
+  background: #FFFFFF;
+  box-shadow: ${theme.shadow};
+  padding: 7px;
+  display: flex;
+  align-items: stretch;
+`;
+
+const PanelStats = styled.div`
   width: 100%;
   height: 100%;
-  background-color: #F8FAFC;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+`;
+
+const PanelStatChip = styled.button<{ $tone?: InspectionTone; $active?: boolean }>`
+  min-width: 0;
+  height: 100%;
+  padding: 0 6px;
   border-radius: 12px;
+  border: 1px solid ${({ $tone, $active }) => $active
+    ? ($tone ? getToneColor($tone) : theme.textPrimary)
+    : ($tone ? `${getToneColor($tone)}33` : theme.border)};
+  background: ${({ $tone }) => $tone ? getToneBg($tone) : '#FFFFFF'};
+  color: ${({ $tone }) => $tone ? getToneColor($tone) : theme.textPrimary};
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  box-shadow: ${({ $active, $tone }) => $active ? `0 0 0 4px ${$tone ? getToneBg($tone) : '#F2F4F7'}` : 'none'};
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: ${({ $tone }) => $tone ? getToneColor($tone) : theme.textPrimary};
+  }
+`;
+
+const StatLabel = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+`;
+
+const StatCount = styled.span`
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+`;
+
+const CompactTypeButton = styled.button`
+  min-width: 0;
+  height: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  background: #FFFFFF;
+  color: ${theme.textPrimary};
+  box-shadow: ${theme.shadow};
+  padding: 0 9px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+  svg {
+    color: ${theme.textSecondary};
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(225, 29, 46, 0.26);
+    color: ${theme.accent};
+    box-shadow: 0 22px 54px rgba(15, 23, 42, 0.13), 0 0 0 5px rgba(225, 29, 46, 0.05);
+  }
+`;
+
+const CompactTypeValue = styled.span`
+  max-width: 100%;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const TypeSelectorButton = styled.button`
+  flex-shrink: 0;
+  width: 100%;
+  min-height: 124px;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  background: #FFFFFF;
+  color: ${theme.textPrimary};
+  box-shadow: ${theme.shadow};
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(225, 29, 46, 0.30);
+    box-shadow: 0 24px 58px rgba(15, 23, 42, 0.14), 0 0 0 5px rgba(225, 29, 46, 0.05);
+  }
+`;
+
+const TypeButtonTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+`;
+
+const TypeButtonLabel = styled.span`
+  color: ${theme.accent};
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+`;
+
+const TypeButtonValue = styled.div`
+  color: ${theme.textPrimary};
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-align: left;
+`;
+
+const MiniLayoutPreview = styled.div<{ $variant: InspectionViewType }>`
+  height: 54px;
+  display: grid;
+  grid-template-columns: ${({ $variant }) => $variant === 'split' ? '0.56fr 1fr 0.56fr' : $variant === 'rightStack' ? '1fr 0.72fr' : '1fr'};
+  gap: 6px;
+`;
+
+const MiniPreviewColumn = styled.div`
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+`;
+
+const MiniPreviewBlock = styled.div<{ $accent?: boolean }>`
+  min-width: 0;
+  min-height: 0;
+  border-radius: 8px;
+  border: 1px solid ${({ $accent }) => $accent ? 'rgba(225, 29, 46, 0.28)' : theme.border};
+  background: ${({ $accent }) => $accent ? theme.accentSoft : '#F8FAFC'};
+`;
+
+
+const MiniPreviewStack = styled.div`
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+`;
+
+const TypeModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(248, 250, 252, 0.76);
+  backdrop-filter: blur(12px);
+`;
+
+const TypeModalShell = styled.div`
+  width: min(1120px, 92vw);
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  background: #FFFFFF;
+  box-shadow: ${theme.shadowStrong};
+  padding: clamp(22px, 1.8vw, 30px);
+`;
+
+const TypeModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+`;
+
+const TypeModalTitle = styled.div`
+  color: ${theme.textPrimary};
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+`;
+
+const TypeModalDescription = styled.p`
+  margin: 6px 0 0 0;
+  color: ${theme.textSecondary};
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+`;
+
+const TypeModalClose = styled.button`
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid ${theme.border};
+  background: #FFFFFF;
+  color: ${theme.textSecondary};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    color: ${theme.accent};
+    border-color: rgba(225, 29, 46, 0.25);
+    background: ${theme.accentSoft};
+  }
+`;
+
+const TypeOptionGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const TypeOptionCard = styled.button<{ $active: boolean }>`
+  position: relative;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid ${({ $active }) => $active ? theme.accent : theme.border};
+  background: #FFFFFF;
+  padding: 16px;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: ${({ $active }) => $active ? '0 24px 58px rgba(225, 29, 46, 0.12)' : '0 16px 38px rgba(15, 23, 42, 0.07)'};
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: ${theme.accent};
+    box-shadow: 0 24px 58px rgba(15, 23, 42, 0.14);
+  }
+`;
+
+const TypeOptionPreview = styled.div<{ $variant: InspectionViewType }>`
+  height: 190px;
+  border-radius: 10px;
+  border: 1px solid ${theme.border};
+  background: #F8FAFC;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: ${({ $variant }) => $variant === 'split' ? '0.55fr 1fr 0.55fr' : $variant === 'rightStack' ? '1fr 0.72fr' : '1fr'};
+  gap: 10px;
+  margin-bottom: 14px;
+`;
+
+const TypeOptionPreviewRail = styled.div`
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+`;
+
+
+const TypeOptionPreviewStack = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+`;
+
+const TypeOptionPreviewBlock = styled.div<{ $main?: boolean; $accent?: boolean }>`
+  min-width: 0;
+  min-height: 0;
+  border-radius: ${({ $main }) => $main ? '12px' : '10px'};
+  border: 1px solid ${({ $accent }) => $accent ? 'rgba(225, 29, 46, 0.32)' : theme.border};
+  background: ${({ $main, $accent }) => $main ? '#FFFFFF' : $accent ? theme.accentSoft : '#FFFFFF'};
+  box-shadow: ${({ $main }) => $main ? '0 12px 28px rgba(15, 23, 42, 0.08)' : 'none'};
+`;
+
+const TypeOptionName = styled.div`
+  color: ${theme.textPrimary};
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+`;
+
+const TypeOptionText = styled.p`
+  margin: 6px 0 0 0;
+  color: ${theme.textSecondary};
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.42;
+  word-break: keep-all;
+`;
+
+const NoImageText = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${theme.textMuted};
+  font-size: 13px;
+  font-weight: 700;
+`;
+
+const FloatingHistoryButton = styled.button`
+  flex-shrink: 0;
+  align-self: stretch;
+  min-width: clamp(164px, 9.5vw, 210px);
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  background: rgba(255, 255, 255, 0.94);
+  color: ${theme.textPrimary};
+  box-shadow: ${theme.shadow};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+
+  svg {
+    color: ${theme.accent};
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(225, 29, 46, 0.28);
+    background: #FFFFFF;
+    color: ${theme.accent};
+    box-shadow: 0 22px 56px rgba(15, 23, 42, 0.14), 0 0 0 5px rgba(225, 29, 46, 0.06);
+  }
 `;
 
 const EmptyStateBackdrop = styled.div`
@@ -388,18 +1133,18 @@ const EmptyStateBackdrop = styled.div`
   right: 0;
   bottom: 0;
   z-index: 90000;
-  background-color: rgba(248, 250, 252, 0.65);
-  backdrop-filter: blur(8px);
+  background-color: rgba(248, 250, 252, 0.68);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
 `;
 
 const EmptyStateCard = styled.div`
-  background-color: ${theme.cardBg};
+  background-color: ${theme.surface};
   padding: 48px;
-  border-radius: 24px;
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
+  border-radius: 12px;
+  box-shadow: ${theme.shadowStrong};
   border: 1px solid ${theme.border};
   display: flex;
   flex-direction: column;
@@ -422,11 +1167,11 @@ const CloseIconButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 
   &:hover {
-    background: #F1F5F9;
-    color: ${theme.textPrimary};
+    background: ${theme.accentSoft};
+    color: ${theme.accent};
   }
 `;
 
@@ -505,10 +1250,10 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
           gap: '12px',
           background: '#FFFFFF', 
           border: `1.5px solid ${isOpen ? theme.accent : '#E2E8F0'}`,
-          borderRadius: '14px', 
+          borderRadius: '10px', 
           cursor: 'pointer', 
           transition: 'all 0.2s',
-          boxShadow: isOpen ? '0 4px 12px rgba(59, 130, 246, 0.1)' : '0 2px 4px rgba(0,0,0,0.02)'
+          boxShadow: isOpen ? '0 4px 12px rgba(225, 29, 46, 0.10)' : '0 2px 4px rgba(0,0,0,0.02)'
         }}
       >
         <Calendar size={20} color={theme.accent} />
@@ -538,7 +1283,7 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
           left: 0, 
           width: '100%',
           background: '#FFFFFF', 
-          borderRadius: '16px', 
+          borderRadius: '10px', 
           border: `1px solid ${theme.border}`,
           boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
           zIndex: 100, 
@@ -568,7 +1313,7 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
             </button>
             <span style={{ 
               fontSize: '16px', 
-              fontWeight: 800, 
+              fontWeight: 700, 
               color: theme.textPrimary 
             }}>
               {viewYear}년 {viewMonth + 1}월
@@ -631,17 +1376,17 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
-                    background: isSelected ? theme.accent : (isToday ? '#EFF6FF' : 'transparent'),
+                    background: isSelected ? theme.accent : (isToday ? '#FFF1F2' : 'transparent'),
                     color: isSelected ? '#FFFFFF' : (isToday ? theme.accent : theme.textPrimary),
                     border: 'none', 
                     borderRadius: '8px', 
                     fontSize: '14px', 
-                    fontWeight: isSelected || isToday ? 800 : 600,
+                    fontWeight: isSelected || isToday ? 700 : 600,
                     cursor: 'pointer', 
                     transition: 'all 0.1s'
                   }}
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.backgroundColor = '#F1F5F9'; }}
-                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.backgroundColor = isToday ? '#EFF6FF' : 'transparent'; }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.backgroundColor = isToday ? '#FFF1F2' : 'transparent'; }}
                 >
                   {day}
                 </button>
@@ -666,20 +1411,20 @@ const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => vo
           width: '100px', 
           height: '100px', 
           borderRadius: '50%', 
-          backgroundColor: '#EFF6FF',
+          backgroundColor: '#FFF1F2',
           color: theme.accent,
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center',
           marginBottom: '24px',
-          boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)'
+          boxShadow: '0 10px 20px -5px rgba(225, 29, 46, 0.16)'
         }}>
           <ClipboardX size={48} strokeWidth={1.5} />
         </div>
 
         <h2 style={{ 
           fontSize: '24px', 
-          fontWeight: 800, 
+          fontWeight: 700, 
           color: theme.textPrimary, 
           margin: '0 0 12px 0' 
         }}>
@@ -706,7 +1451,7 @@ const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => vo
             color: theme.textPrimary,
             border: `1px solid ${theme.border}`, 
             padding: '12px 32px', 
-            borderRadius: '12px', 
+            borderRadius: '10px', 
             fontWeight: 700, 
             fontSize: '15px',
             cursor: 'pointer', 
@@ -730,6 +1475,145 @@ const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => vo
   );
 };
 
+const TypePreviewGraphic = ({ variant }: { variant: InspectionViewType }) => {
+  if (variant === 'split') {
+    return (
+      <>
+        <TypeOptionPreviewRail>
+          <TypeOptionPreviewBlock $accent />
+          <TypeOptionPreviewBlock />
+        </TypeOptionPreviewRail>
+        <TypeOptionPreviewBlock $main />
+        <TypeOptionPreviewRail>
+          <TypeOptionPreviewBlock />
+          <TypeOptionPreviewBlock $accent />
+        </TypeOptionPreviewRail>
+      </>
+    );
+  }
+
+  if (variant === 'rightStack') {
+    return (
+      <>
+        <TypeOptionPreviewBlock $main />
+        <TypeOptionPreviewStack>
+          <TypeOptionPreviewBlock $accent />
+          <TypeOptionPreviewBlock />
+          <TypeOptionPreviewBlock />
+          <TypeOptionPreviewBlock $accent />
+        </TypeOptionPreviewStack>
+      </>
+    );
+  }
+
+  return <TypeOptionPreviewBlock $main $accent />;
+};
+
+const InlineTypePreview = ({ variant }: { variant: InspectionViewType }) => {
+  if (variant === 'split') {
+    return (
+      <>
+        <MiniPreviewColumn>
+          <MiniPreviewBlock $accent />
+          <MiniPreviewBlock />
+        </MiniPreviewColumn>
+        <MiniPreviewBlock />
+        <MiniPreviewColumn>
+          <MiniPreviewBlock />
+          <MiniPreviewBlock $accent />
+        </MiniPreviewColumn>
+      </>
+    );
+  }
+
+  if (variant === 'rightStack') {
+    return (
+      <>
+        <MiniPreviewBlock />
+        <MiniPreviewStack>
+          <MiniPreviewBlock $accent />
+          <MiniPreviewBlock />
+          <MiniPreviewBlock />
+          <MiniPreviewBlock $accent />
+        </MiniPreviewStack>
+      </>
+    );
+  }
+
+  return <MiniPreviewBlock $accent />;
+};
+
+const TypeSelectionModal = ({
+  isOpen,
+  currentType,
+  onClose,
+  onSelect,
+}: {
+  isOpen: boolean;
+  currentType: InspectionViewType;
+  onClose: () => void;
+  onSelect: (type: InspectionViewType) => void;
+}) => {
+  if (!isOpen || typeof document === 'undefined') return null;
+
+  const options: Array<{ type: InspectionViewType; name: string; text: string }> = [
+    {
+      type: 'guide',
+      name: 'TYPE 01 · Guide Focus',
+      text: '큰 검사 이미지를 단독으로 보여주는 기본 화면입니다.',
+    },
+    {
+      type: 'split',
+      name: 'TYPE 02 · Camera Split',
+      text: '확대 카메라 화면을 큰 검사 이미지 좌우에 2개씩 배치합니다.',
+    },
+    {
+      type: 'rightStack',
+      name: 'TYPE 03 · Right Stack',
+      text: '확대 카메라 화면 4개를 오른쪽 한 영역에 모아 표시합니다.',
+    },
+  ];
+
+  return createPortal(
+    <TypeModalBackdrop onClick={onClose}>
+      <TypeModalShell onClick={(event) => event.stopPropagation()}>
+        <TypeModalHeader>
+          <div>
+            <TypeModalTitle>검사 화면 TYPE 선택</TypeModalTitle>
+            <TypeModalDescription>
+              선택한 타입에 맞춰 메인 검사 화면의 배치가 바로 변경됩니다.
+            </TypeModalDescription>
+          </div>
+          <TypeModalClose type="button" onClick={onClose} aria-label="TYPE 선택 닫기">
+            <X size={18} strokeWidth={2.4} />
+          </TypeModalClose>
+        </TypeModalHeader>
+
+        <TypeOptionGrid>
+          {options.map((option) => {
+            const active = currentType === option.type;
+            return (
+              <TypeOptionCard
+                key={option.type}
+                type="button"
+                $active={active}
+                onClick={() => onSelect(option.type)}
+              >
+                <TypeOptionPreview $variant={option.type}>
+                  <TypePreviewGraphic variant={option.type} />
+                </TypeOptionPreview>
+                <TypeOptionName>{option.name}</TypeOptionName>
+                <TypeOptionText>{option.text}</TypeOptionText>
+              </TypeOptionCard>
+            );
+          })}
+        </TypeOptionGrid>
+      </TypeModalShell>
+    </TypeModalBackdrop>,
+    document.body
+  );
+};
+
 const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onClose: () => void; onImageClick: (title: string, url: string) => void }) => {
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
@@ -747,464 +1631,622 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
         id: "log_1", time: "09:12:34", model: "GL-100", wo: "WO-A901", result: "ok", detail: "전 항목 정상 판정 완료. 특이사항 없음.",
         images: {
           main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
-          a1: "https://dummyimage.com/600x400/020617/cbd5e1&text=A1+Normal",
-          a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
-          a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
-          a4: "https://dummyimage.com/600x400/020617/cbd5e1&text=A4+Normal"
+          a1: "https://dummyimage.com/960x540/F8FAFC/475467&text=A1+Normal",
+          a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
+          a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
+          a4: "https://dummyimage.com/960x540/F8FAFC/475467&text=A4+Normal"
         }
       },
       { 
         id: "log_2", time: "10:05:22", model: "GL-100", wo: "WO-A901", result: "ng", detail: "좌측 상단(A1) 모서리 들뜸 현상 감지됨. 재검사 요망.",
         images: {
           main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
-          a1: "https://dummyimage.com/600x400/7f1d1d/fca5a5&text=A1+Defect",
-          a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
-          a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
-          a4: "https://dummyimage.com/600x400/020617/cbd5e1&text=A4+Normal"
+          a1: "https://dummyimage.com/960x540/FFF1F2/E11D2E&text=A1+Defect",
+          a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
+          a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
+          a4: "https://dummyimage.com/960x540/F8FAFC/475467&text=A4+Normal"
         }
       },
       { 
         id: "log_3", time: "13:30:00", model: "GL-PRO", wo: "WO-B122", result: "ok", detail: "전 항목 정상 판정 완료.",
         images: {
           main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
-          a1: "https://dummyimage.com/600x400/020617/cbd5e1&text=A1+Normal",
-          a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
-          a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
-          a4: "https://dummyimage.com/600x400/020617/cbd5e1&text=A4+Normal"
+          a1: "https://dummyimage.com/960x540/F8FAFC/475467&text=A1+Normal",
+          a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
+          a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
+          a4: "https://dummyimage.com/960x540/F8FAFC/475467&text=A4+Normal"
         }
       },
       { 
         id: "log_4", time: "15:45:10", model: "GL-PRO", wo: "WO-B122", result: "ng", detail: "우측 하단(A4) 틈새 불량 (오차 범위 초과).",
         images: {
           main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
-          a1: "https://dummyimage.com/600x400/020617/cbd5e1&text=A1+Normal",
-          a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
-          a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
-          a4: "https://dummyimage.com/600x400/7f1d1d/fca5a5&text=A4+Defect"
+          a1: "https://dummyimage.com/960x540/F8FAFC/475467&text=A1+Normal",
+          a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
+          a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
+          a4: "https://dummyimage.com/960x540/FFF1F2/E11D2E&text=A4+Defect"
         }
       },
     ];
   }, [selectedDate]);
 
   const selectedLog = useMemo(() => dummyLogs.find((l) => l.id === selectedLogId) || null, [dummyLogs, selectedLogId]);
+  const historyStats = useMemo(() => {
+    const ok = dummyLogs.filter((log) => log.result === 'ok').length;
+    const ng = dummyLogs.filter((log) => log.result === 'ng').length;
+    return { total: dummyLogs.length, ok, ng };
+  }, [dummyLogs]);
+  const cornerPreviewItems = selectedLog ? [
+    { key: 'a1', code: 'A1', title: '좌측 상단', url: selectedLog.images.a1 },
+    { key: 'a2', code: 'A2', title: '우측 상단', url: selectedLog.images.a2 },
+    { key: 'a3', code: 'A3', title: '좌측 하단', url: selectedLog.images.a3 },
+    { key: 'a4', code: 'A4', title: '우측 하단', url: selectedLog.images.a4 },
+  ] : [];
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
-  return (
+  return createPortal((
     <div 
       style={{
-        position: 'fixed', 
-        inset: 0, 
-        zIndex: 100000,
-        backgroundColor: 'rgba(15, 23, 42, 0.6)', 
-        backdropFilter: 'blur(8px)',
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center'
-      }} 
+        position: 'fixed',
+        inset: 0,
+        zIndex: 2147483647,
+        backgroundColor: 'rgba(248, 250, 252, 0.82)',
+        backdropFilter: 'blur(14px)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        padding: '8px 20px 20px 20px'
+      }}
       onClick={onClose}
     >
       <div 
         style={{
-          width: '1000px', 
-          height: '750px', 
-          backgroundColor: theme.bg,
-          borderRadius: '24px', 
-          display: 'flex', 
+          width: 'calc(100vw - 40px)',
+          height: 'calc(100dvh - 28px)',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '10px',
+          display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden', 
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-          border: `1px solid rgba(255,255,255,0.2)`
-        }} 
+          overflow: 'hidden',
+          boxShadow: '0 34px 100px rgba(15, 23, 42, 0.18)',
+          border: `1px solid ${theme.border}`
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        
         <div style={{
-          padding: '20px 24px', 
-          backgroundColor: '#fff', 
+          flexShrink: 0,
+          padding: '22px 28px',
+          backgroundColor: '#FFFFFF',
           borderBottom: `1px solid ${theme.border}`,
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '18px'
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '10px', 
-            color: theme.textPrimary 
-          }}>
-            <Calendar size={22} color={theme.accent} />
-            <span style={{ 
-              fontSize: '18px', 
-              fontWeight: 800 
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '10px',
+              backgroundColor: theme.accentSoft,
+              color: theme.accent,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(225, 29, 46, 0.14)'
             }}>
-              이전 검사기록 조회
-            </span>
+              <Calendar size={24} strokeWidth={2.5} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                color: theme.accent,
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                marginBottom: '5px'
+              }}>
+                Inspection Archive
+              </div>
+              <h2 style={{
+                margin: 0,
+                color: theme.textPrimary,
+                fontSize: '24px',
+                fontWeight: 700,
+                letterSpacing: '-0.05em'
+              }}>
+                이전 검사기록 조회
+              </h2>
+            </div>
           </div>
-          <button 
-            onClick={onClose} 
-            style={{
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer', 
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              height: '38px',
+              padding: '0 14px',
+              borderRadius: '10px',
+              backgroundColor: '#F8FAFC',
+              border: `1px solid ${theme.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
               color: theme.textSecondary,
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              padding: '4px'
-            }}
-          >
-            <X size={24} />
-          </button>
+              fontSize: '12px',
+              fontWeight: 700
+            }}>
+              ALL <strong style={{ color: theme.textPrimary }}>{historyStats.total}</strong>
+            </div>
+            <div style={{
+              height: '38px',
+              padding: '0 14px',
+              borderRadius: '10px',
+              backgroundColor: theme.status.ok.bg,
+              border: '1px solid rgba(18, 183, 106, 0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: theme.status.ok.text,
+              fontSize: '12px',
+              fontWeight: 700
+            }}>
+              OK <strong>{historyStats.ok}</strong>
+            </div>
+            <div style={{
+              height: '38px',
+              padding: '0 14px',
+              borderRadius: '10px',
+              backgroundColor: theme.status.ng.bg,
+              border: '1px solid rgba(225, 29, 46, 0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: theme.status.ng.text,
+              fontSize: '12px',
+              fontWeight: 700
+            }}>
+              NG <strong>{historyStats.ng}</strong>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                border: `1px solid ${theme.border}`,
+                backgroundColor: '#FFFFFF',
+                color: theme.textSecondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              aria-label="이전 검사기록 닫기"
+            >
+              <X size={22} />
+            </button>
+          </div>
         </div>
 
-        <div style={{ 
-          flex: 1, 
-          display: 'flex', 
-          overflow: 'hidden' 
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'grid',
+          gridTemplateColumns: 'clamp(330px, 22vw, 420px) minmax(0, 1fr)',
+          overflow: 'hidden',
+          backgroundColor: '#FFFFFF'
         }}>
-          <div style={{
-            width: '320px', 
-            backgroundColor: '#fff', 
+          <aside style={{
+            minHeight: 0,
+            backgroundColor: '#FFFFFF',
             borderRight: `1px solid ${theme.border}`,
-            display: 'flex', 
-            flexDirection: 'column'
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
-            <div style={{ 
-              padding: '16px', 
-              borderBottom: `1px solid ${theme.border}`, 
-              backgroundColor: '#F8FAFC' 
-            }}>
-              <CustomDatePicker 
-                value={selectedDate} 
+            <div style={{ padding: '18px', borderBottom: `1px solid ${theme.border}` }}>
+              <div style={{
+                marginBottom: '12px',
+                color: theme.textSecondary,
+                fontSize: '12px',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase'
+              }}>
+                Search Date
+              </div>
+              <CustomDatePicker
+                value={selectedDate}
                 onChange={(val) => {
                   setSelectedDate(val);
                   setSelectedLogId(null);
-                }} 
+                }}
               />
             </div>
 
-            <div 
-              className="custom-scrollbar" 
-              style={{ 
-                flex: 1, 
-                overflowY: 'auto', 
-                padding: '12px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '8px' 
+            <div style={{
+              padding: '14px 18px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '8px',
+              borderBottom: `1px solid ${theme.border}`,
+              backgroundColor: '#FFFFFF'
+            }}>
+              <div style={{ padding: '10px 8px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: `1px solid ${theme.border}`, textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: theme.textMuted, fontWeight: 700 }}>TOTAL</div>
+                <div style={{ marginTop: '4px', fontSize: '18px', color: theme.textPrimary, fontWeight: 700 }}>{historyStats.total}</div>
+              </div>
+              <div style={{ padding: '10px 8px', borderRadius: '10px', backgroundColor: theme.status.ok.bg, border: '1px solid rgba(18, 183, 106, 0.18)', textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: theme.status.ok.text, fontWeight: 700 }}>OK</div>
+                <div style={{ marginTop: '4px', fontSize: '18px', color: theme.status.ok.text, fontWeight: 700 }}>{historyStats.ok}</div>
+              </div>
+              <div style={{ padding: '10px 8px', borderRadius: '10px', backgroundColor: theme.status.ng.bg, border: '1px solid rgba(225, 29, 46, 0.18)', textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: theme.status.ng.text, fontWeight: 700 }}>NG</div>
+                <div style={{ marginTop: '4px', fontSize: '18px', color: theme.status.ng.text, fontWeight: 700 }}>{historyStats.ng}</div>
+              </div>
+            </div>
+
+            <div
+              className="custom-scrollbar"
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                backgroundColor: '#FFFFFF'
               }}
             >
               {dummyLogs.length > 0 ? dummyLogs.map((log) => {
                 const isActive = selectedLogId === log.id;
+                const isOk = log.result === 'ok';
                 return (
-                  <div
+                  <button
                     key={log.id}
                     onClick={() => setSelectedLogId(log.id)}
                     style={{
-                      padding: '16px', 
-                      borderRadius: '14px', 
+                      position: 'relative',
+                      textAlign: 'left',
+                      padding: '16px 16px 16px 18px',
+                      borderRadius: '10px',
                       cursor: 'pointer',
-                      border: `1px solid ${isActive ? theme.accent : theme.border}`,
-                      backgroundColor: isActive ? '#EFF6FF' : '#fff',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      boxShadow: isActive ? '0 4px 12px rgba(59, 130, 246, 0.1)' : 'none'
+                      border: `1px solid ${isActive ? (isOk ? 'rgba(18, 183, 106, 0.34)' : 'rgba(225, 29, 46, 0.34)') : theme.border}`,
+                      backgroundColor: isActive ? (isOk ? theme.status.ok.bg : theme.status.ng.bg) : '#FFFFFF',
+                      transition: 'all 0.2s ease',
+                      boxShadow: isActive ? '0 14px 34px rgba(15, 23, 42, 0.08)' : '0 8px 20px rgba(15, 23, 42, 0.035)',
+                      overflow: 'hidden',
+                      appearance: 'none'
                     }}
                   >
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      marginBottom: '8px' 
-                    }}>
-                      <span style={{ 
-                        fontWeight: 800, 
-                        color: isActive ? theme.accent : theme.textPrimary 
-                      }}>
-                        {log.time}
-                      </span>
-                      <span style={{ 
-                        fontWeight: 800, 
-                        fontSize: '13px',
-                        color: log.result === 'ok' ? theme.success : theme.danger
+                    <span style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: '14px',
+                      bottom: '14px',
+                      width: '4px',
+                      borderRadius: '10px',
+                      backgroundColor: isOk ? theme.success : theme.danger
+                    }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                      <span style={{ fontWeight: 700, color: theme.textPrimary, fontSize: '16px', letterSpacing: '-0.03em' }}>{log.time}</span>
+                      <span style={{
+                        flexShrink: 0,
+                        padding: '6px 9px',
+                        borderRadius: '10px',
+                        backgroundColor: isOk ? '#FFFFFF' : '#FFFFFF',
+                        color: isOk ? theme.status.ok.text : theme.status.ng.text,
+                        border: `1px solid ${isOk ? 'rgba(18, 183, 106, 0.20)' : 'rgba(225, 29, 46, 0.20)'}`,
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        lineHeight: 1
                       }}>
                         {log.result.toUpperCase()}
                       </span>
                     </div>
-                    <div style={{ 
-                      fontSize: '13px', 
-                      fontWeight: 600, 
-                      color: isActive ? '#60A5FA' : theme.textSecondary 
-                    }}>
-                      {log.model} / {log.wo}
+                    <div style={{ color: theme.textSecondary, fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>
+                      {log.model} · {log.wo}
                     </div>
-                  </div>
-                )
+                    <div style={{ color: theme.textMuted, fontSize: '12px', fontWeight: 700, lineHeight: 1.45, wordBreak: 'keep-all' }}>
+                      {log.detail}
+                    </div>
+                  </button>
+                );
               }) : (
-                <div style={{ 
-                  textAlign: 'center', 
-                  color: theme.textSecondary, 
-                  marginTop: '40px', 
-                  fontWeight: 600 
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  color: theme.textSecondary,
+                  fontWeight: 700,
+                  lineHeight: 1.6,
+                  wordBreak: 'keep-all'
                 }}>
                   해당 날짜의 기록이 없습니다.
                 </div>
               )}
             </div>
-          </div>
+          </aside>
 
-          <div 
-            className="custom-scrollbar" 
-            style={{ 
-              flex: 1, 
-              padding: '32px', 
-              overflowY: 'auto', 
-              backgroundColor: theme.bg 
+          <main
+            className="custom-scrollbar"
+            style={{
+              minHeight: 0,
+              overflowY: 'auto',
+              padding: '24px',
+              backgroundColor: '#F7F8FA'
             }}
           >
             {selectedLog ? (
-              <div style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: '24px' 
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '16px' 
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <section style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '10px',
+                  padding: '22px',
+                  border: `1px solid ${theme.border}`,
+                  boxShadow: '0 18px 46px rgba(15, 23, 42, 0.07)'
                 }}>
-                  <div style={{ 
-                    width: '64px', 
-                    height: '64px', 
-                    borderRadius: '16px', 
-                    backgroundColor: '#E2E8F0', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
-                  }}>
-                    <FileText size={32} color={theme.textSecondary} />
-                  </div>
-                  <div>
-                    <h3 style={{ 
-                      margin: '0 0 4px 0', 
-                      fontSize: '24px', 
-                      fontWeight: 900, 
-                      color: theme.textPrimary 
-                    }}>
-                      {selectedLog.model}
-                    </h3>
-                    <p style={{ 
-                      margin: 0, 
-                      fontSize: '14px', 
-                      fontWeight: 600, 
-                      color: theme.textSecondary 
-                    }}>
-                      작업지시서: {selectedLog.wo}
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ 
-                  backgroundColor: '#fff', 
-                  borderRadius: '20px', 
-                  padding: '24px', 
-                  border: `1px solid ${theme.border}`, 
-                  boxShadow: theme.shadow 
-                }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    paddingBottom: '16px', 
-                    borderBottom: `1px solid ${theme.border}`, 
-                    marginBottom: '16px' 
-                  }}>
-                    <span style={{ 
-                      fontWeight: 700, 
-                      color: theme.textSecondary 
-                    }}>
-                      검사 일시
-                    </span>
-                    <span style={{ 
-                      fontWeight: 800, 
-                      color: theme.textPrimary 
-                    }}>
-                      {selectedDate} {selectedLog.time}
-                    </span>
-                  </div>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    paddingBottom: '16px', 
-                    borderBottom: `1px solid ${theme.border}`, 
-                    marginBottom: '16px' 
-                  }}>
-                    <span style={{ 
-                      fontWeight: 700, 
-                      color: theme.textSecondary 
-                    }}>
-                      최종 판정
-                    </span>
-                    <span style={{ 
-                      fontWeight: 900, 
-                      color: selectedLog.result === 'ok' ? theme.success : theme.danger 
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '18px', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                      <div style={{
+                        width: '58px',
+                        height: '58px',
+                        borderRadius: '10px',
+                        backgroundColor: selectedLog.result === 'ok' ? theme.status.ok.bg : theme.status.ng.bg,
+                        color: selectedLog.result === 'ok' ? theme.status.ok.text : theme.status.ng.text,
+                        border: `1px solid ${selectedLog.result === 'ok' ? 'rgba(18, 183, 106, 0.18)' : 'rgba(225, 29, 46, 0.18)'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        {selectedLog.result === 'ok' ? <CheckCircle2 size={30} strokeWidth={2.5} /> : <XCircle size={30} strokeWidth={2.5} />}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ color: theme.textSecondary, fontSize: '12px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                          Selected Log
+                        </div>
+                        <h3 style={{ margin: 0, fontSize: '26px', fontWeight: 700, color: theme.textPrimary, letterSpacing: '-0.06em' }}>
+                          {selectedLog.model}
+                        </h3>
+                        <p style={{ margin: '6px 0 0 0', fontSize: '14px', fontWeight: 700, color: theme.textSecondary }}>
+                          작업지시서 {selectedLog.wo}
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{
+                      flexShrink: 0,
+                      height: '40px',
+                      padding: '0 16px',
+                      borderRadius: '10px',
+                      backgroundColor: selectedLog.result === 'ok' ? theme.status.ok.bg : theme.status.ng.bg,
+                      color: selectedLog.result === 'ok' ? theme.status.ok.text : theme.status.ng.text,
+                      border: `1px solid ${selectedLog.result === 'ok' ? 'rgba(18, 183, 106, 0.20)' : 'rgba(225, 29, 46, 0.20)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontSize: '13px',
+                      fontWeight: 700
                     }}>
                       {selectedLog.result === 'ok' ? '정상 (OK)' : '불량 (NG)'}
-                    </span>
+                    </div>
                   </div>
-                  <div style={{ 
-                    backgroundColor: '#F8FAFC', 
-                    padding: '20px', 
-                    borderRadius: '16px' 
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '18px' }}>
+                    <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: `1px solid ${theme.border}` }}>
+                      <div style={{ fontSize: '11px', color: theme.textMuted, fontWeight: 700, marginBottom: '6px' }}>DATE</div>
+                      <div style={{ color: theme.textPrimary, fontSize: '14px', fontWeight: 700 }}>{selectedDate}</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: `1px solid ${theme.border}` }}>
+                      <div style={{ fontSize: '11px', color: theme.textMuted, fontWeight: 700, marginBottom: '6px' }}>TIME</div>
+                      <div style={{ color: theme.textPrimary, fontSize: '14px', fontWeight: 700 }}>{selectedLog.time}</div>
+                    </div>
+                    <div style={{ padding: '14px', borderRadius: '10px', backgroundColor: '#F8FAFC', border: `1px solid ${theme.border}` }}>
+                      <div style={{ fontSize: '11px', color: theme.textMuted, fontWeight: 700, marginBottom: '6px' }}>RESULT</div>
+                      <div style={{ color: selectedLog.result === 'ok' ? theme.success : theme.danger, fontSize: '14px', fontWeight: 700 }}>
+                        {selectedLog.result.toUpperCase()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '16px 18px',
+                    borderRadius: '10px',
+                    backgroundColor: selectedLog.result === 'ok' ? '#F8FAFC' : theme.accentSoft,
+                    border: `1px solid ${selectedLog.result === 'ok' ? theme.border : 'rgba(225, 29, 46, 0.14)'}`
                   }}>
-                    <strong style={{ 
-                      display: 'block', 
-                      marginBottom: '8px', 
-                      color: theme.textPrimary, 
-                      fontWeight: 800 
-                    }}>
+                    <strong style={{ display: 'block', marginBottom: '7px', color: theme.textPrimary, fontWeight: 700, fontSize: '14px' }}>
                       상세 내용
                     </strong>
-                    <p style={{ 
-                      margin: 0, 
-                      color: theme.textSecondary, 
-                      lineHeight: '1.6', 
-                      fontWeight: 600 
-                    }}>
+                    <p style={{ margin: 0, color: theme.textSecondary, lineHeight: '1.6', fontWeight: 700, wordBreak: 'keep-all' }}>
                       {selectedLog.detail}
                     </p>
                   </div>
+                </section>
 
-                  <div style={{ marginTop: '32px' }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      marginBottom: '16px' 
-                    }}>
-                      <h4 style={{ 
-                        margin: 0, 
-                        fontSize: '16px', 
-                        fontWeight: 800, 
-                        color: theme.textPrimary 
-                      }}>
+                <section style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '10px',
+                  padding: '22px',
+                  border: `1px solid ${theme.border}`,
+                  boxShadow: '0 18px 46px rgba(15, 23, 42, 0.07)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                    <div>
+                      <div style={{ color: theme.accent, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Captured Images
+                      </div>
+                      <h4 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: theme.textPrimary, letterSpacing: '-0.05em' }}>
                         검사 이미지
                       </h4>
-                      <span style={{ 
-                        fontSize: '13px', 
-                        color: theme.textSecondary, 
-                        fontWeight: 600 
-                      }}>
-                        * 클릭 시 확대됩니다
-                      </span>
                     </div>
-
-                    <div
-                      onClick={() => onImageClick('메인 검사 이미지', selectedLog.images.main)}
-                      style={{
-                        width: '100%', 
-                        height: '240px', 
-                        backgroundColor: '#020617', 
-                        borderRadius: '16px',
-                        marginBottom: '16px', 
-                        cursor: 'pointer', 
-                        border: `1px solid ${theme.border}`,
-                        backgroundImage: `url(${selectedLog.images.main})`,
-                        backgroundSize: 'contain', 
-                        backgroundPosition: 'center', 
-                        backgroundRepeat: 'no-repeat',
-                        position: 'relative'
-                      }}
-                    >
-                      <div style={{ 
-                        position: 'absolute', 
-                        bottom: '12px', 
-                        right: '12px', 
-                        backgroundColor: 'rgba(255,255,255,0.9)', 
-                        padding: '6px', 
-                        borderRadius: '8px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center' 
-                      }}>
-                        <ZoomIn size={18} color={theme.textPrimary} />
-                      </div>
-                    </div>
-
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr', 
-                      gap: '16px' 
-                    }}>
-                      {[
-                        { key: 'a1', title: '좌측 상단 (A1)' },
-                        { key: 'a2', title: '우측 상단 (A2)' },
-                        { key: 'a3', title: '좌측 하단 (A3)' },
-                        { key: 'a4', title: '우측 하단 (A4)' },
-                      ].map((corner) => (
-                        <div
-                          key={corner.key}
-                          onClick={() => onImageClick(corner.title, selectedLog.images[corner.key as keyof typeof selectedLog.images])}
-                          style={{
-                            height: '140px', 
-                            backgroundColor: '#020617', 
-                            borderRadius: '16px', 
-                            cursor: 'pointer',
-                            border: `1px solid ${theme.border}`, 
-                            position: 'relative',
-                            backgroundImage: `url(${selectedLog.images[corner.key as keyof typeof selectedLog.images]})`,
-                            backgroundSize: 'cover', 
-                            backgroundPosition: 'center', 
-                            backgroundRepeat: 'no-repeat'
-                          }}
-                        >
-                          <div style={{ 
-                            position: 'absolute', 
-                            top: '8px', 
-                            left: '8px', 
-                            backgroundColor: 'rgba(0,0,0,0.65)', 
-                            color: '#fff', 
-                            padding: '4px 8px', 
-                            borderRadius: '6px', 
-                            fontSize: '12px', 
-                            fontWeight: 700 
-                          }}>
-                            {corner.title}
-                          </div>
-                          <div style={{ 
-                            position: 'absolute', 
-                            bottom: '8px', 
-                            right: '8px', 
-                            backgroundColor: 'rgba(255,255,255,0.9)', 
-                            padding: '6px', 
-                            borderRadius: '8px', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center' 
-                          }}>
-                            <ZoomIn size={14} color={theme.textPrimary} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <span style={{ fontSize: '12px', color: theme.textSecondary, fontWeight: 700 }}>
+                      이미지를 클릭하면 크게 볼 수 있습니다.
+                    </span>
                   </div>
-                </div>
+
+                  <button
+                    onClick={() => onImageClick('메인 검사 이미지', selectedLog.images.main)}
+                    style={{
+                      width: '100%',
+                      aspectRatio: '16 / 9',
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '10px',
+                      marginBottom: '14px',
+                      cursor: 'pointer',
+                      border: `1px solid ${theme.border}`,
+                      backgroundImage: `url(${selectedLog.images.main})`,
+                      backgroundSize: 'contain',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                      position: 'relative',
+                      boxShadow: 'inset 0 0 0 1px rgba(17, 24, 39, 0.02)',
+                      overflow: 'hidden',
+                      padding: 0,
+                      appearance: 'none'
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute',
+                      top: '12px',
+                      left: '12px',
+                      backgroundColor: 'rgba(255,255,255,0.92)',
+                      color: theme.textPrimary,
+                      padding: '7px 10px',
+                      borderRadius: '10px',
+                      border: `1px solid ${theme.border}`,
+                      fontSize: '12px',
+                      fontWeight: 700
+                    }}>
+                      MAIN
+                    </span>
+                    <span style={{
+                      position: 'absolute',
+                      bottom: '12px',
+                      right: '12px',
+                      backgroundColor: '#FFFFFF',
+                      color: theme.textPrimary,
+                      padding: '8px 10px',
+                      borderRadius: '10px',
+                      border: `1px solid ${theme.border}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 10px 24px rgba(15, 23, 42, 0.12)'
+                    }}>
+                      <ZoomIn size={18} color={theme.textPrimary} />
+                    </span>
+                  </button>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '14px' }}>
+                    {cornerPreviewItems.map((corner) => (
+                      <button
+                        key={corner.key}
+                        onClick={() => onImageClick(`${corner.title} (${corner.code})`, corner.url)}
+                        style={{
+                          aspectRatio: '16 / 9',
+                          backgroundColor: '#FFFFFF',
+                          borderRadius: '10px',
+                          cursor: 'pointer',
+                          border: `1px solid ${theme.border}`,
+                          position: 'relative',
+                          backgroundImage: `url(${corner.url})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          overflow: 'hidden',
+                          boxShadow: '0 10px 26px rgba(15, 23, 42, 0.06)',
+                          padding: 0,
+                          appearance: 'none',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <span style={{
+                          position: 'absolute',
+                          top: '10px',
+                          left: '10px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '7px',
+                          backgroundColor: 'rgba(255,255,255,0.92)',
+                          color: theme.textPrimary,
+                          padding: '7px 10px',
+                          borderRadius: '10px',
+                          border: `1px solid ${theme.border}`,
+                          fontSize: '12px',
+                          fontWeight: 700
+                        }}>
+                          <strong style={{ color: theme.accent }}>{corner.code}</strong>{corner.title}
+                        </span>
+                        <span style={{
+                          position: 'absolute',
+                          bottom: '10px',
+                          right: '10px',
+                          backgroundColor: '#FFFFFF',
+                          color: theme.textPrimary,
+                          padding: '7px',
+                          borderRadius: '9px',
+                          border: `1px solid ${theme.border}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 10px 22px rgba(15, 23, 42, 0.12)'
+                        }}>
+                          <ZoomIn size={15} color={theme.textPrimary} />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
               </div>
             ) : (
-              <div style={{ 
-                height: '100%', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                color: theme.textSecondary, 
-                fontWeight: 600 
+              <div style={{
+                height: '100%',
+                minHeight: '420px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                좌측에서 조회할 로그를 선택해주세요.
+                <div style={{
+                  width: '100%',
+                  maxWidth: '440px',
+                  padding: '42px',
+                  borderRadius: '10px',
+                  backgroundColor: '#FFFFFF',
+                  border: `1px solid ${theme.border}`,
+                  boxShadow: '0 18px 46px rgba(15, 23, 42, 0.07)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{
+                    width: '74px',
+                    height: '74px',
+                    borderRadius: '10px',
+                    backgroundColor: theme.accentSoft,
+                    color: theme.accent,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 18px auto',
+                    border: '1px solid rgba(225, 29, 46, 0.14)'
+                  }}>
+                    <FileText size={34} strokeWidth={1.8} />
+                  </div>
+                  <h3 style={{ margin: '0 0 10px 0', color: theme.textPrimary, fontSize: '22px', fontWeight: 700, letterSpacing: '-0.05em' }}>
+                    검사 로그를 선택해주세요
+                  </h3>
+                  <p style={{ margin: 0, color: theme.textSecondary, fontWeight: 700, lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                    좌측 목록에서 기록을 선택하면 판정 정보와 모서리별 검사 이미지를 확인할 수 있습니다.
+                  </p>
+                </div>
               </div>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 const ImageModal = ({ isOpen, onClose, title, imgUrl }: { isOpen: boolean, onClose: () => void, title: string, imgUrl: string }) => {
@@ -1214,8 +2256,8 @@ const ImageModal = ({ isOpen, onClose, title, imgUrl }: { isOpen: boolean, onClo
       style={{ 
         position: 'fixed', 
         inset: 0, 
-        zIndex: 110000, 
-        backgroundColor: 'rgba(0, 0, 0, 0.8)', 
+        zIndex: 2147483647, 
+        backgroundColor: 'rgba(248, 250, 252, 0.86)', 
         backdropFilter: 'blur(12px)', 
         display: 'flex', 
         alignItems: 'center', 
@@ -1228,11 +2270,13 @@ const ImageModal = ({ isOpen, onClose, title, imgUrl }: { isOpen: boolean, onClo
           width: '90vw', 
           height: '90vh', 
           backgroundColor: '#FFFFFF', 
-          borderRadius: '24px', 
+          borderRadius: '10px', 
           padding: '32px', 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '24px' 
+          gap: '24px',
+          border: `1px solid ${theme.border}`,
+          boxShadow: '0 34px 100px rgba(15, 23, 42, 0.18)' 
         }} 
         onClick={(e) => e.stopPropagation()}
       >
@@ -1249,7 +2293,7 @@ const ImageModal = ({ isOpen, onClose, title, imgUrl }: { isOpen: boolean, onClo
             <ZoomIn size={24} />
             <span style={{ 
               fontSize: '24px', 
-              fontWeight: 800 
+              fontWeight: 700 
             }}>
               {title}
             </span>
@@ -1259,9 +2303,9 @@ const ImageModal = ({ isOpen, onClose, title, imgUrl }: { isOpen: boolean, onClo
             style={{ 
               width: '40px', 
               height: '40px', 
-              borderRadius: '12px', 
-              border: 'none', 
-              backgroundColor: 'transparent', 
+              borderRadius: '10px', 
+              border: `1px solid ${theme.border}`, 
+              backgroundColor: '#FFFFFF', 
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center', 
@@ -1273,12 +2317,13 @@ const ImageModal = ({ isOpen, onClose, title, imgUrl }: { isOpen: boolean, onClo
         </div>
         <div style={{ 
           flex: 1, 
-          borderRadius: '16px', 
+          borderRadius: '10px', 
           overflow: 'hidden', 
-          backgroundColor: '#020617', 
+          backgroundColor: '#F8FAFC', 
           display: 'flex', 
           alignItems: 'center', 
-          justifyContent: 'center' 
+          justifyContent: 'center',
+          border: `1px solid ${theme.border}` 
         }}>
           <img 
             src={imgUrl} 
@@ -1309,7 +2354,7 @@ const SoundPermissionModal = ({ onConfirm }: { onConfirm: () => void }) => (
     <div style={{ 
       backgroundColor: '#FFFFFF', 
       padding: '48px', 
-      borderRadius: '28px', 
+      borderRadius: '10px', 
       width: '90%', 
       maxWidth: '420px', 
       textAlign: 'center', 
@@ -1332,7 +2377,7 @@ const SoundPermissionModal = ({ onConfirm }: { onConfirm: () => void }) => (
       <div>
         <h2 style={{ 
           fontSize: '24px', 
-          fontWeight: 800, 
+          fontWeight: 700, 
           marginBottom: '12px' 
         }}>
           불량 알림 권한 요청
@@ -1346,7 +2391,7 @@ const SoundPermissionModal = ({ onConfirm }: { onConfirm: () => void }) => (
         style={{
           width: '100%', 
           padding: '16px', 
-          borderRadius: '14px', 
+          borderRadius: '10px', 
           border: 'none',
           background: theme.danger, 
           color: 'white', 
@@ -1366,6 +2411,7 @@ const SoundPermissionModal = ({ onConfirm }: { onConfirm: () => void }) => (
   </div>
 );
 
+
 // ─── [MAIN COMPONENT] ───
 export default function GlassGapInspection() {
   const router = useRouter(); 
@@ -1380,17 +2426,87 @@ export default function GlassGapInspection() {
   const [showPermissionModal, setShowPermissionModal] = useState(false); 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false); 
   const [isEmptyStateClosed, setIsEmptyStateClosed] = useState(false); 
+  const [activeCorner, setActiveCorner] = useState<CornerKey | null>(null);
+  const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
+  const [inspectionViewType, setInspectionViewType] = useState<InspectionViewType>('split');
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
+  const [boxConnectorLines, setBoxConnectorLines] = useState<Partial<Record<CornerKey, ConnectorLine>>>({});
 
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const hotspotRefs = useRef<Record<CornerKey, HTMLButtonElement | null>>({ tl: null, tr: null, bl: null, br: null });
+  const cameraTileRefs = useRef<Record<CornerKey, HTMLButtonElement | null>>({ tl: null, tr: null, bl: null, br: null });
 
   const handleNavigateHome = () => {
     router.push('/');
   };
 
   const handleImageClick = (title: string, url: string) => {
+    if (!url) return;
     setModalInfo({ isOpen: true, title, imgUrl: url });
   };
+
+  const recalculateBoxConnectors = useCallback(() => {
+    const stage = stageRef.current;
+    const shouldShowConnectors = inspectionViewType === 'split' || inspectionViewType === 'rightStack';
+    if (!stage || !shouldShowConnectors) {
+      setBoxConnectorLines({});
+      return;
+    }
+
+    const stageRect = stage.getBoundingClientRect();
+    const nextLines: Partial<Record<CornerKey, ConnectorLine>> = {};
+
+    CORNER_KEYS.forEach((key) => {
+      const hotspot = hotspotRefs.current[key];
+      const cameraTile = cameraTileRefs.current[key];
+      if (!hotspot || !cameraTile) return;
+
+      const hotspotRect = hotspot.getBoundingClientRect();
+      const tileRect = cameraTile.getBoundingClientRect();
+      const connectFromLeftEdge = inspectionViewType === 'rightStack' || key === 'tr' || key === 'br';
+
+      nextLines[key] = {
+        x1: (connectFromLeftEdge ? tileRect.left : tileRect.right) - stageRect.left,
+        y1: tileRect.top + tileRect.height / 2 - stageRect.top,
+        x2: hotspotRect.left + hotspotRect.width / 2 - stageRect.left,
+        y2: hotspotRect.top + hotspotRect.height / 2 - stageRect.top,
+      };
+    });
+
+    setBoxConnectorLines(nextLines);
+  }, [inspectionViewType]);
+
+  useEffect(() => {
+    const shouldShowConnectors = inspectionViewType === 'split' || inspectionViewType === 'rightStack';
+    if (!shouldShowConnectors) {
+      setBoxConnectorLines({});
+      return;
+    }
+
+    const update = () => recalculateBoxConnectors();
+    const rafId = window.requestAnimationFrame(update);
+    const timeoutId = window.setTimeout(update, 160);
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null;
+
+    if (resizeObserver) {
+      if (stageRef.current) resizeObserver.observe(stageRef.current);
+      CORNER_KEYS.forEach((key) => {
+        if (hotspotRefs.current[key]) resizeObserver.observe(hotspotRefs.current[key] as HTMLButtonElement);
+        if (cameraTileRefs.current[key]) resizeObserver.observe(cameraTileRefs.current[key] as HTMLButtonElement);
+      });
+    }
+
+    window.addEventListener('resize', update);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+      window.removeEventListener('resize', update);
+      resizeObserver?.disconnect();
+    };
+  }, [apiData, screenMode, inspectionViewType, recalculateBoxConnectors]);
 
   useEffect(() => {
     const handleResize = () => setScreenMode(window.innerWidth > 2200 ? 'QHD' : 'FHD');
@@ -1465,48 +2581,48 @@ export default function GlassGapInspection() {
   const layout = LAYOUT_CONFIGS[screenMode];
   const guideImgUrl = "http://1.254.24.170:24828/images/DX_API000102/guide_img.png";
 
-  const CornerCard = ({ title, status, imgUrl }: { title: string, status: string, imgUrl: string }) => {
-    const isOk = status === '정상';
-    return (
-      <CornerCardWrapper $isOk={isOk}>
-        <CornerCardHeader>
-          <CornerTitle>{title}</CornerTitle>
-          <CornerBadge $isOk={isOk}>{status}</CornerBadge>
-        </CornerCardHeader>
-        <CornerImageArea>
-          <div style={{ 
-            width: '100%', 
-            height: '100%', 
-            backgroundImage: `url(${imgUrl})`, 
-            backgroundSize: 'cover', 
-            backgroundPosition: 'center', 
-            backgroundRepeat: 'no-repeat' 
-          }} />
-          <button
-            onClick={(e) => { e.stopPropagation(); setModalInfo({ isOpen: true, title, imgUrl }); }}
-            style={{
-              position: 'absolute', 
-              bottom: '12px', 
-              right: '12px',
-              width: '36px', 
-              height: '36px', 
-              borderRadius: '8px',
-              backgroundColor: '#FFFFFF', 
-              border: '1px solid rgba(0,0,0,0.05)',
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              cursor: 'pointer', 
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              transition: 'all 0.2s'
-            }}
-          >
-            <ZoomIn size={18} strokeWidth={2} color={theme.textPrimary} />
-          </button>
-        </CornerImageArea>
-      </CornerCardWrapper>
-    );
-  };
+  const cornerItems = useMemo<CornerItem[]>(() => ([
+    {
+      key: 'tl',
+      code: 'A1',
+      title: '좌측 상단',
+      camera: 'camera-1',
+      status: apiData ? apiData.LABEL001 : '-',
+      imgUrl: apiData ? apiData.FILEPATH3 : '',
+      anchor: { left: '13%', top: '16%' },
+      description: '상단 좌측 모서리 확대'
+    },
+    {
+      key: 'tr',
+      code: 'A2',
+      title: '우측 상단',
+      camera: 'camera-2',
+      status: apiData ? apiData.LABEL002 : '-',
+      imgUrl: apiData ? apiData.FILEPATH2 : '',
+      anchor: { left: '87%', top: '16%' },
+      description: '상단 우측 모서리 확대'
+    },
+    {
+      key: 'bl',
+      code: 'A3',
+      title: '좌측 하단',
+      camera: 'camera-4',
+      status: apiData ? apiData.LABEL003 : '-',
+      imgUrl: apiData ? apiData.FILEPATH1 : '',
+      anchor: { left: '13%', top: '84%' },
+      description: '하단 좌측 모서리 확대'
+    },
+    {
+      key: 'br',
+      code: 'A4',
+      title: '우측 하단',
+      camera: 'camera-3',
+      status: apiData ? apiData.LABEL004 : '-',
+      imgUrl: apiData ? apiData.FILEPATH4 : '',
+      anchor: { left: '87%', top: '84%' },
+      description: '하단 우측 모서리 확대'
+    },
+  ]), [apiData]);
 
   const resultStr = apiData?.RESULT || '';
   const isPass = resultStr === '정상' || resultStr.toUpperCase() === 'OK';
@@ -1529,6 +2645,141 @@ export default function GlassGapInspection() {
   const timeValue = apiData?.TIMEVALUE || '00:00:00';
   const modelValue = apiData?.CDGITEM || '-';
   const woValue = apiData?.WO || '-';
+  const normalCount = totalStats?.normal_count ?? 0;
+  const totalCount = totalStats?.total_count ?? 0;
+  const ngCount = cornerItems.filter((item) => getInspectionTone(item.status) === 'ng').length;
+  const okCount = cornerItems.filter((item) => getInspectionTone(item.status) === 'ok').length;
+  const leftCameraItems = cornerItems.filter((item) => item.key === 'tl' || item.key === 'bl');
+  const rightCameraItems = cornerItems.filter((item) => item.key === 'tr' || item.key === 'br');
+  const typeLabel = inspectionViewType === 'split' ? 'Split' : inspectionViewType === 'rightStack' ? 'Right' : 'Guide';
+
+  const handleSummaryFilterClick = (filter: SummaryFilter) => {
+    setSummaryFilter(filter);
+    if (filter === 'all') {
+      setActiveCorner(null);
+      return;
+    }
+
+    const matchedCorner = cornerItems.find((item) => getInspectionTone(item.status) === filter);
+    setActiveCorner(matchedCorner?.key ?? null);
+  };
+
+  const handleTypeSelect = (type: InspectionViewType) => {
+    setInspectionViewType(type);
+    setIsTypeModalOpen(false);
+  };
+
+  const renderGuideViewport = (solo = false) => (
+    <CenterGuideViewport $solo={solo}>
+      <GuideImage
+        src={guideImgUrl}
+        alt="Main Glass Guide"
+        draggable={false}
+      />
+      {cornerItems.map((item) => {
+        const tone = getInspectionTone(item.status);
+        const isActive = activeCorner === item.key;
+
+        return (
+          <CornerHotspot
+            key={item.key}
+            ref={(node) => { hotspotRefs.current[item.key] = node; }}
+            style={{ left: item.anchor.left, top: item.anchor.top }}
+            $tone={tone}
+            $isActive={isActive}
+            onMouseEnter={() => setActiveCorner(item.key)}
+            onMouseLeave={() => setActiveCorner(null)}
+            onClick={() => handleImageClick(`${item.title} (${item.camera})`, item.imgUrl)}
+            title={`${item.title} 확대 이미지 보기`}
+            aria-label={`${item.title} 확대 이미지 보기`}
+          >
+            {item.code}
+          </CornerHotspot>
+        );
+      })}
+    </CenterGuideViewport>
+  );
+
+  const renderCameraTile = (item: CornerItem) => {
+    const tone = getInspectionTone(item.status);
+    const isActive = activeCorner === item.key;
+
+    return (
+      <CameraTile
+        key={item.key}
+        ref={(node) => { cameraTileRefs.current[item.key] = node; }}
+        type="button"
+        $tone={tone}
+        $active={isActive}
+        $imgUrl={item.imgUrl}
+        onMouseEnter={() => setActiveCorner(item.key)}
+        onMouseLeave={() => setActiveCorner(null)}
+        onClick={() => handleImageClick(`${item.title} (${item.camera})`, item.imgUrl)}
+        aria-label={`${item.title} 카메라 확대 이미지 보기`}
+      >
+        {!item.imgUrl && <NoImageText>이미지 대기</NoImageText>}
+        <CameraTileHeader>
+          <CameraTileCode $tone={tone}>{item.code}</CameraTileCode>
+          <CameraTileStatus $tone={tone}>{formatStatusLabel(item.status)}</CameraTileStatus>
+        </CameraTileHeader>
+        <CameraTileFooter>
+          <CameraTileName>{item.camera} · {item.title}</CameraTileName>
+          <CameraTileZoom>
+            <ZoomIn size={15} strokeWidth={2.5} />
+          </CameraTileZoom>
+        </CameraTileFooter>
+      </CameraTile>
+    );
+  };
+
+
+  const renderBoxConnectors = () => {
+    if (inspectionViewType === 'guide') return null;
+
+    return (
+      <BoxConnectorSvg aria-hidden="true">
+        {cornerItems.map((item) => {
+          const line = boxConnectorLines[item.key];
+          if (!line) return null;
+
+          const tone = getInspectionTone(item.status);
+          const isActive = activeCorner === item.key;
+          const strokeColor = isActive
+            ? 'rgba(52, 64, 84, 0.88)'
+            : tone === 'wait'
+              ? 'rgba(102, 112, 133, 0.48)'
+              : 'rgba(71, 84, 103, 0.64)';
+          const dx = line.x2 - line.x1;
+          const handle = Math.min(260, Math.max(92, Math.abs(dx) * 0.42));
+          const direction = dx >= 0 ? 1 : -1;
+          const path = `M ${line.x1} ${line.y1} C ${line.x1 + handle * direction} ${line.y1}, ${line.x2 - handle * direction} ${line.y2}, ${line.x2} ${line.y2}`;
+
+          return (
+            <g key={item.key} opacity={isActive ? 1 : 0.82}>
+              <path
+                d={path}
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.88)"
+                strokeWidth={isActive ? 7 : 6}
+                strokeLinecap="round"
+              />
+              <path
+                d={path}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={isActive ? 3 : 2.35}
+                strokeLinecap="round"
+                strokeDasharray="5 9"
+                className={isActive ? 'connector-flow' : undefined}
+              />
+              <circle cx={line.x1} cy={line.y1} r={4.1} fill="#FFFFFF" stroke={strokeColor} strokeWidth={2.1} />
+              <circle cx={line.x2} cy={line.y2} r={4.4} fill="#FFFFFF" stroke={strokeColor} strokeWidth={2.1} />
+            </g>
+          );
+        })}
+      </BoxConnectorSvg>
+    );
+  };
 
   return (
     <Container style={{ padding: layout.padding }}>
@@ -1542,117 +2793,160 @@ export default function GlassGapInspection() {
       )}
 
       <HeaderRow style={{ gap: layout.gap, height: layout.headerHeight, marginBottom: layout.gap }}>
-        
         <ResultCard $status={statusState}>
-          <SoundToggleBtn onClick={toggleSound}>
+          <SoundToggleBtn onClick={toggleSound} aria-label="불량 경고음 토글">
             {audioAllowed ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </SoundToggleBtn>
           <ResultIconBox $status={statusState}>
-            <ResultIcon size={36} strokeWidth={2.5} />
+            <ResultIcon size={34} strokeWidth={2.5} />
           </ResultIconBox>
           <ResultTextBox>
             <ResultLabel>
-              <Info size={14} /> 전체 판정 결과
+              <Clock size={14} /> Live Judgment
             </ResultLabel>
             <ResultValue $status={statusState}>{label}</ResultValue>
           </ResultTextBox>
         </ResultCard>
 
-        <InfoTableCard>
-          <InfoTableHeader>
-            <Th>검사 시간</Th>
-            <Th>검사 수량</Th>
-            <Th>모델명 / WO</Th>
-            <Th $isLast>현재 상태</Th>
-          </InfoTableHeader>
-          <InfoTableBody>
-            <Td>
-              <TdValueText>{timeValue}</TdValueText>
-            </Td>
-            <Td>
-              {totalStats ? (
-                <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                  <TdValueText>{totalStats.normal_count}</TdValueText>
-                  <span style={{ fontSize: '16px', color: theme.textSecondary, margin: '0 4px' }}>/</span>
-                  <span style={{ fontSize: '16px', color: theme.textSecondary, fontWeight: 700 }}>{totalStats.total_count}</span>
-                </div>
-              ) : (
-                <TdValueText $color={theme.textSecondary}>-</TdValueText>
-              )}
-            </Td>
-            <Td>
-              <TdValueText>{modelValue}</TdValueText>
-              <span style={{ fontSize: '11px', color: theme.textSecondary, fontWeight: 500, marginTop: '2px' }}>{woValue}</span>
-            </Td>
-            <Td $isLast>
-              <TdValueText $color={theme.textPrimary}>RUNNING</TdValueText>
-            </Td>
-          </InfoTableBody>
-        </InfoTableCard>
+        <HeaderInfoArea>
+          <InfoTableCard>
+            <InfoTableHeader>
+              <Th>검사 시간</Th>
+              <Th>검사 수량</Th>
+              <Th $isLast>모델명 / WO</Th>
+            </InfoTableHeader>
+            <InfoTableBody>
+              <Td>
+                <TdValueText>{timeValue}</TdValueText>
+              </Td>
+              <Td>
+                {totalStats ? (
+                  <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                    <TdValueText>{normalCount}</TdValueText>
+                    <span style={{ fontSize: '16px', color: theme.textSecondary, margin: '0 5px' }}>/</span>
+                    <span style={{ fontSize: '16px', color: theme.textSecondary, fontWeight: 700 }}>{totalCount}</span>
+                  </div>
+                ) : (
+                  <TdValueText $color={theme.textSecondary}>-</TdValueText>
+                )}
+              </Td>
+              <Td $isLast>
+                <TdValueText>{modelValue} / {woValue}</TdValueText>
+              </Td>
+            </InfoTableBody>
+          </InfoTableCard>
 
+          <HeaderSummaryCard>
+            <PanelStats>
+              <PanelStatChip
+                type="button"
+                $tone="ng"
+                $active={summaryFilter === 'ng'}
+                onClick={() => handleSummaryFilterClick('ng')}
+              >
+                <StatLabel>NG</StatLabel>
+                <StatCount>{ngCount}</StatCount>
+              </PanelStatChip>
+              <PanelStatChip
+                type="button"
+                $tone="ok"
+                $active={summaryFilter === 'ok'}
+                onClick={() => handleSummaryFilterClick('ok')}
+              >
+                <StatLabel>OK</StatLabel>
+                <StatCount>{okCount}</StatCount>
+              </PanelStatChip>
+              <PanelStatChip
+                type="button"
+                $active={summaryFilter === 'all'}
+                onClick={() => handleSummaryFilterClick('all')}
+              >
+                <StatLabel>ALL</StatLabel>
+                <StatCount>{cornerItems.length}</StatCount>
+              </PanelStatChip>
+            </PanelStats>
+          </HeaderSummaryCard>
+
+          <CompactTypeButton type="button" onClick={() => setIsTypeModalOpen(true)}>
+            <TypeButtonLabel>TYPE</TypeButtonLabel>
+            <CompactTypeValue>{typeLabel}</CompactTypeValue>
+            <ChevronDown size={15} strokeWidth={2.4} />
+          </CompactTypeButton>
+
+          <FloatingHistoryButton onClick={() => setIsHistoryOpen(true)}>
+            <Calendar size={18} strokeWidth={2.5} />
+            이전 검사기록 조회
+          </FloatingHistoryButton>
+        </HeaderInfoArea>
       </HeaderRow>
 
-      <BodyLayout style={{ gap: layout.gap }}>
-        <SideColumn style={{ width: layout.cornerCardWidth, gap: layout.gap }}>
-          <CornerCard title="좌측 상단 (camera-1)" status={apiData ? apiData.LABEL001 : "-"} imgUrl={apiData ? apiData.FILEPATH3 : ""} />
-          <CornerCard title="좌측 하단 (camera-4)" status={apiData ? apiData.LABEL003 : "-"} imgUrl={apiData ? apiData.FILEPATH1 : ""} />
-        </SideColumn>
+      <InspectionWorkspace $panelWidth={layout.cornerPanelWidth} style={{ gap: layout.gap }}>
+        <MainInspectionPanel>
+          <MainPanelHeader>
+            <MainPanelEyebrow>
+              <Monitor size={15} strokeWidth={2.5} /> Live Inspection Map
+            </MainPanelEyebrow>
+            <LiveBadge $isDefect={isFail}>
+              <LiveDot $isDefect={isFail} />
+              {isFail ? 'Defect Focus' : 'Nominal Flow'}
+            </LiveBadge>
+          </MainPanelHeader>
 
-        <CenterColumn>
-          <CenterImageWrapper>
-            <img src={guideImgUrl} alt="Main Glass Guide" style={{ maxWidth: '95%', maxHeight: '95%', objectFit: 'contain' }} />
-          </CenterImageWrapper>
-        </CenterColumn>
+          <MainImageStage ref={stageRef}>
+            {inspectionViewType === 'split' ? (
+              <>
+                <StageSplitGrid>
+                  <CameraRail>{leftCameraItems.map(renderCameraTile)}</CameraRail>
+                  {renderGuideViewport(false)}
+                  <CameraRail>{rightCameraItems.map(renderCameraTile)}</CameraRail>
+                </StageSplitGrid>
+                {renderBoxConnectors()}
+              </>
+            ) : inspectionViewType === 'rightStack' ? (
+              <>
+                <StageRightStackGrid>
+                  {renderGuideViewport(false)}
+                  <CameraStackGrid>{cornerItems.map(renderCameraTile)}</CameraStackGrid>
+                </StageRightStackGrid>
+                {renderBoxConnectors()}
+              </>
+            ) : (
+              renderGuideViewport(true)
+            )}
+          </MainImageStage>
 
-        <SideColumn style={{ width: layout.cornerCardWidth, gap: layout.gap }}>
-          <CornerCard title="우측 상단 (camera-2)" status={apiData ? apiData.LABEL002 : "-"} imgUrl={apiData ? apiData.FILEPATH2 : ""} />
-          <CornerCard title="우측 하단 (camera-3)" status={apiData ? apiData.LABEL004 : "-"} imgUrl={apiData ? apiData.FILEPATH4 : ""} />
-        </SideColumn>
-      </BodyLayout>
+          <MainPanelFooter>
+            <LegendGroup>
+              <LegendItem><LegendDot $tone="ok" /> 정상</LegendItem>
+              <LegendItem><LegendDot $tone="ng" /> 불량</LegendItem>
+              <LegendItem><LegendDot $tone="wait" /> 대기</LegendItem>
+            </LegendGroup>
+            <span>TYPE 선택에 따라 검사 이미지와 확대 카메라 배치가 변경됩니다.</span>
+          </MainPanelFooter>
+        </MainInspectionPanel>
 
-      <button
-        onClick={() => setIsHistoryOpen(true)}
-        style={{
-          position: 'fixed',
-          bottom: '32px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 95000,
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          backgroundColor: theme.textPrimary, 
-          color: '#fff',
-          padding: '14px 28px', 
-          borderRadius: '99px',
-          fontSize: '15px', 
-          fontWeight: 800,
-          border: 'none', 
-          cursor: 'pointer',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
-          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateX(-50%) translateY(-4px)';
-          e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.4)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateX(-50%) translateY(0)';
-          e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.3)';
-        }}
-      >
-        <Calendar size={18} strokeWidth={2.5} />
-        이전 검사기록 조회
-      </button>
+      </InspectionWorkspace>
 
+      <TypeSelectionModal
+        isOpen={isTypeModalOpen}
+        currentType={inspectionViewType}
+        onClose={() => setIsTypeModalOpen(false)}
+        onSelect={handleTypeSelect}
+      />
       <HistoryModal 
         isOpen={isHistoryOpen} 
         onClose={() => setIsHistoryOpen(false)} 
         onImageClick={handleImageClick}
       />
       {showPermissionModal && <SoundPermissionModal onConfirm={handlePermissionConfirm} />}
-      {modalInfo && <ImageModal isOpen={modalInfo.isOpen} onClose={() => setModalInfo(prev => prev ? { ...prev, isOpen: false } : null)} title={modalInfo.title} imgUrl={modalInfo.imgUrl} />}
-
+      {modalInfo && (
+        <ImageModal
+          isOpen={modalInfo.isOpen}
+          onClose={() => setModalInfo(prev => prev ? { ...prev, isOpen: false } : null)}
+          title={modalInfo.title}
+          imgUrl={modalInfo.imgUrl}
+        />
+      )}
     </Container>
   );
 }
