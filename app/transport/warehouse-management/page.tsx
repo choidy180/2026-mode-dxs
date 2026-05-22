@@ -479,7 +479,7 @@ export default function FinalDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('http://1.254.24.170:24828/api/DX_API000014');
+        const res = await fetch('http://192.168.2.147:24828/api/DX_API000014');
         const json: ApiResponse = await res.json();
         const newMap: SlotDataMap = {};
         Object.values(json).forEach((zone) => {
