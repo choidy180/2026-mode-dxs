@@ -746,7 +746,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_1", time: "09:12:34", model: "GL-100", wo: "WO-A901", result: "ok", detail: "전 항목 정상 판정 완료. 특이사항 없음.",
         images: {
-          main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
+          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
           a1: "https://dummyimage.com/600x400/020617/cbd5e1&text=A1+Normal",
           a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
           a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
@@ -756,7 +756,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_2", time: "10:05:22", model: "GL-100", wo: "WO-A901", result: "ng", detail: "좌측 상단(A1) 모서리 들뜸 현상 감지됨. 재검사 요망.",
         images: {
-          main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
+          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
           a1: "https://dummyimage.com/600x400/7f1d1d/fca5a5&text=A1+Defect",
           a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
           a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
@@ -766,7 +766,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_3", time: "13:30:00", model: "GL-PRO", wo: "WO-B122", result: "ok", detail: "전 항목 정상 판정 완료.",
         images: {
-          main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
+          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
           a1: "https://dummyimage.com/600x400/020617/cbd5e1&text=A1+Normal",
           a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
           a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
@@ -776,7 +776,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_4", time: "15:45:10", model: "GL-PRO", wo: "WO-B122", result: "ng", detail: "우측 하단(A4) 틈새 불량 (오차 범위 초과).",
         images: {
-          main: "http://1.254.24.170:24828/images/DX_API000102/guide_img.png",
+          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
           a1: "https://dummyimage.com/600x400/020617/cbd5e1&text=A1+Normal",
           a2: "https://dummyimage.com/600x400/020617/cbd5e1&text=A2+Normal",
           a3: "https://dummyimage.com/600x400/020617/cbd5e1&text=A3+Normal",
@@ -1402,7 +1402,7 @@ export default function GlassGapInspection() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://1.254.24.170:24828/api/DX_API000023');
+        const response = await fetch('http://192.168.2.147:24828/api/DX_API000023');
         const json = await response.json();
         
         if (json.success && json.data && json.data.length > 0) {
@@ -1463,7 +1463,7 @@ export default function GlassGapInspection() {
 
   const toggleSound = () => setAudioAllowed(prev => !prev);
   const layout = LAYOUT_CONFIGS[screenMode];
-  const guideImgUrl = "http://1.254.24.170:24828/images/DX_API000102/guide_img.png";
+  const guideImgUrl = "http://192.168.2.147:24828/images/DX_API000102/guide_img.png";
 
   const CornerCard = ({ title, status, imgUrl }: { title: string, status: string, imgUrl: string }) => {
     const isOk = status === '정상';
