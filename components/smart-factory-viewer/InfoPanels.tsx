@@ -1,0 +1,484 @@
+'use client';
+
+import React, { useMemo } from 'react';
+import { Activity, ChevronRight, Cpu, Droplets, Gauge, Thermometer } from 'lucide-react';
+import { AIAdvisor } from '@/components/smart-factory-viewer/AIAdvisor';
+import type { ApiDataItem, UnitData, ViewerLayoutType, ViewerUiMode } from '@/types/smartFactoryViewer';
+import { findApiItemByUnitName, formatUnitName } from '@/utils/smartFactoryViewer';
+import {
+  AccentLine,
+  ActionButton,
+  BalancedPanel,
+  CommandCell,
+  CommandGrid,
+  CommandHeader,
+  CommandKpiCard,
+  CommandKpiGrid,
+  CommandKpiLabel,
+  CommandKpiValue,
+  CommandRow,
+  CommandTable,
+  CommandTableBody,
+  CommandTableHead,
+  CountBadge,
+  DetailPanel,
+  DetailScroll,
+  EmptyState,
+  InfoLabel,
+  InfoRow,
+  InfoValue,
+  ListContainer,
+  ListItem,
+  ListSubText,
+  ListTitle,
+  MetricCard,
+  MetricGrid,
+  MetricLabel,
+  MetricValue,
+  OperatorHeroBody,
+  OperatorHeroStatus,
+  OperatorHeroTitle,
+  Panel,
+  PanelLayer,
+  SectionEyebrow,
+  SectionHeader,
+  SectionTitle,
+  UnitText,
+} from '@/styles/smartFactoryViewer.styles';
+
+interface InfoPanelsProps {
+  layout: ViewerLayoutType;
+  mode: ViewerUiMode;
+  hoveredInfo: UnitData | null;
+  errorUnits: UnitData[];
+  apiData: ApiDataItem[];
+  injectUnit: ApiDataItem | null;
+  isFallback: boolean;
+}
+
+const getActiveUnit = (hoveredInfo: UnitData | null, errorUnits: UnitData[]): UnitData => {
+  return hoveredInfo ?? errorUnits[0] ?? {
+    name: 'M-01',
+    status: 'normal',
+    temp: 0,
+    load: 0,
+  };
+};
+
+const getNormalCount = (apiData: ApiDataItem[], errorUnits: UnitData[]) => {
+  return Math.max(apiData.length - errorUnits.length, 0);
+};
+
+const getYieldRate = (apiData: ApiDataItem[], errorUnits: UnitData[]) => {
+  if (apiData.length === 0) return '0.0';
+  return ((getNormalCount(apiData, errorUnits) / apiData.length) * 100).toFixed(1);
+};
+
+const getTimeLabel = (value: string) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+};
+
+function OperatorStatusPanel({
+  mode,
+  apiData,
+  errorUnits,
+  isFallback,
+}: Pick<InfoPanelsProps, 'mode' | 'apiData' | 'errorUnits' | 'isFallback'>) {
+  const normalCount = getNormalCount(apiData, errorUnits);
+  const hasError = errorUnits.length > 0;
+
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <SectionHeader>
+        <div>
+          <SectionEyebrow $mode={mode}>OPERATOR OVERVIEW</SectionEyebrow>
+          <SectionTitle $mode={mode}>작업자 운영 화면</SectionTitle>
+        </div>
+        <CountBadge $mode={mode} $tone={hasError ? 'error' : 'normal'}>
+          {hasError ? '확인 필요' : '정상 운전'}
+        </CountBadge>
+      </SectionHeader>
+      <OperatorHeroBody>
+        <OperatorHeroStatus $mode={mode} $tone={hasError ? 'error' : 'normal'}>
+          {hasError ? `${errorUnits.length}건 이상 감지` : '라인 안정'}
+        </OperatorHeroStatus>
+        <OperatorHeroTitle $mode={mode}>
+          {hasError ? `${errorUnits[0]?.name ?? '유닛'} 우선 점검` : '현재 공정 특이사항 없음'}
+        </OperatorHeroTitle>
+      </OperatorHeroBody>
+      <MetricGrid>
+        <MetricCard $mode={mode}>
+          <MetricLabel $mode={mode}>총 대차</MetricLabel>
+          <MetricValue $mode={mode}>{apiData.length}</MetricValue>
+        </MetricCard>
+        <MetricCard $mode={mode}>
+          <MetricLabel $mode={mode}>정상</MetricLabel>
+          <MetricValue $mode={mode} $tone="normal">{normalCount}</MetricValue>
+        </MetricCard>
+        <MetricCard $mode={mode}>
+          <MetricLabel $mode={mode}>불량</MetricLabel>
+          <MetricValue $mode={mode} $tone={hasError ? 'error' : 'normal'}>{errorUnits.length}</MetricValue>
+        </MetricCard>
+        <MetricCard $mode={mode}>
+          <MetricLabel $mode={mode}>데이터</MetricLabel>
+          <MetricValue $mode={mode}>{isFallback ? 'MOCK' : 'LIVE'}</MetricValue>
+        </MetricCard>
+      </MetricGrid>
+    </Panel>
+  );
+}
+
+function ActiveUnitPanel({
+  mode,
+  hoveredInfo,
+  errorUnits,
+  apiData,
+}: Pick<InfoPanelsProps, 'mode' | 'hoveredInfo' | 'errorUnits' | 'apiData'>) {
+  const activeUnit = getActiveUnit(hoveredInfo, errorUnits);
+  const matchedData = findApiItemByUnitName(apiData, activeUnit.name);
+  const isError = activeUnit.status === 'error';
+
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <SectionHeader>
+        <div>
+          <SectionEyebrow $mode={mode}>ACTIVE UNIT</SectionEyebrow>
+          <SectionTitle $mode={mode}>
+            <Cpu size={19} />
+            {activeUnit.name}
+          </SectionTitle>
+        </div>
+        <CountBadge $mode={mode} $tone={isError ? 'error' : 'normal'}>
+          {isError ? 'CHECK' : 'NORMAL'}
+        </CountBadge>
+      </SectionHeader>
+      <AccentLine $mode={mode} $tone={isError ? 'error' : 'normal'} />
+      <InfoRow $mode={mode} $uiMode={mode}>
+        <InfoLabel $mode={mode}>
+          <Activity size={15} />
+          작동 상태
+        </InfoLabel>
+        <InfoValue $mode={mode} $tone={isError ? 'error' : 'normal'}>
+          {isError ? '점검 필요' : '정상'}
+        </InfoValue>
+      </InfoRow>
+      <InfoRow $mode={mode} $uiMode={mode}>
+        <InfoLabel $mode={mode}>
+          <Droplets size={15} />
+          R액 압력
+        </InfoLabel>
+        <InfoValue $mode={mode}>
+          {matchedData?.['R액 압력(kg/㎥)'] ?? '-'}
+          <UnitText $mode={mode}>bar</UnitText>
+        </InfoValue>
+      </InfoRow>
+      <InfoRow $mode={mode} $uiMode={mode}>
+        <InfoLabel $mode={mode}>
+          <Gauge size={15} />
+          P액 압력
+        </InfoLabel>
+        <InfoValue $mode={mode}>
+          {matchedData?.['P액 압력(kg/㎥)'] ?? '-'}
+          <UnitText $mode={mode}>bar</UnitText>
+        </InfoValue>
+      </InfoRow>
+      <InfoRow $mode={mode} $uiMode={mode}>
+        <InfoLabel $mode={mode}>
+          <Thermometer size={15} />
+          가조립 온도
+        </InfoLabel>
+        <InfoValue $mode={mode} $tone={isError ? 'error' : undefined}>
+          {matchedData?.['가조립온도(℃)'] ?? '-'}
+          <UnitText $mode={mode}>°C</UnitText>
+        </InfoValue>
+      </InfoRow>
+    </Panel>
+  );
+}
+
+function DefectPanel({ mode, errorUnits }: Pick<InfoPanelsProps, 'mode' | 'errorUnits'>) {
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <SectionHeader>
+        <div>
+          <SectionEyebrow $mode={mode}>DEFECT QUEUE</SectionEyebrow>
+          <SectionTitle $mode={mode}>이상 오브젝트</SectionTitle>
+        </div>
+        <CountBadge $mode={mode} $tone={errorUnits.length > 0 ? 'error' : 'normal'}>
+          {errorUnits.length}건
+        </CountBadge>
+      </SectionHeader>
+      <AccentLine $mode={mode} $tone={errorUnits.length > 0 ? 'error' : 'normal'} />
+      <ListContainer $mode={mode} $uiMode={mode}>
+        {errorUnits.length > 0 ? (
+          errorUnits.map((unit) => (
+            <ListItem key={unit.name} $mode={mode} $uiMode={mode}>
+              <div>
+                <ListTitle $mode={mode}>{unit.name}</ListTitle>
+                <ListSubText $mode={mode}>{unit.problem} / {unit.temp}°C</ListSubText>
+              </div>
+              <ActionButton type="button" $mode={mode}>
+                확인
+              </ActionButton>
+            </ListItem>
+          ))
+        ) : (
+          <EmptyState $mode={mode}>현재 감지된 이상 없음</EmptyState>
+        )}
+      </ListContainer>
+    </Panel>
+  );
+}
+
+function InjectionPanel({ mode, injectUnit }: Pick<InfoPanelsProps, 'mode' | 'injectUnit'>) {
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <SectionHeader>
+        <div>
+          <SectionEyebrow $mode={mode}>INJECTION MONITOR</SectionEyebrow>
+          <SectionTitle $mode={mode}>주입 공정</SectionTitle>
+        </div>
+        <ActionButton type="button" $mode={mode}>
+          전체보기 <ChevronRight size={13} />
+        </ActionButton>
+      </SectionHeader>
+      <AccentLine $mode={mode} />
+      {injectUnit ? (
+        <>
+          <InfoRow $mode={mode} $uiMode={mode}>
+            <InfoLabel $mode={mode}>현재 활성 유닛</InfoLabel>
+            <InfoValue $mode={mode}>{formatUnitName(injectUnit.대차번호)}</InfoValue>
+          </InfoRow>
+          <InfoRow $mode={mode} $uiMode={mode}>
+            <InfoLabel $mode={mode}>P액 유량</InfoLabel>
+            <InfoValue $mode={mode}>{injectUnit['P액 유량(g)']}<UnitText $mode={mode}>g</UnitText></InfoValue>
+          </InfoRow>
+          <InfoRow $mode={mode} $uiMode={mode}>
+            <InfoLabel $mode={mode}>R액 유량</InfoLabel>
+            <InfoValue $mode={mode}>{injectUnit['R액 유량(g)']}<UnitText $mode={mode}>g</UnitText></InfoValue>
+          </InfoRow>
+          <InfoRow $mode={mode} $uiMode={mode}>
+            <InfoLabel $mode={mode}>헤드 온도(P)</InfoLabel>
+            <InfoValue $mode={mode}>{injectUnit['P액 헤드온도(℃)']}<UnitText $mode={mode}>°C</UnitText></InfoValue>
+          </InfoRow>
+          <InfoRow $mode={mode} $uiMode={mode}>
+            <InfoLabel $mode={mode}>헤드 온도(R)</InfoLabel>
+            <InfoValue $mode={mode}>{injectUnit['R액 헤드온도(℃)']}<UnitText $mode={mode}>°C</UnitText></InfoValue>
+          </InfoRow>
+        </>
+      ) : (
+        <EmptyState $mode={mode}>데이터 수신 대기 중...</EmptyState>
+      )}
+    </Panel>
+  );
+}
+
+function CommandKpiPanel({
+  mode,
+  apiData,
+  errorUnits,
+  isFallback,
+}: Pick<InfoPanelsProps, 'mode' | 'apiData' | 'errorUnits' | 'isFallback'>) {
+  const normalCount = getNormalCount(apiData, errorUnits);
+  const yieldRate = getYieldRate(apiData, errorUnits);
+
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <CommandHeader $mode={mode}>
+        <span>LINE TELEMETRY</span>
+        <strong>{isFallback ? 'MOCK STREAM' : 'LIVE STREAM'}</strong>
+      </CommandHeader>
+      <CommandKpiGrid>
+        <CommandKpiCard $mode={mode}>
+          <CommandKpiLabel $mode={mode}>TOTAL</CommandKpiLabel>
+          <CommandKpiValue $mode={mode}>{apiData.length}</CommandKpiValue>
+        </CommandKpiCard>
+        <CommandKpiCard $mode={mode}>
+          <CommandKpiLabel $mode={mode}>NORMAL</CommandKpiLabel>
+          <CommandKpiValue $mode={mode} $tone="normal">{normalCount}</CommandKpiValue>
+        </CommandKpiCard>
+        <CommandKpiCard $mode={mode}>
+          <CommandKpiLabel $mode={mode}>DEFECT</CommandKpiLabel>
+          <CommandKpiValue $mode={mode} $tone={errorUnits.length > 0 ? 'error' : 'normal'}>{errorUnits.length}</CommandKpiValue>
+        </CommandKpiCard>
+        <CommandKpiCard $mode={mode}>
+          <CommandKpiLabel $mode={mode}>YIELD</CommandKpiLabel>
+          <CommandKpiValue $mode={mode}>{yieldRate}%</CommandKpiValue>
+        </CommandKpiCard>
+      </CommandKpiGrid>
+    </Panel>
+  );
+}
+
+function CommandTelemetryPanel({ mode, apiData }: Pick<InfoPanelsProps, 'mode' | 'apiData'>) {
+  const rows = useMemo(() => apiData.slice(0, 8), [apiData]);
+
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <CommandHeader $mode={mode}>
+        <span>PROCESS MATRIX</span>
+        <strong>{rows.length} ROWS</strong>
+      </CommandHeader>
+      <CommandTable $mode={mode}>
+        <CommandTableHead $mode={mode}>
+          <CommandCell>UNIT</CommandCell>
+          <CommandCell>AI</CommandCell>
+          <CommandCell>R-PRESS</CommandCell>
+          <CommandCell>P-PRESS</CommandCell>
+          <CommandCell>TEMP</CommandCell>
+        </CommandTableHead>
+        <CommandTableBody>
+          {rows.map((item) => {
+            const isError = item.AI_LABEL !== '정상';
+
+            return (
+              <CommandRow key={`${item.대차번호}-${item.TIMEVALUE}`} $mode={mode} $tone={isError ? 'error' : 'normal'}>
+                <CommandCell>{formatUnitName(item.대차번호)}</CommandCell>
+                <CommandCell>{item.AI_LABEL}</CommandCell>
+                <CommandCell>{item['R액 압력(kg/㎥)']}</CommandCell>
+                <CommandCell>{item['P액 압력(kg/㎥)']}</CommandCell>
+                <CommandCell>{item['가조립온도(℃)']}</CommandCell>
+              </CommandRow>
+            );
+          })}
+        </CommandTableBody>
+      </CommandTable>
+    </Panel>
+  );
+}
+
+function CommandDefectPanel({ mode, apiData }: Pick<InfoPanelsProps, 'mode' | 'apiData'>) {
+  const rows = apiData.filter((item) => item.AI_LABEL !== '정상').slice(0, 7);
+
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <CommandHeader $mode={mode}>
+        <span>ANOMALY QUEUE</span>
+        <strong>{rows.length} ACTIVE</strong>
+      </CommandHeader>
+      {rows.length > 0 ? (
+        <CommandGrid>
+          {rows.map((item) => (
+            <CommandRow key={`defect-${item.대차번호}-${item.TIMEVALUE}`} $mode={mode} $tone="error">
+              <CommandCell>{formatUnitName(item.대차번호)}</CommandCell>
+              <CommandCell>{item.AI_LABEL}</CommandCell>
+              <CommandCell>{getTimeLabel(item.AI_TIME_STR || item.TIMEVALUE)}</CommandCell>
+            </CommandRow>
+          ))}
+        </CommandGrid>
+      ) : (
+        <EmptyState $mode={mode}>ANOMALY QUEUE CLEAR</EmptyState>
+      )}
+    </Panel>
+  );
+}
+
+function CommandInjectionPanel({ mode, injectUnit }: Pick<InfoPanelsProps, 'mode' | 'injectUnit'>) {
+  return (
+    <Panel $mode={mode} $uiMode={mode}>
+      <CommandHeader $mode={mode}>
+        <span>INJECTION SENSOR</span>
+        <strong>{injectUnit ? formatUnitName(injectUnit.대차번호) : 'WAIT'}</strong>
+      </CommandHeader>
+      {injectUnit ? (
+        <CommandKpiGrid>
+          <CommandKpiCard $mode={mode}>
+            <CommandKpiLabel $mode={mode}>P FLOW</CommandKpiLabel>
+            <CommandKpiValue $mode={mode}>{injectUnit['P액 유량(g)']}</CommandKpiValue>
+          </CommandKpiCard>
+          <CommandKpiCard $mode={mode}>
+            <CommandKpiLabel $mode={mode}>R FLOW</CommandKpiLabel>
+            <CommandKpiValue $mode={mode}>{injectUnit['R액 유량(g)']}</CommandKpiValue>
+          </CommandKpiCard>
+          <CommandKpiCard $mode={mode}>
+            <CommandKpiLabel $mode={mode}>P HEAD</CommandKpiLabel>
+            <CommandKpiValue $mode={mode}>{injectUnit['P액 헤드온도(℃)']}°</CommandKpiValue>
+          </CommandKpiCard>
+          <CommandKpiCard $mode={mode}>
+            <CommandKpiLabel $mode={mode}>R HEAD</CommandKpiLabel>
+            <CommandKpiValue $mode={mode}>{injectUnit['R액 헤드온도(℃)']}°</CommandKpiValue>
+          </CommandKpiCard>
+        </CommandKpiGrid>
+      ) : (
+        <EmptyState $mode={mode}>SENSOR STREAM WAITING</EmptyState>
+      )}
+    </Panel>
+  );
+}
+
+export const InfoPanels = React.memo((props: InfoPanelsProps) => {
+  const { layout, mode, hoveredInfo, errorUnits, apiData, injectUnit, isFallback } = props;
+
+  if (layout === 'modelOnly') return null;
+
+  if (layout === 'detailRight') {
+    return (
+      <DetailPanel $mode={mode} $uiMode={mode}>
+        <DetailScroll $uiMode={mode}>
+          {mode === 'operator' ? (
+            <>
+              <OperatorStatusPanel mode={mode} apiData={apiData} errorUnits={errorUnits} isFallback={isFallback} />
+              <AIAdvisor mode={mode} errors={errorUnits} compact />
+              <ActiveUnitPanel mode={mode} hoveredInfo={hoveredInfo} errorUnits={errorUnits} apiData={apiData} />
+              <InjectionPanel mode={mode} injectUnit={injectUnit} />
+              <DefectPanel mode={mode} errorUnits={errorUnits} />
+            </>
+          ) : (
+            <>
+              <CommandKpiPanel mode={mode} apiData={apiData} errorUnits={errorUnits} isFallback={isFallback} />
+              <CommandTelemetryPanel mode={mode} apiData={apiData} />
+              <CommandInjectionPanel mode={mode} injectUnit={injectUnit} />
+              <CommandDefectPanel mode={mode} apiData={apiData} />
+              <AIAdvisor mode={mode} errors={errorUnits} compact />
+            </>
+          )}
+        </DetailScroll>
+      </DetailPanel>
+    );
+  }
+
+  if (mode === 'command') {
+    return (
+      <PanelLayer>
+        <BalancedPanel $side="left" $slot="top" $uiMode={mode}>
+          <CommandKpiPanel mode={mode} apiData={apiData} errorUnits={errorUnits} isFallback={isFallback} />
+        </BalancedPanel>
+        <BalancedPanel $side="left" $slot="bottom" $uiMode={mode}>
+          <CommandTelemetryPanel mode={mode} apiData={apiData} />
+        </BalancedPanel>
+        <BalancedPanel $side="right" $slot="top" $uiMode={mode}>
+          <CommandDefectPanel mode={mode} apiData={apiData} />
+        </BalancedPanel>
+        <BalancedPanel $side="right" $slot="bottom" $uiMode={mode}>
+          <CommandInjectionPanel mode={mode} injectUnit={injectUnit} />
+        </BalancedPanel>
+      </PanelLayer>
+    );
+  }
+
+  return (
+    <PanelLayer>
+      <BalancedPanel $side="left" $slot="top" $uiMode={mode}>
+        <OperatorStatusPanel mode={mode} apiData={apiData} errorUnits={errorUnits} isFallback={isFallback} />
+      </BalancedPanel>
+      <BalancedPanel $side="left" $slot="bottom" $uiMode={mode}>
+        <ActiveUnitPanel mode={mode} hoveredInfo={hoveredInfo} errorUnits={errorUnits} apiData={apiData} />
+      </BalancedPanel>
+      <BalancedPanel $side="right" $slot="top" $uiMode={mode}>
+        <AIAdvisor mode={mode} errors={errorUnits} compact />
+      </BalancedPanel>
+      <BalancedPanel $side="right" $slot="bottom" $uiMode={mode}>
+        <InjectionPanel mode={mode} injectUnit={injectUnit} />
+      </BalancedPanel>
+    </PanelLayer>
+  );
+});
+
+InfoPanels.displayName = 'InfoPanels';
