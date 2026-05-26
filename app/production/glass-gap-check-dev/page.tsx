@@ -68,6 +68,47 @@ interface CornerItem {
 
 const CORNER_KEYS: CornerKey[] = ['tl', 'tr', 'bl', 'br'];
 
+type CornerAnchor = {
+  left: number;
+  top: number;
+};
+
+const CORNER_ANCHORS_STORAGE_KEY = 'glassGapInspection.cornerAnchors.v1';
+
+const DEFAULT_CORNER_ANCHORS: Record<CornerKey, CornerAnchor> = {
+  tl: { left: 8, top: 10 },
+  tr: { left: 92, top: 10 },
+  bl: { left: 8, top: 90 },
+  br: { left: 92, top: 90 },
+};
+
+const clampPercent = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const getInitialCornerAnchors = (): Record<CornerKey, CornerAnchor> => {
+  if (typeof window === 'undefined') return { ...DEFAULT_CORNER_ANCHORS };
+
+  try {
+    const savedValue = window.localStorage.getItem(CORNER_ANCHORS_STORAGE_KEY);
+    if (!savedValue) return { ...DEFAULT_CORNER_ANCHORS };
+
+    const parsed = JSON.parse(savedValue) as Partial<Record<CornerKey, Partial<CornerAnchor>>>;
+
+    return CORNER_KEYS.reduce((acc, key) => {
+      const savedAnchor = parsed[key];
+      const defaultAnchor = DEFAULT_CORNER_ANCHORS[key];
+
+      acc[key] = {
+        left: clampPercent(Number(savedAnchor?.left ?? defaultAnchor.left), 4, 96),
+        top: clampPercent(Number(savedAnchor?.top ?? defaultAnchor.top), 5, 95),
+      };
+
+      return acc;
+    }, {} as Record<CornerKey, CornerAnchor>);
+  } catch {
+    return { ...DEFAULT_CORNER_ANCHORS };
+  }
+};
+
 const LAYOUT_CONFIGS = {
   FHD: {
     padding: '20px',
@@ -650,17 +691,28 @@ const CameraTileName = styled.span`
 `;
 
 const CameraTileZoom = styled.span`
+  position: relative;
+  z-index: 4;
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   color: ${theme.accent};
-  border: 1px solid rgba(225, 29, 46, 0.20);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+  border: 1px solid rgba(225, 29, 46, 0.24);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+
+  &:hover {
+    transform: translateY(-1px) scale(1.04);
+    background: #FFF1F2;
+    border-color: rgba(225, 29, 46, 0.42);
+  }
 `;
 
 const CornerHotspot = styled.button<{ $tone: InspectionTone; $isActive: boolean }>`
@@ -679,7 +731,9 @@ const CornerHotspot = styled.button<{ $tone: InspectionTone; $isActive: boolean 
   font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   box-shadow: ${({ $isActive, $tone }) => $isActive
     ? `0 16px 36px ${getToneColor($tone)}2B, 0 0 0 7px ${getToneBg($tone)}`
     : '0 14px 30px rgba(15, 23, 42, 0.10)'};
@@ -698,6 +752,10 @@ const CornerHotspot = styled.button<{ $tone: InspectionTone; $isActive: boolean 
   &:hover {
     transform: translate(-50%, -50%) scale(1.08);
     background: #FFFFFF;
+  }
+
+  &:active {
+    cursor: grabbing;
   }
 `;
 
@@ -1173,6 +1231,171 @@ const CloseIconButton = styled.button`
     background: ${theme.accentSoft};
     color: ${theme.accent};
   }
+`;
+
+const ImageZoomBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+  background: ${theme.bg};
+`;
+
+const ImageZoomPanel = styled.div`
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: ${theme.bg};
+  box-shadow: none;
+`;
+
+const ImageZoomHeader = styled.div`
+  flex-shrink: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 18px 0 22px;
+  border-bottom: 1px solid ${theme.border};
+  background: #FFFFFF;
+`;
+
+const ImageZoomTitleGroup = styled.div`
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const ImageZoomIconBadge = styled.div`
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 0;
+  border: 1px solid rgba(225, 29, 46, 0.18);
+  background: ${theme.accentSoft};
+  color: ${theme.accent};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ImageZoomTitle = styled.div`
+  min-width: 0;
+  overflow: hidden;
+  color: ${theme.textPrimary};
+  font-size: clamp(18px, 1.25vw, 23px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const ImageZoomSubText = styled.div`
+  margin-top: 3px;
+  color: ${theme.textSecondary};
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+`;
+
+const ImageZoomCloseButton = styled.button`
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 1px solid ${theme.border};
+  border-radius: 0;
+  background: #FFFFFF;
+  color: ${theme.textSecondary};
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+
+  &:hover {
+    background: ${theme.accentSoft};
+    border-color: rgba(225, 29, 46, 0.24);
+    color: ${theme.accent};
+  }
+`;
+
+const ImageZoomFrame = styled.div`
+  flex: 1;
+  min-height: 0;
+  padding: 18px;
+  background: ${theme.bg};
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+`;
+
+const ImageZoomImage = styled.img`
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid ${theme.border};
+  border-radius: 0;
+  background: #FFFFFF;
+  object-fit: contain;
+`;
+
+const ImageZoomEmptyState = styled.div`
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid ${theme.border};
+  border-radius: 0;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+`;
+
+const ImageZoomEmptyIcon = styled.div`
+  width: 72px;
+  height: 72px;
+  border-radius: 0;
+  border: 1px solid rgba(225, 29, 46, 0.18);
+  background: ${theme.accentSoft};
+  color: ${theme.accent};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+`;
+
+const ImageZoomEmptyTitle = styled.div`
+  color: ${theme.textPrimary};
+  font-size: clamp(22px, 1.65vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+`;
+
+const ImageZoomEmptyText = styled.p`
+  margin: 10px 0 0 0;
+  color: ${theme.textSecondary};
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.55;
+  word-break: keep-all;
 `;
 
 // ─── [UI COMPONENTS] ───
@@ -2249,94 +2472,89 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
   ), document.body);
 };
 
-const ImageModal = ({ isOpen, onClose, title, imgUrl }: { isOpen: boolean, onClose: () => void, title: string, imgUrl: string }) => {
-  if (!isOpen) return null;
-  return (
-    <div 
-      style={{ 
-        position: 'fixed', 
-        inset: 0, 
-        zIndex: 2147483647, 
-        backgroundColor: 'rgba(248, 250, 252, 0.86)', 
-        backdropFilter: 'blur(12px)', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-      }} 
-      onClick={onClose}
-    >
-      <div 
-        style={{ 
-          width: '90vw', 
-          height: '90vh', 
-          backgroundColor: '#FFFFFF', 
-          borderRadius: '10px', 
-          padding: '32px', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '24px',
-          border: `1px solid ${theme.border}`,
-          boxShadow: '0 34px 100px rgba(15, 23, 42, 0.18)' 
-        }} 
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center' 
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '16px' 
-          }}>
-            <ZoomIn size={24} />
-            <span style={{ 
-              fontSize: '24px', 
-              fontWeight: 700 
-            }}>
-              {title}
-            </span>
-          </div>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              width: '40px', 
-              height: '40px', 
-              borderRadius: '10px', 
-              border: `1px solid ${theme.border}`, 
-              backgroundColor: '#FFFFFF', 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}
+const ImageModal = ({
+  isOpen,
+  onClose,
+  title,
+  imgUrl,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  imgUrl: string;
+}) => {
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+  const hasImageUrl = !!imgUrl?.trim();
+  const canShowImage = hasImageUrl && !imageLoadFailed;
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setImageLoadFailed(false);
+  }, [isOpen, imgUrl]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <ImageZoomBackdrop onClick={onClose}>
+      <ImageZoomPanel onClick={(event) => event.stopPropagation()}>
+        <ImageZoomHeader>
+          <ImageZoomTitleGroup>
+            <ImageZoomIconBadge>
+              <ZoomIn size={21} strokeWidth={2.5} />
+            </ImageZoomIconBadge>
+            <div style={{ minWidth: 0 }}>
+              <ImageZoomTitle>{title}</ImageZoomTitle>
+              <ImageZoomSubText>
+                {canShowImage
+                  ? '전체 화면으로 확대 이미지를 확인 중입니다. ESC 키로 닫을 수 있습니다.'
+                  : '이미지 데이터가 아직 준비되지 않았습니다.'}
+              </ImageZoomSubText>
+            </div>
+          </ImageZoomTitleGroup>
+
+          <ImageZoomCloseButton
+            type="button"
+            aria-label="확대 이미지 닫기"
+            onClick={onClose}
           >
-            <X size={24} />
-          </button>
-        </div>
-        <div style={{ 
-          flex: 1, 
-          borderRadius: '10px', 
-          overflow: 'hidden', 
-          backgroundColor: '#F8FAFC', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          border: `1px solid ${theme.border}` 
-        }}>
-          <img 
-            src={imgUrl} 
-            alt="Detail" 
-            style={{ 
-              maxWidth: '100%', 
-              maxHeight: '100%', 
-              objectFit: 'contain' 
-            }} 
-          />
-        </div>
-      </div>
-    </div>
+            <X size={22} strokeWidth={2.5} />
+          </ImageZoomCloseButton>
+        </ImageZoomHeader>
+
+        <ImageZoomFrame>
+          {canShowImage ? (
+            <ImageZoomImage
+              src={imgUrl}
+              alt={title}
+              onError={() => setImageLoadFailed(true)}
+            />
+          ) : (
+            <ImageZoomEmptyState>
+              <ImageZoomEmptyIcon>
+                <Info size={34} strokeWidth={2.4} />
+              </ImageZoomEmptyIcon>
+              <ImageZoomEmptyTitle>현재 이미지를 불러올 수 없습니다.</ImageZoomEmptyTitle>
+              <ImageZoomEmptyText>
+                잠시 후 다시 시도해주세요.
+              </ImageZoomEmptyText>
+            </ImageZoomEmptyState>
+          )}
+        </ImageZoomFrame>
+      </ImageZoomPanel>
+    </ImageZoomBackdrop>,
+    document.body
   );
 };
 
@@ -2431,10 +2649,15 @@ export default function GlassGapInspection() {
   const [inspectionViewType, setInspectionViewType] = useState<InspectionViewType>('split');
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [boxConnectorLines, setBoxConnectorLines] = useState<Partial<Record<CornerKey, ConnectorLine>>>({});
+  const [cornerAnchors, setCornerAnchors] = useState<Record<CornerKey, CornerAnchor>>(() => ({ ...DEFAULT_CORNER_ANCHORS }));
+  const [isCornerAnchorsHydrated, setIsCornerAnchorsHydrated] = useState(false);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<number | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const guideViewportRef = useRef<HTMLDivElement | null>(null);
+  const draggedCornerRef = useRef<{ key: CornerKey; startX: number; startY: number; moved: boolean } | null>(null);
+  const suppressNextHotspotClickRef = useRef(false);
   const hotspotRefs = useRef<Record<CornerKey, HTMLButtonElement | null>>({ tl: null, tr: null, bl: null, br: null });
   const cameraTileRefs = useRef<Record<CornerKey, HTMLButtonElement | null>>({ tl: null, tr: null, bl: null, br: null });
 
@@ -2443,8 +2666,77 @@ export default function GlassGapInspection() {
   };
 
   const handleImageClick = (title: string, url: string) => {
-    if (!url) return;
-    setModalInfo({ isOpen: true, title, imgUrl: url });
+    setModalInfo({ isOpen: true, title, imgUrl: url ?? '' });
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    setCornerAnchors(getInitialCornerAnchors());
+    setIsCornerAnchorsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isCornerAnchorsHydrated || typeof window === 'undefined') return;
+
+    window.localStorage.setItem(CORNER_ANCHORS_STORAGE_KEY, JSON.stringify(cornerAnchors));
+  }, [cornerAnchors, isCornerAnchorsHydrated]);
+
+  const updateCornerAnchorFromPointer = useCallback((key: CornerKey, event: React.PointerEvent<HTMLButtonElement>) => {
+    const viewport = guideViewportRef.current;
+    if (!viewport) return;
+
+    const rect = viewport.getBoundingClientRect();
+    const nextLeft = clampPercent(((event.clientX - rect.left) / rect.width) * 100, 4, 96);
+    const nextTop = clampPercent(((event.clientY - rect.top) / rect.height) * 100, 5, 95);
+
+    setCornerAnchors((prev) => ({
+      ...prev,
+      [key]: {
+        left: Number(nextLeft.toFixed(1)),
+        top: Number(nextTop.toFixed(1)),
+      },
+    }));
+  }, []);
+
+  const handleHotspotPointerDown = (event: React.PointerEvent<HTMLButtonElement>, key: CornerKey) => {
+    if (event.button !== 0) return;
+
+    draggedCornerRef.current = {
+      key,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.stopPropagation();
+  };
+
+  const handleHotspotPointerMove = (event: React.PointerEvent<HTMLButtonElement>, key: CornerKey) => {
+    const dragState = draggedCornerRef.current;
+    if (!dragState || dragState.key !== key) return;
+
+    const moved = Math.abs(event.clientX - dragState.startX) > 3 || Math.abs(event.clientY - dragState.startY) > 3;
+    if (!moved && !dragState.moved) return;
+
+    dragState.moved = true;
+    suppressNextHotspotClickRef.current = true;
+    updateCornerAnchorFromPointer(key, event);
+  };
+
+  const handleHotspotPointerUp = (event: React.PointerEvent<HTMLButtonElement>, key: CornerKey) => {
+    const dragState = draggedCornerRef.current;
+
+    if (dragState?.key === key) {
+      suppressNextHotspotClickRef.current = dragState.moved;
+      draggedCornerRef.current = null;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
   };
 
   const recalculateBoxConnectors = useCallback(() => {
@@ -2506,7 +2798,7 @@ export default function GlassGapInspection() {
       window.removeEventListener('resize', update);
       resizeObserver?.disconnect();
     };
-  }, [apiData, screenMode, inspectionViewType, recalculateBoxConnectors]);
+  }, [apiData, screenMode, inspectionViewType, cornerAnchors, recalculateBoxConnectors]);
 
   useEffect(() => {
     const handleResize = () => setScreenMode(window.innerWidth > 2200 ? 'QHD' : 'FHD');
@@ -2540,8 +2832,8 @@ export default function GlassGapInspection() {
       } catch (error) { console.error(error); }
     };
     fetchData();
-    const intervalId = setInterval(fetchData, 3000);
-    return () => clearInterval(intervalId);
+    const intervalId = window.setInterval(fetchData, 3000);
+    return () => window.clearInterval(intervalId);
   }, [audioAllowed, showPermissionModal]);
 
   useEffect(() => {
@@ -2565,11 +2857,11 @@ export default function GlassGapInspection() {
         osc.stop(ctx.currentTime + 0.15);
       };
       playBeep();
-      intervalRef.current = setInterval(playBeep, 500);
+      intervalRef.current = window.setInterval(playBeep, 500);
     } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
     }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => { if (intervalRef.current) window.clearInterval(intervalRef.current); };
   }, [isDefectMode, audioAllowed]);
 
   const handlePermissionConfirm = () => {
@@ -2589,7 +2881,7 @@ export default function GlassGapInspection() {
       camera: 'camera-1',
       status: apiData ? apiData.LABEL001 : '-',
       imgUrl: apiData ? apiData.FILEPATH3 : '',
-      anchor: { left: '13%', top: '16%' },
+      anchor: { left: `${cornerAnchors.tl.left}%`, top: `${cornerAnchors.tl.top}%` },
       description: '상단 좌측 모서리 확대'
     },
     {
@@ -2599,7 +2891,7 @@ export default function GlassGapInspection() {
       camera: 'camera-2',
       status: apiData ? apiData.LABEL002 : '-',
       imgUrl: apiData ? apiData.FILEPATH2 : '',
-      anchor: { left: '87%', top: '16%' },
+      anchor: { left: `${cornerAnchors.tr.left}%`, top: `${cornerAnchors.tr.top}%` },
       description: '상단 우측 모서리 확대'
     },
     {
@@ -2609,7 +2901,7 @@ export default function GlassGapInspection() {
       camera: 'camera-4',
       status: apiData ? apiData.LABEL003 : '-',
       imgUrl: apiData ? apiData.FILEPATH1 : '',
-      anchor: { left: '13%', top: '84%' },
+      anchor: { left: `${cornerAnchors.bl.left}%`, top: `${cornerAnchors.bl.top}%` },
       description: '하단 좌측 모서리 확대'
     },
     {
@@ -2619,10 +2911,10 @@ export default function GlassGapInspection() {
       camera: 'camera-3',
       status: apiData ? apiData.LABEL004 : '-',
       imgUrl: apiData ? apiData.FILEPATH4 : '',
-      anchor: { left: '87%', top: '84%' },
+      anchor: { left: `${cornerAnchors.br.left}%`, top: `${cornerAnchors.br.top}%` },
       description: '하단 우측 모서리 확대'
     },
-  ]), [apiData]);
+  ]), [apiData, cornerAnchors]);
 
   const resultStr = apiData?.RESULT || '';
   const isPass = resultStr === '정상' || resultStr.toUpperCase() === 'OK';
@@ -2670,7 +2962,7 @@ export default function GlassGapInspection() {
   };
 
   const renderGuideViewport = (solo = false) => (
-    <CenterGuideViewport $solo={solo}>
+    <CenterGuideViewport ref={guideViewportRef} $solo={solo}>
       <GuideImage
         src={guideImgUrl}
         alt="Main Glass Guide"
@@ -2689,9 +2981,20 @@ export default function GlassGapInspection() {
             $isActive={isActive}
             onMouseEnter={() => setActiveCorner(item.key)}
             onMouseLeave={() => setActiveCorner(null)}
-            onClick={() => handleImageClick(`${item.title} (${item.camera})`, item.imgUrl)}
-            title={`${item.title} 확대 이미지 보기`}
-            aria-label={`${item.title} 확대 이미지 보기`}
+            onPointerDown={(event) => handleHotspotPointerDown(event, item.key)}
+            onPointerMove={(event) => handleHotspotPointerMove(event, item.key)}
+            onPointerUp={(event) => handleHotspotPointerUp(event, item.key)}
+            onPointerCancel={(event) => handleHotspotPointerUp(event, item.key)}
+            onClick={() => {
+              if (suppressNextHotspotClickRef.current) {
+                suppressNextHotspotClickRef.current = false;
+                return;
+              }
+
+              handleImageClick(`${item.title} (${item.camera})`, item.imgUrl);
+            }}
+            title={`${item.title} 확대 이미지 보기 / 드래그로 위치 조정`}
+            aria-label={`${item.title} 확대 이미지 보기 / 드래그로 위치 조정`}
           >
             {item.code}
           </CornerHotspot>
@@ -2703,6 +3006,28 @@ export default function GlassGapInspection() {
   const renderCameraTile = (item: CornerItem) => {
     const tone = getInspectionTone(item.status);
     const isActive = activeCorner === item.key;
+    const modalTitle = `${item.title} (${item.camera})`;
+
+    const openCameraImage = () => {
+      handleImageClick(modalTitle, item.imgUrl);
+    };
+
+    const handleCameraClick = () => {
+      openCameraImage();
+    };
+
+    const handleZoomClick = (event: React.MouseEvent<HTMLSpanElement>) => {
+      event.stopPropagation();
+      openCameraImage();
+    };
+
+    const handleZoomKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      openCameraImage();
+    };
 
     return (
       <CameraTile
@@ -2714,7 +3039,7 @@ export default function GlassGapInspection() {
         $imgUrl={item.imgUrl}
         onMouseEnter={() => setActiveCorner(item.key)}
         onMouseLeave={() => setActiveCorner(null)}
-        onClick={() => handleImageClick(`${item.title} (${item.camera})`, item.imgUrl)}
+        onClick={handleCameraClick}
         aria-label={`${item.title} 카메라 확대 이미지 보기`}
       >
         {!item.imgUrl && <NoImageText>이미지 대기</NoImageText>}
@@ -2724,7 +3049,14 @@ export default function GlassGapInspection() {
         </CameraTileHeader>
         <CameraTileFooter>
           <CameraTileName>{item.camera} · {item.title}</CameraTileName>
-          <CameraTileZoom>
+          <CameraTileZoom
+            role="button"
+            tabIndex={0}
+            title="확대 보기"
+            aria-label={`${item.title} 확대 보기`}
+            onClick={handleZoomClick}
+            onKeyDown={handleZoomKeyDown}
+          >
             <ZoomIn size={15} strokeWidth={2.5} />
           </CameraTileZoom>
         </CameraTileFooter>
@@ -2942,7 +3274,7 @@ export default function GlassGapInspection() {
       {modalInfo && (
         <ImageModal
           isOpen={modalInfo.isOpen}
-          onClose={() => setModalInfo(prev => prev ? { ...prev, isOpen: false } : null)}
+          onClose={() => setModalInfo(null)}
           title={modalInfo.title}
           imgUrl={modalInfo.imgUrl}
         />

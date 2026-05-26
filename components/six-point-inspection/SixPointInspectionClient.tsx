@@ -99,9 +99,9 @@ export default function SixPointInspectionClient() {
   const okCount = cornerItems.filter((item) => getInspectionTone(item.status) === 'ok').length;
 
   const handleImageClick = (title: string, url: string) => {
-    if (!url) {
-      return;
-    }
+    // if (!url) {
+    //   return;
+    // }
 
     setImageModal({
       imgUrl: url,

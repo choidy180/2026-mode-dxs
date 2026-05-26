@@ -1,5 +1,6 @@
 'use client';
 
+import type { MouseEvent } from 'react';
 import { ZoomIn } from 'lucide-react';
 
 import type { CornerItem } from '@/types/glassGapInspection';
@@ -32,6 +33,14 @@ export default function CameraTile({
 }: CameraTileProps) {
   const tone = getInspectionTone(item.status);
 
+  const handleZoomClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (!item.imgUrl) return;
+
+    onImageClick(`${item.title} (${item.camera})`, item.imgUrl);
+  };
+
   return (
     <CameraTileButton
       ref={(node) => registerRef(item.key, node)}
@@ -42,17 +51,22 @@ export default function CameraTile({
       $imgUrl={item.imgUrl}
       $tone={tone}
       aria-label={`${item.title} 카메라 확대 이미지 보기`}
-      onClick={() => onImageClick(`${item.title} (${item.camera})`, item.imgUrl)}
+      onClick={handleZoomClick}
       onMouseEnter={() => onSetActive(item.key)}
       onMouseLeave={() => onSetActive(null)}
     >
       {!item.imgUrl && <NoImageText>이미지 대기</NoImageText>}
+
       <CameraTileHeader>
         <CameraTileCode $tone={tone}>{item.code}</CameraTileCode>
         <CameraTileStatus $tone={tone}>{formatStatusLabel(item.status)}</CameraTileStatus>
       </CameraTileHeader>
+
       <CameraTileFooter>
-        <CameraTileName>{item.camera} · {item.title}</CameraTileName>
+        <CameraTileName>
+          {item.camera} · {item.title}
+        </CameraTileName>
+
         <CameraTileZoom>
           <ZoomIn size={15} strokeWidth={2.5} />
         </CameraTileZoom>

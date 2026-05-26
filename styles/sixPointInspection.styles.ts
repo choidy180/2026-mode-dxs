@@ -696,17 +696,36 @@ export const CameraTileName = styled.span`
 `;
 
 export const CameraTileZoom = styled.span`
-  width: 31px;
-  height: 31px;
   flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
-  border: 1px solid rgba(225, 29, 46, 0.20);
   background: rgba(255, 255, 255, 0.94);
-  color: ${sixPointTheme.accent};
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+  color: #d31145;
+  border: 1px solid rgba(211, 17, 69, 0.2);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+  cursor: pointer;
+  z-index: 5;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+
+  &:hover {
+    background: #fff1f2;
+    border-color: rgba(211, 17, 69, 0.34);
+    color: #d31145;
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(211, 17, 69, 0.32);
+    outline-offset: 2px;
+  }
 `;
 
 export const NoImageText = styled.div`
@@ -915,34 +934,59 @@ export const TypeOptionText = styled.p`
 `;
 
 export const ImageModalShell = styled.div`
-  width: min(1400px, 92vw);
-  height: min(860px, 90dvh);
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 28px;
-  border-radius: 10px;
-  border: 1px solid ${sixPointTheme.border};
-  background: ${sixPointTheme.surface};
-  box-shadow: ${sixPointTheme.shadowStrong};
+  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: ${sixPointTheme.bg};
+  box-shadow: none;
 `;
 
 export const ImageModalTop = styled.div`
+  flex-shrink: 0;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding: 0 18px 0 22px;
+  border-bottom: 1px solid ${sixPointTheme.hairline};
+  background: ${sixPointTheme.surface};
+
+  ${ModalCloseButton} {
+    border-radius: 0;
+  }
 `;
 
 export const ImageModalTitle = styled.div`
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: ${sixPointTheme.textPrimary};
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
+
+  svg {
+    flex-shrink: 0;
+    color: ${sixPointTheme.accent};
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 `;
 
 export const ImageModalBody = styled.div`
@@ -952,15 +996,35 @@ export const ImageModalBody = styled.div`
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 9px;
-  border: 1px solid ${sixPointTheme.hairline};
-  background: ${sixPointTheme.surfaceMuted};
+  padding: 18px;
+  border-radius: 0;
+  background: ${sixPointTheme.bg};
 `;
 
 export const ImageModalImage = styled.img`
-  max-width: 100%;
-  max-height: 100%;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  border: 1px solid ${sixPointTheme.hairline};
+  background: ${sixPointTheme.surface};
+`;
+
+export const ImageModalEmptyText = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid ${sixPointTheme.hairline};
+  background: ${sixPointTheme.surface};
+  color: ${sixPointTheme.textSecondary};
+  font-size: clamp(18px, 1.45vw, 24px);
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: -0.03em;
+  text-align: center;
+  word-break: keep-all;
 `;
 
 export const SoundPermissionShell = styled.div`

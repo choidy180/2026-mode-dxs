@@ -969,8 +969,12 @@ export default function VisionDashboard() {
   const handleNavigateHome = () => { router.push('/'); };
 
   const handleImageClick = (title: string, url: string) => {
-      setModalInfo({ isOpen: true, title, imgUrl: url });
-  };
+    setModalInfo({
+        isOpen: true,
+        title,
+        imgUrl: url,
+    });
+    };
 
   // 비프음 재생 로직
   useEffect(() => {

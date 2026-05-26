@@ -613,6 +613,14 @@ export const CameraTileButton = styled.button<{
   transform: ${({ $active }) => ($active ? 'translateY(-2px)' : 'translateY(0)')};
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
   &:hover {
     transform: translateY(-2px);
     border-color: ${({ $tone }) => getToneColor($tone)};
