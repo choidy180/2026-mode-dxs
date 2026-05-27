@@ -75,7 +75,15 @@ const MOTOR_DATA = [
 const JIG_MODEL_PATH = "/models/final_final_final.glb";
 const FLOOR_MODEL_PATH = "/models/final_final_final_final.glb";
 const FACTORY_BG_IMAGE = "/images/gmt_back.png"; 
-const API_URL = "http://192.168.2.147:24828/api/DX_API000024";
+const API_URL =
+  typeof window !== 'undefined' &&
+  (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.pathname.includes('-dev')
+  )
+    ? 'https://gapi.dxsplatform.com/api/DX_API000024'
+    : 'http://192.168.2.147:24828/api/DX_API000024';
 
 // 새롭게 적용된 화이트 & 레드 테마 색상표
 const THEME = {

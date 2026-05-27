@@ -21,6 +21,25 @@ const VWorldMap = dynamic(
   }
 );
 
+const getCurrentBaseUrl = () => {
+  if (
+    typeof window !== "undefined" &&
+    (
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.pathname.includes("-dev")
+    )
+  ) {
+    return "https://gapi.dxsplatform.com";
+  }
+
+  return "http://192.168.2.147:24828";
+};
+
+const getCurrentUrl = (path: string) => {
+  return `${getCurrentBaseUrl()}${path}`;
+};
+
 type VehicleStatus = "Arrived" | "Moving";
 type MarkerInfoMode = "hidden" | "all" | "selected";
 type InfoPanelKey = "top" | "left" | "right" | "detail";
@@ -352,7 +371,16 @@ const useVehicleSimulation = () => {
         await new Promise(r => setTimeout(r, 300));
       } else {
         try {
-          const res = await axios.get("http://192.168.2.147:24828/api/DX_API000002");
+          const res = await axios.get(
+            typeof window !== 'undefined' &&
+            (
+              window.location.hostname === 'localhost' ||
+              window.location.hostname === '127.0.0.1' ||
+              window.location.pathname.includes('-dev')
+            )
+              ? 'https://gapi.dxsplatform.com/api/DX_API000002'
+              : 'http://192.168.2.147:24828/api/DX_API000002'
+          );
           const data: ApiVehicleData[] = res.data;
           const now = Date.now();
           const tripCounts: Record<string, number> = {};

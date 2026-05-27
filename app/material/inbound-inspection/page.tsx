@@ -23,9 +23,54 @@ import { LuMaximize, LuMinimize } from "react-icons/lu";
 
 // --- Constants ---
 const PORT = 8080;
-const API_URL_VEHICLE = "http://192.168.2.147:24828/api/DX_API000020";
-const API_URL_INVOICE = "http://192.168.2.147:24828/api/V_PurchaseIn";
-const API_URL_MATERIAL_LIST = "http://192.168.2.147:24828/api/DX_API000034";
+const DEV_API_BASE_URL = "https://gapi.dxsplatform.com/api";
+const INTERNAL_API_BASE_URL = "http://192.168.2.147:24828/api";
+
+const API_ENDPOINTS = {
+  VEHICLE: "/DX_API000020",
+  INVOICE: "/V_PurchaseIn",
+  MATERIAL_LIST: "/DX_API000034",
+} as const;
+
+const isDevFrontUrl = () => {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const { hostname, pathname } = window.location;
+
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    pathname.includes("inbound-inspection-dev")
+  );
+};
+
+const getApiBaseUrl = () => {
+  return isDevFrontUrl() ? DEV_API_BASE_URL : INTERNAL_API_BASE_URL;
+};
+
+const buildApiUrl = (
+  endpoint: string,
+  params?: Record<string, string | number | boolean | null | undefined>
+) => {
+  const url = new URL(`${getApiBaseUrl()}${endpoint}`);
+
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
+    });
+  }
+
+  console.log("[API URL]", {
+    page: typeof window !== "undefined" ? window.location.href : "server",
+    apiUrl: url.toString(),
+  });
+
+  return url.toString();
+};
 
 // --- Types ---
 interface VehicleSlotDetail {
@@ -589,7 +634,7 @@ export default function DashboardPage() {
   const fetchVehicleData = useCallback(async () => {
     try {
       setIsVehicleLoading(true);
-      const res = await fetch(API_URL_VEHICLE);
+      const res = await fetch(buildApiUrl(API_ENDPOINTS.VEHICLE));
       if (!res.ok) throw new Error("Vehicle API Error");
       const data: VehicleApiResponse = await res.json();
       const allSlots = Object.values(data).flatMap(area => area.slots_detail);
@@ -614,7 +659,7 @@ export default function DashboardPage() {
     setMaterialError(null);
     setIsMaterialLoading(true);
     try {
-      const res = await fetch(API_URL_MATERIAL_LIST);
+      const res = await fetch(buildApiUrl(API_ENDPOINTS.MATERIAL_LIST));
       if (!res.ok) throw new Error(`API Error: ${res.status}`);
       const json = await res.json();
       
@@ -722,7 +767,7 @@ export default function DashboardPage() {
       const barcode = data.barcode || data.Barcode;
       if (barcode) {
         try {
-          const apiUrl = `${API_URL_INVOICE}?InvoiceNo=${barcode}`;
+          const apiUrl = buildApiUrl(API_ENDPOINTS.INVOICE, { InvoiceNo: barcode });
           const res = await fetch(apiUrl);
           if (res.ok) {
             const json = await res.json();

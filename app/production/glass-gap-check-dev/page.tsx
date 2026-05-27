@@ -175,6 +175,49 @@ const formatStatusLabel = (status?: string) => {
   return normalized && normalized !== '-' ? normalized : '대기';
 };
 
+const getImageBaseUrl = () => {
+  if (
+    typeof window !== 'undefined' &&
+    (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.pathname.includes('-dev')
+    )
+  ) {
+    return 'https://gapi.dxsplatform.com';
+  }
+
+  return 'http://192.168.2.147:24828';
+};
+
+const getImageUrlByCurrentPage = (url?: string | null) => {
+  if (!url) return '';
+
+  const imageUrl = url.trim();
+  if (!imageUrl) return '';
+
+  if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) {
+    return imageUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(imageUrl, getImageBaseUrl());
+
+    const isDxsImageHost =
+      parsedUrl.host === '192.168.2.147:24828' ||
+      parsedUrl.host === '1.254.24.170:24828' ||
+      parsedUrl.host === 'gapi.dxsplatform.com';
+
+    if (isDxsImageHost) {
+      return `${getImageBaseUrl()}${parsedUrl.pathname}${parsedUrl.search}`;
+    }
+
+    return imageUrl;
+  } catch {
+    return imageUrl;
+  }
+};
+
 // ─── [GLOBAL STYLES] ───
 const GlobalStyles = createGlobalStyle`
   @keyframes pulse-green-soft {
@@ -2484,7 +2527,8 @@ const ImageModal = ({
   imgUrl: string;
 }) => {
   const [imageLoadFailed, setImageLoadFailed] = useState(false);
-  const hasImageUrl = !!imgUrl?.trim();
+  const normalizedImgUrl = getImageUrlByCurrentPage(imgUrl);
+  const hasImageUrl = !!normalizedImgUrl.trim();
   const canShowImage = hasImageUrl && !imageLoadFailed;
 
   useEffect(() => {
@@ -2536,7 +2580,7 @@ const ImageModal = ({
         <ImageZoomFrame>
           {canShowImage ? (
             <ImageZoomImage
-              src={imgUrl}
+              src={normalizedImgUrl}
               alt={title}
               onError={() => setImageLoadFailed(true)}
             />
@@ -2810,7 +2854,16 @@ export default function GlassGapInspection() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://192.168.2.147:24828/api/DX_API000023');
+        const response = await fetch(
+          typeof window !== 'undefined' &&
+          (
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1' ||
+            window.location.pathname.includes('-dev')
+          )
+            ? 'https://gapi.dxsplatform.com/api/DX_API000023'
+            : 'http://192.168.2.147:24828/api/DX_API000023'
+        );
         const json = await response.json();
         
         if (json.success && json.data && json.data.length > 0) {
@@ -2871,7 +2924,7 @@ export default function GlassGapInspection() {
 
   const toggleSound = () => setAudioAllowed(prev => !prev);
   const layout = LAYOUT_CONFIGS[screenMode];
-  const guideImgUrl = "http://192.168.2.147:24828/images/DX_API000102/guide_img.png";
+  const guideImgUrl = getImageUrlByCurrentPage('/images/DX_API000102/guide_img.png');
 
   const cornerItems = useMemo<CornerItem[]>(() => ([
     {
@@ -2880,7 +2933,7 @@ export default function GlassGapInspection() {
       title: '좌측 상단',
       camera: 'camera-1',
       status: apiData ? apiData.LABEL001 : '-',
-      imgUrl: apiData ? apiData.FILEPATH3 : '',
+      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH3) : '',
       anchor: { left: `${cornerAnchors.tl.left}%`, top: `${cornerAnchors.tl.top}%` },
       description: '상단 좌측 모서리 확대'
     },
@@ -2890,7 +2943,7 @@ export default function GlassGapInspection() {
       title: '우측 상단',
       camera: 'camera-2',
       status: apiData ? apiData.LABEL002 : '-',
-      imgUrl: apiData ? apiData.FILEPATH2 : '',
+      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH2) : '',
       anchor: { left: `${cornerAnchors.tr.left}%`, top: `${cornerAnchors.tr.top}%` },
       description: '상단 우측 모서리 확대'
     },
@@ -2900,7 +2953,7 @@ export default function GlassGapInspection() {
       title: '좌측 하단',
       camera: 'camera-4',
       status: apiData ? apiData.LABEL003 : '-',
-      imgUrl: apiData ? apiData.FILEPATH1 : '',
+      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH1) : '',
       anchor: { left: `${cornerAnchors.bl.left}%`, top: `${cornerAnchors.bl.top}%` },
       description: '하단 좌측 모서리 확대'
     },
@@ -2910,7 +2963,7 @@ export default function GlassGapInspection() {
       title: '우측 하단',
       camera: 'camera-3',
       status: apiData ? apiData.LABEL004 : '-',
-      imgUrl: apiData ? apiData.FILEPATH4 : '',
+      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH4) : '',
       anchor: { left: `${cornerAnchors.br.left}%`, top: `${cornerAnchors.br.top}%` },
       description: '하단 우측 모서리 확대'
     },
