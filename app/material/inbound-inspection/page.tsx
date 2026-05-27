@@ -661,7 +661,7 @@ export default function DashboardPage() {
 
   // ✨ 수정: 컴포넌트 마운트(화면 진입) 시 바로 manualTrigger() 실행
   useEffect(() => {
-    manualTrigger();
+    // manualTrigger();
   }, [manualTrigger]);
 
   useEffect(() => {
