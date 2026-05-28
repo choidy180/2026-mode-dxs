@@ -7,6 +7,7 @@ import {
   FiCheck, FiMinus, FiPlayCircle, FiArrowUp, FiX, FiPackage
 } from 'react-icons/fi';
 import { FaRobot } from 'react-icons/fa';
+import { useVehicleImageUrl } from '@/hooks/useVehicleImageUrl';
 
 // --- 1. Global Style ---
 const GlobalStyle = createGlobalStyle`
@@ -52,11 +53,11 @@ interface WorkingData { NoWkOrd: string; ItemName: string; OrdQty: number; ProdQ
 interface ApiResult { success: boolean; working_data: WorkingData; camData: CamDataMap; }
 interface FlattenedSlotItem extends SlotDetail { camId: string; }
 
-const CAM_DATA_API_URL = 'http://192.168.2.147:24828/api/DX_API000018';
+const CAM_DATA_API_URL = useVehicleImageUrl('http://192.168.2.147:24828/api/DX_API000018');
 
 const CAMERAS = [
-  { camId: '207', title: 'GR5 가조립 자재 #1', wsUrl: 'ws://192.168.2.147:8132' },
-  { camId: '218', title: 'GR5 가조립 자재 #2', wsUrl: 'ws://192.168.2.147:8133' },
+  { camId: '207', title: 'GR5 가조립 자재 #1', wsUrl: useVehicleImageUrl('ws://192.168.2.147:8132') },
+  { camId: '218', title: 'GR5 가조립 자재 #2', wsUrl: useVehicleImageUrl('ws://192.168.2.147:8133') },
 ] as const;
 
 const getCamOccupancyPercent = (cameraData?: CameraData) => {

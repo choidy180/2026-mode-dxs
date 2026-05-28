@@ -11,7 +11,6 @@ import {
   Info
 } from 'lucide-react';
 import styled, { createGlobalStyle } from 'styled-components';
-import { useVehicleImageUrl } from '@/hooks/useVehicleImageUrl';
 
 // ─── [CONFIG] 설정 및 테마 ───
 type ScreenMode = 'FHD' | 'QHD';
@@ -176,33 +175,40 @@ const formatStatusLabel = (status?: string) => {
   return normalized && normalized !== '-' ? normalized : '대기';
 };
 
-const getImageBaseUrl = () => {
-  if (
-    typeof window !== 'undefined' &&
-    (
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.pathname.includes('-dev')
-    )
-  ) {
-    return 'https://gapi.dxsplatform.com';
-  }
+const DX_IMAGE_BASE_URL = (
+  process.env.NEXT_PUBLIC_DX_IMAGE_BASE_URL || 'https://gapi.dxsplatform.com'
+).replace(/\/$/, '');
 
-  return 'http://192.168.2.147:24828';
+const DX_API_BASE_URL = (
+  process.env.NEXT_PUBLIC_DX_API_BASE_URL || DX_IMAGE_BASE_URL
+).replace(/\/$/, '');
+
+const normalizeImageUrlText = (url?: string | null) => {
+  const imageUrl = (url ?? '').trim().replace(/^['"]|['"]$/g, '');
+  if (!imageUrl) return '';
+
+  return imageUrl.replace(/\\/g, '/');
 };
 
 const getImageUrlByCurrentPage = (url?: string | null) => {
-  if (!url) return '';
-
-  const imageUrl = url.trim();
+  const imageUrl = normalizeImageUrlText(url);
   if (!imageUrl) return '';
 
   if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) {
     return imageUrl;
   }
 
+  const imagesPathIndex = imageUrl.indexOf('/images/');
+  if (imagesPathIndex >= 0) {
+    return `${DX_IMAGE_BASE_URL}${imageUrl.slice(imagesPathIndex)}`;
+  }
+
+  if (/^images\//i.test(imageUrl)) {
+    return `${DX_IMAGE_BASE_URL}/${imageUrl}`;
+  }
+
   try {
-    const parsedUrl = new URL(imageUrl, getImageBaseUrl());
+    const parsedUrl = new URL(imageUrl, `${DX_IMAGE_BASE_URL}/`);
 
     const isDxsImageHost =
       parsedUrl.host === '192.168.2.147:24828' ||
@@ -210,13 +216,36 @@ const getImageUrlByCurrentPage = (url?: string | null) => {
       parsedUrl.host === 'gapi.dxsplatform.com';
 
     if (isDxsImageHost) {
-      return `${getImageBaseUrl()}${parsedUrl.pathname}${parsedUrl.search}`;
+      return `${DX_IMAGE_BASE_URL}${parsedUrl.pathname}${parsedUrl.search}`;
     }
 
-    return imageUrl;
+    return parsedUrl.href;
   } catch {
     return imageUrl;
   }
+};
+
+const getImageUrlWithVersion = (url?: string | null, version?: string | number | null) => {
+  const normalizedUrl = getImageUrlByCurrentPage(url);
+  const versionText = String(version ?? '').trim();
+
+  if (!normalizedUrl || !versionText || normalizedUrl.startsWith('data:') || normalizedUrl.startsWith('blob:')) {
+    return normalizedUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedUrl, `${DX_IMAGE_BASE_URL}/`);
+    parsedUrl.searchParams.set('_v', versionText);
+    return parsedUrl.href;
+  } catch {
+    const separator = normalizedUrl.includes('?') ? '&' : '?';
+    return `${normalizedUrl}${separator}_v=${encodeURIComponent(versionText)}`;
+  }
+};
+
+const toCssUrl = (url?: string) => {
+  if (!url) return '';
+  return `url("${url.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`;
 };
 
 // ─── [GLOBAL STYLES] ───
@@ -634,7 +663,16 @@ const CameraRail = styled.div`
   gap: clamp(10px, 0.8vw, 14px);
 `;
 
-const CameraTile = styled.button<{ $tone: InspectionTone; $active: boolean; $imgUrl: string }>`
+const CameraTile = styled.button<{
+  $tone: InspectionTone;
+  $active: boolean;
+  $imgUrl: string;
+  $fallbackImgUrl: string;
+  $imgSize: string;
+  $fallbackImgSize: string;
+  $imgPosition: string;
+  $fallbackImgPosition: string;
+}>`
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -642,9 +680,24 @@ const CameraTile = styled.button<{ $tone: InspectionTone; $active: boolean; $img
   border-radius: 10px;
   border: 1px solid ${({ $tone, $active }) => $active ? getToneColor($tone) : $tone === 'wait' ? theme.border : `${getToneColor($tone)}45`};
   background-color: #F2F4F7;
-  background-image: ${({ $imgUrl }) => $imgUrl ? `url(${$imgUrl})` : 'none'};
-  background-size: cover;
-  background-position: center;
+  background-image: ${({ $imgUrl, $fallbackImgUrl }) => {
+    const layers = [$imgUrl, $fallbackImgUrl]
+      .filter((url): url is string => Boolean(url))
+      .map((url) => toCssUrl(url));
+    return layers.length > 0 ? layers.join(', ') : 'none';
+  }};
+  background-size: ${({ $imgUrl, $fallbackImgUrl, $imgSize, $fallbackImgSize }) => {
+    const layers: string[] = [];
+    if ($imgUrl) layers.push($imgSize);
+    if ($fallbackImgUrl) layers.push($fallbackImgSize);
+    return layers.length > 0 ? layers.join(', ') : 'cover';
+  }};
+  background-position: ${({ $imgUrl, $fallbackImgUrl, $imgPosition, $fallbackImgPosition }) => {
+    const layers: string[] = [];
+    if ($imgUrl) layers.push($imgPosition);
+    if ($fallbackImgUrl) layers.push($fallbackImgPosition);
+    return layers.length > 0 ? layers.join(', ') : 'center';
+  }};
   background-repeat: no-repeat;
   box-shadow: ${({ $active }) => $active ? '0 24px 56px rgba(15, 23, 42, 0.16)' : '0 14px 36px rgba(15, 23, 42, 0.08)'};
   cursor: pointer;
@@ -659,6 +712,14 @@ const CameraTile = styled.button<{ $tone: InspectionTone; $active: boolean; $img
     border-color: ${({ $tone }) => getToneColor($tone)};
     box-shadow: 0 24px 58px rgba(15, 23, 42, 0.15);
   }
+`;
+
+const CameraTilePreloader = styled.img`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 `;
 
 const CameraTileHeader = styled.div`
@@ -1897,7 +1958,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_1", time: "09:12:34", model: "GL-100", wo: "WO-A901", result: "ok", detail: "전 항목 정상 판정 완료. 특이사항 없음.",
         images: {
-          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
+          main: getImageUrlByCurrentPage("/images/DX_API000102/guide_img.png"),
           a1: "https://dummyimage.com/960x540/F8FAFC/475467&text=A1+Normal",
           a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
           a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
@@ -1907,7 +1968,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_2", time: "10:05:22", model: "GL-100", wo: "WO-A901", result: "ng", detail: "좌측 상단(A1) 모서리 들뜸 현상 감지됨. 재검사 요망.",
         images: {
-          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
+          main: getImageUrlByCurrentPage("/images/DX_API000102/guide_img.png"),
           a1: "https://dummyimage.com/960x540/FFF1F2/E11D2E&text=A1+Defect",
           a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
           a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
@@ -1917,7 +1978,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_3", time: "13:30:00", model: "GL-PRO", wo: "WO-B122", result: "ok", detail: "전 항목 정상 판정 완료.",
         images: {
-          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
+          main: getImageUrlByCurrentPage("/images/DX_API000102/guide_img.png"),
           a1: "https://dummyimage.com/960x540/F8FAFC/475467&text=A1+Normal",
           a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
           a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
@@ -1927,7 +1988,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       { 
         id: "log_4", time: "15:45:10", model: "GL-PRO", wo: "WO-B122", result: "ng", detail: "우측 하단(A4) 틈새 불량 (오차 범위 초과).",
         images: {
-          main: "http://192.168.2.147:24828/images/DX_API000102/guide_img.png",
+          main: getImageUrlByCurrentPage("/images/DX_API000102/guide_img.png"),
           a1: "https://dummyimage.com/960x540/F8FAFC/475467&text=A1+Normal",
           a2: "https://dummyimage.com/960x540/F8FAFC/475467&text=A2+Normal",
           a3: "https://dummyimage.com/960x540/F8FAFC/475467&text=A3+Normal",
@@ -2581,9 +2642,21 @@ const ImageModal = ({
         <ImageZoomFrame>
           {canShowImage ? (
             <ImageZoomImage
+              key={normalizedImgUrl}
               src={normalizedImgUrl}
               alt={title}
-              onError={() => setImageLoadFailed(true)}
+              onError={(event) => {
+                const fallbackUrl = getImageUrlByCurrentPage('/images/DX_API000102/guide_img.png');
+                const fallbackAlreadyApplied = event.currentTarget.dataset.fallbackApplied === 'true';
+
+                if (!fallbackAlreadyApplied && fallbackUrl && normalizedImgUrl !== fallbackUrl) {
+                  event.currentTarget.dataset.fallbackApplied = 'true';
+                  event.currentTarget.src = fallbackUrl;
+                  return;
+                }
+
+                setImageLoadFailed(true);
+              }}
             />
           ) : (
             <ImageZoomEmptyState>
@@ -2690,6 +2763,8 @@ export default function GlassGapInspection() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false); 
   const [isEmptyStateClosed, setIsEmptyStateClosed] = useState(false); 
   const [activeCorner, setActiveCorner] = useState<CornerKey | null>(null);
+  const [loadedCameraImages, setLoadedCameraImages] = useState<Partial<Record<CornerKey, string>>>({});
+  const [failedCameraImages, setFailedCameraImages] = useState<Partial<Record<CornerKey, string>>>({});
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [inspectionViewType, setInspectionViewType] = useState<InspectionViewType>('split');
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
@@ -2705,6 +2780,7 @@ export default function GlassGapInspection() {
   const suppressNextHotspotClickRef = useRef(false);
   const hotspotRefs = useRef<Record<CornerKey, HTMLButtonElement | null>>({ tl: null, tr: null, bl: null, br: null });
   const cameraTileRefs = useRef<Record<CornerKey, HTMLButtonElement | null>>({ tl: null, tr: null, bl: null, br: null });
+  const cameraRetryTimeoutsRef = useRef<Partial<Record<CornerKey, number>>>({});
 
   const handleNavigateHome = () => {
     router.push('/');
@@ -2713,6 +2789,63 @@ export default function GlassGapInspection() {
   const handleImageClick = (title: string, url: string) => {
     setModalInfo({ isOpen: true, title, imgUrl: url ?? '' });
   };
+
+  const handleCameraPreloadLoad = useCallback((key: CornerKey, url: string) => {
+    const retryTimeoutId = cameraRetryTimeoutsRef.current[key];
+    if (retryTimeoutId && typeof window !== 'undefined') {
+      window.clearTimeout(retryTimeoutId);
+      delete cameraRetryTimeoutsRef.current[key];
+    }
+
+    setFailedCameraImages((prev) => {
+      if (prev[key] !== url) return prev;
+
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+    setLoadedCameraImages((prev) => (prev[key] === url ? prev : { ...prev, [key]: url }));
+  }, []);
+
+  const handleCameraPreloadError = useCallback((key: CornerKey, url: string) => {
+    setLoadedCameraImages((prev) => {
+      if (prev[key] !== url) return prev;
+
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+    setFailedCameraImages((prev) => (prev[key] === url ? prev : { ...prev, [key]: url }));
+
+    if (typeof window === 'undefined') return;
+
+    const retryTimeoutId = cameraRetryTimeoutsRef.current[key];
+    if (retryTimeoutId) window.clearTimeout(retryTimeoutId);
+
+    cameraRetryTimeoutsRef.current[key] = window.setTimeout(() => {
+      setFailedCameraImages((prev) => {
+        if (prev[key] !== url) return prev;
+
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+
+      delete cameraRetryTimeoutsRef.current[key];
+    }, 8000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window === 'undefined') return;
+
+      Object.values(cameraRetryTimeoutsRef.current).forEach((timeoutId) => {
+        if (typeof timeoutId === 'number') window.clearTimeout(timeoutId);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -2855,16 +2988,9 @@ export default function GlassGapInspection() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(
-          typeof window !== 'undefined' &&
-          (
-            window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1' ||
-            window.location.pathname.includes('-dev')
-          )
-            ? 'https://gapi.dxsplatform.com/api/DX_API000023'
-            : 'http://192.168.2.147:24828/api/DX_API000023'
-        );
+        const response = await fetch(`${DX_API_BASE_URL}/api/DX_API000023`, {
+          cache: 'no-store',
+        });
         const json = await response.json();
         
         if (json.success && json.data && json.data.length > 0) {
@@ -2925,8 +3051,14 @@ export default function GlassGapInspection() {
 
   const toggleSound = () => setAudioAllowed(prev => !prev);
   const layout = LAYOUT_CONFIGS[screenMode];
-  const guideImgUrl = getImageUrlByCurrentPage('/images/DX_API000102/guide_img.png');
+  const guideImageSrc = getImageUrlByCurrentPage('/images/DX_API000102/guide_img.png');
+  const imageVersionKey = apiData
+    ? [apiData.TIMEVALUE2, apiData.TIMEVALUE, apiData.COUNT_NUM, apiData.WO].filter(Boolean).join('_')
+    : '';
 
+  // 설비의 실제 카메라/모서리 매핑을 유지했습니다.
+  // API가 FILEPATH1=Camera1, FILEPATH2=Camera2, FILEPATH3=Camera3, FILEPATH4=Camera4 순서라면
+  // 아래 imgUrl 매핑만 1:1로 바꾸면 됩니다.
   const cornerItems = useMemo<CornerItem[]>(() => ([
     {
       key: 'tl',
@@ -2934,7 +3066,7 @@ export default function GlassGapInspection() {
       title: '좌측 상단',
       camera: 'camera-1',
       status: apiData ? apiData.LABEL001 : '-',
-      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH3) : '',
+      imgUrl: apiData ? getImageUrlWithVersion(apiData.FILEPATH3, imageVersionKey) : '',
       anchor: { left: `${cornerAnchors.tl.left}%`, top: `${cornerAnchors.tl.top}%` },
       description: '상단 좌측 모서리 확대'
     },
@@ -2944,7 +3076,7 @@ export default function GlassGapInspection() {
       title: '우측 상단',
       camera: 'camera-2',
       status: apiData ? apiData.LABEL002 : '-',
-      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH2) : '',
+      imgUrl: apiData ? getImageUrlWithVersion(apiData.FILEPATH2, imageVersionKey) : '',
       anchor: { left: `${cornerAnchors.tr.left}%`, top: `${cornerAnchors.tr.top}%` },
       description: '상단 우측 모서리 확대'
     },
@@ -2954,7 +3086,7 @@ export default function GlassGapInspection() {
       title: '좌측 하단',
       camera: 'camera-4',
       status: apiData ? apiData.LABEL003 : '-',
-      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH1) : '',
+      imgUrl: apiData ? getImageUrlWithVersion(apiData.FILEPATH1, imageVersionKey) : '',
       anchor: { left: `${cornerAnchors.bl.left}%`, top: `${cornerAnchors.bl.top}%` },
       description: '하단 좌측 모서리 확대'
     },
@@ -2964,11 +3096,11 @@ export default function GlassGapInspection() {
       title: '우측 하단',
       camera: 'camera-3',
       status: apiData ? apiData.LABEL004 : '-',
-      imgUrl: apiData ? getImageUrlByCurrentPage(apiData.FILEPATH4) : '',
+      imgUrl: apiData ? getImageUrlWithVersion(apiData.FILEPATH4, imageVersionKey) : '',
       anchor: { left: `${cornerAnchors.br.left}%`, top: `${cornerAnchors.br.top}%` },
       description: '하단 우측 모서리 확대'
     },
-  ]), [apiData, cornerAnchors]);
+  ]), [apiData, cornerAnchors, imageVersionKey]);
 
   const resultStr = apiData?.RESULT || '';
   const isPass = resultStr === '정상' || resultStr.toUpperCase() === 'OK';
@@ -3018,13 +3150,17 @@ export default function GlassGapInspection() {
   const renderGuideViewport = (solo = false) => (
     <CenterGuideViewport ref={guideViewportRef} $solo={solo}>
       <GuideImage
-        src={useVehicleImageUrl(guideImgUrl)}
+        src={guideImageSrc}
         alt="Main Glass Guide"
         draggable={false}
+        onError={(event) => {
+          console.error('Guide image load failed:', event.currentTarget.currentSrc);
+        }}
       />
       {cornerItems.map((item) => {
         const tone = getInspectionTone(item.status);
         const isActive = activeCorner === item.key;
+        const detailImageUrl = item.imgUrl || guideImageSrc;
 
         return (
           <CornerHotspot
@@ -3045,7 +3181,7 @@ export default function GlassGapInspection() {
                 return;
               }
 
-              handleImageClick(`${item.title} (${item.camera})`, item.imgUrl);
+              handleImageClick(`${item.title} (${item.camera})`, detailImageUrl);
             }}
             title={`${item.title} 확대 이미지 보기 / 드래그로 위치 조정`}
             aria-label={`${item.title} 확대 이미지 보기 / 드래그로 위치 조정`}
@@ -3061,9 +3197,16 @@ export default function GlassGapInspection() {
     const tone = getInspectionTone(item.status);
     const isActive = activeCorner === item.key;
     const modalTitle = `${item.title} (${item.camera})`;
+    const candidateCameraUrl = item.imgUrl || '';
+    const isCameraUrlFailed = !!candidateCameraUrl && failedCameraImages[item.key] === candidateCameraUrl;
+    const isCameraUrlLoaded = !!candidateCameraUrl && loadedCameraImages[item.key] === candidateCameraUrl && !isCameraUrlFailed;
+    const cameraPreviewUrl = isCameraUrlLoaded ? candidateCameraUrl : '';
+    const cameraFallbackUrl = guideImageSrc;
+    const cameraDetailUrl = cameraPreviewUrl || cameraFallbackUrl;
+    const cameraFallbackPosition = `${cornerAnchors[item.key].left}% ${cornerAnchors[item.key].top}%`;
 
     const openCameraImage = () => {
-      handleImageClick(modalTitle, item.imgUrl);
+      handleImageClick(modalTitle, cameraDetailUrl);
     };
 
     const handleCameraClick = () => {
@@ -3090,13 +3233,27 @@ export default function GlassGapInspection() {
         type="button"
         $tone={tone}
         $active={isActive}
-        $imgUrl={useVehicleImageUrl(item.imgUrl)}
+        $imgUrl={cameraPreviewUrl}
+        $fallbackImgUrl={cameraFallbackUrl}
+        $imgSize="cover"
+        $fallbackImgSize="260%"
+        $imgPosition="center"
+        $fallbackImgPosition={cameraFallbackPosition}
         onMouseEnter={() => setActiveCorner(item.key)}
         onMouseLeave={() => setActiveCorner(null)}
         onClick={handleCameraClick}
         aria-label={`${item.title} 카메라 확대 이미지 보기`}
       >
-        {!item.imgUrl && <NoImageText>이미지 대기</NoImageText>}
+        {candidateCameraUrl && !isCameraUrlFailed && (
+          <CameraTilePreloader
+            src={candidateCameraUrl}
+            alt=""
+            aria-hidden="true"
+            onLoad={() => handleCameraPreloadLoad(item.key, candidateCameraUrl)}
+            onError={() => handleCameraPreloadError(item.key, candidateCameraUrl)}
+          />
+        )}
+        {!cameraDetailUrl && <NoImageText>이미지 대기</NoImageText>}
         <CameraTileHeader>
           <CameraTileCode $tone={tone}>{item.code}</CameraTileCode>
           <CameraTileStatus $tone={tone}>{formatStatusLabel(item.status)}</CameraTileStatus>

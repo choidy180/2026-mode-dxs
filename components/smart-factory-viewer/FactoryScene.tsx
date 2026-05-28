@@ -102,6 +102,19 @@ const CART_LABEL_OFFSETS: Partial<Record<string, Vector3Tuple>> = {
   // 'M-01': [0.1, 1.1, 0],
   // 'M-02': [-0.1, 1.05, 0],
 };
+
+const isAiLabelError = (aiLabel?: string | null) => {
+  const normalizedAiLabel = aiLabel?.trim();
+
+  if (!normalizedAiLabel) return false;
+
+  // ===== [임시 수정] AI_LABEL '불량'은 에러 상태에서 제외 =====
+  // 기존 코드:
+  // return normalizedAiLabel !== '정상';
+  return normalizedAiLabel !== '정상' && normalizedAiLabel !== '불량';
+  // ===== [임시 수정 끝] =====
+};
+
 function SceneCameraController({ config }: { config: SceneViewConfig }) {
   const { camera } = useThree();
   const controlsRef = useRef<any>(null);
@@ -269,13 +282,18 @@ const MovingLabel = React.memo(({
 
     const matched = apiData.find((item) => Number.parseInt(item.대차번호, 10) === labelIndex + 1);
 
-    if (matched && matched.AI_LABEL === '정상') {
+    // ===== [임시 수정] AI_LABEL '불량'은 에러 메시지 표시 대상에서 제외 =====
+    // 기존 코드:
+    // if (matched && matched.AI_LABEL === '정상') {
+    // 기존 에러 표시 코드:
     // if (matched && matched.AI_LABEL !== '정상') {
+    if (matched && isAiLabelError(matched.AI_LABEL)) {
       return {
         problem: matched.AI_LABEL,
         solution: '관리자 점검 요망',
       };
     }
+    // ===== [임시 수정 끝] =====
 
     return {
       problem: '시스템 오류 감지',
@@ -346,7 +364,11 @@ function InteractiveJigModel({ url, apiData, onHoverChange, onInjectUnitChange }
 
   const activeErrorIndices = useMemo(() => {
     return apiData
-      .filter((item) => item.AI_LABEL !== '정상')
+      // ===== [임시 수정] AI_LABEL '불량'은 에러 라벨/깜빡임 대상에서 제외 =====
+      // 기존 코드:
+      // .filter((item) => item.AI_LABEL !== '정상')
+      .filter((item) => isAiLabelError(item.AI_LABEL))
+      // ===== [임시 수정 끝] =====
       .map((item) => Number.parseInt(item.대차번호, 10) - 1);
   }, [apiData]);
 
@@ -537,7 +559,12 @@ function InteractiveJigModel({ url, apiData, onHoverChange, onInjectUnitChange }
 
     const name = `M-${String(foundLabelIndex + 1).padStart(2, '0')}`;
     const matchedData = apiData.find((item) => Number.parseInt(item.대차번호, 10) === foundLabelIndex + 1);
-    const isError = matchedData ? matchedData.AI_LABEL !== '정상' : false;
+
+    // ===== [임시 수정] AI_LABEL '불량'은 hover 상태에서도 error로 처리하지 않음 =====
+    // 기존 코드:
+    // const isError = matchedData ? matchedData.AI_LABEL !== '정상' : false;
+    const isError = matchedData ? isAiLabelError(matchedData.AI_LABEL) : false;
+    // ===== [임시 수정 끝] =====
 
     onHoverChange({
       name,
