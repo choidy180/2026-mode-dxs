@@ -269,7 +269,8 @@ const MovingLabel = React.memo(({
 
     const matched = apiData.find((item) => Number.parseInt(item.대차번호, 10) === labelIndex + 1);
 
-    if (matched && matched.AI_LABEL !== '정상') {
+    if (matched && matched.AI_LABEL === '정상') {
+    // if (matched && matched.AI_LABEL !== '정상') {
       return {
         problem: matched.AI_LABEL,
         solution: '관리자 점검 요망',

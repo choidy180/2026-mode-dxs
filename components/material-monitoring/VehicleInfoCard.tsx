@@ -1,6 +1,7 @@
 import { Loader2, Search } from 'lucide-react';
 import { CardTitle, InfoRow, MiniEmptyState, TopCard, VehicleImagePlaceholder } from '@/styles/styles';
 import type { VehicleSlotDetail } from '@/types/material-monitoring';
+import { useVehicleImageUrl } from '@/hooks/useVehicleImageUrl';
 
 type Props = {
   vehicleInfo: VehicleSlotDetail | null;
@@ -18,10 +19,11 @@ export default function VehicleInfoCard({ vehicleInfo, isLoaded, isLoading, dwel
         <div style={{ padding: '0 20px 20px' }}>
           <VehicleImagePlaceholder style={{ height: 180, marginBottom: 20, overflow: 'hidden', borderRadius: 12 }}>
             <img
-              src={vehicleInfo.FILEPATH}
+              src={useVehicleImageUrl(vehicleInfo.FILEPATH)}
               alt="Vehicle"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={event => { event.currentTarget.style.display = 'none'; }}
+              onClick={()=>console.log(vehicleInfo)}
             />
           </VehicleImagePlaceholder>
 

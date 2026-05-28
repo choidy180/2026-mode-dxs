@@ -11,6 +11,7 @@ import {
   Info
 } from 'lucide-react';
 import styled, { createGlobalStyle } from 'styled-components';
+import { useVehicleImageUrl } from '@/hooks/useVehicleImageUrl';
 
 // ─── [CONFIG] 설정 및 테마 ───
 type ScreenMode = 'FHD' | 'QHD';
@@ -3017,7 +3018,7 @@ export default function GlassGapInspection() {
   const renderGuideViewport = (solo = false) => (
     <CenterGuideViewport ref={guideViewportRef} $solo={solo}>
       <GuideImage
-        src={guideImgUrl}
+        src={useVehicleImageUrl(guideImgUrl)}
         alt="Main Glass Guide"
         draggable={false}
       />
@@ -3089,7 +3090,7 @@ export default function GlassGapInspection() {
         type="button"
         $tone={tone}
         $active={isActive}
-        $imgUrl={item.imgUrl}
+        $imgUrl={useVehicleImageUrl(item.imgUrl)}
         onMouseEnter={() => setActiveCorner(item.key)}
         onMouseLeave={() => setActiveCorner(null)}
         onClick={handleCameraClick}

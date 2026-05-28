@@ -10,6 +10,7 @@ import {
   CornerHotspot,
   GuideImage,
 } from '@/styles/sixPointInspection.styles';
+import { useVehicleImageUrl } from '@/hooks/useVehicleImageUrl';
 
 interface GuideViewportProps {
   activeCorner: CornerKey | null;
@@ -112,7 +113,7 @@ export default function GuideViewport({
 
   return (
     <CenterGuideViewport ref={viewportRef} $solo={solo}>
-      <GuideImage src={guideImgUrl} alt="Main Glass Guide" draggable={false} />
+      <GuideImage src={useVehicleImageUrl(guideImgUrl)} alt="Main Glass Guide" draggable={false} />
       {cornerItems.map((item) => {
         const tone = getInspectionTone(item.status);
         const active = activeCorner === item.key;

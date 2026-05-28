@@ -540,7 +540,7 @@ const MaterialListModal = ({ isOpen, onClose, data }: { isOpen: boolean; onClose
 // --- Main Page ---
 
 export default function DashboardPage() {
-  const [streamHostsInput, setStreamHostsInput] = useState("10.172.167.185, 192.168.0.54");
+  const [streamHostsInput, setStreamHostsInput] = useState("10.172.167.185, 192.168.0.122");
   
   const [connectedIp, setConnectedIp] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
