@@ -129,7 +129,7 @@ export const PageContainer = styled.div<{ $mode: ViewerUiMode }>`
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: calc(100vh - 64px);
+  height: 100vh;
   min-height: 900px;
   overflow: hidden;
   color: ${({ $mode }) => modeTheme($mode).textMain};

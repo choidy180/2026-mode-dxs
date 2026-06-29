@@ -40,7 +40,7 @@ const GlobalStyle = createGlobalStyle`
 
 const PageWrapper = styled.div`
   width: 100vw;
-  height: calc(100vh - 64px);
+  height: 100vh;
   position: relative;
   display: flex;
   justify-content: center;

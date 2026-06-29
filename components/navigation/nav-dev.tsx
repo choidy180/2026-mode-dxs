@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import Link from 'next/link'; 
+import Link from 'next/link';
 import { FiBell, FiSettings, FiGrid } from 'react-icons/fi';
 
 // -------------------------------------------------------------------------
@@ -47,7 +47,7 @@ const NavWrapper = styled.div`
   width: 100%;
   height: 64px;
   /* ✅ NavWrapper 자체는 sticky로 유지하되, 자식들이 튀어나갈 수 있게 visible 설정 */
-  overflow: visible; 
+  overflow: visible;
   z-index: 9999;
   background: transparent;
 `;
@@ -66,8 +66,8 @@ const NavContainer = styled.nav`
 
 const NavInner = styled.div`
   width: 100%;
-  max-width: 1680px; 
-  padding: 0 24px;   
+  max-width: 1680px;
+  padding: 0 24px;
   height: 100%;
   display: flex;
   align-items: center;
@@ -100,14 +100,14 @@ const LogoArea = styled.div`
 const MenuArea = styled.div`
   display: flex;
   align-items: center;
-  gap: 4px; 
-  position: relative; 
+  gap: 4px;
+  position: relative;
   height: 100%;
 `;
 
 const MenuGlider = styled.div`
   position: absolute;
-  height: 36px; 
+  height: 36px;
   background-color: #FFF0F3;
   border-radius: 8px;
   z-index: 0;
@@ -118,7 +118,7 @@ const MenuGlider = styled.div`
 
 const MenuItem = styled.button<{ $isActive?: boolean }>`
   border: none;
-  background: transparent; 
+  background: transparent;
   color: ${props => props.$isActive ? '#D31145' : '#555'};
   padding: 0 20px;
   border-radius: 8px;
@@ -126,7 +126,7 @@ const MenuItem = styled.button<{ $isActive?: boolean }>`
   font-weight: 600;
   cursor: pointer;
   position: relative;
-  z-index: 1; 
+  z-index: 1;
   transition: color 0.3s ease;
   font-family: inherit;
   height: 36px;
@@ -149,8 +149,8 @@ const IconActions = styled.div`
   svg {
     cursor: pointer;
     transition: color 0.2s, transform 0.2s;
-    &:hover { 
-      color: #111; 
+    &:hover {
+      color: #111;
       transform: rotate(15deg);
     }
   }
@@ -158,13 +158,13 @@ const IconActions = styled.div`
 
 // ✅ 중요 수정: position을 'fixed'로 변경하여 부모 영역(height:64px) 무시하고 화면에 그림
 const SubMenuWrapper = styled.div<{ $isOpen: boolean }>`
-  position: fixed; 
-  top: 64px;
+  position: fixed;
+  top: 0;
   left: 0;
   width: 100%;
-  
+
   /* ✅ 어떤 지도나 차트보다도 위에 오도록 강력한 z-index */
-  z-index: 20000; 
+  z-index: 20000;
 
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
@@ -176,8 +176,8 @@ const SubMenuWrapper = styled.div<{ $isOpen: boolean }>`
   grid-template-rows: ${props => (props.$isOpen ? '1fr' : '0fr')};
   opacity: ${props => (props.$isOpen ? '1' : '0')};
   visibility: ${props => (props.$isOpen ? 'visible' : 'hidden')};
-  
-  transition: 
+
+  transition:
     grid-template-rows 0.35s cubic-bezier(0.33, 1, 0.68, 1),
     opacity 0.35s ease,
     visibility 0.35s;
@@ -200,7 +200,7 @@ const SubMenuContent = styled.div<{ $isOpen: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 16px;
-  
+
   transform: translateY(${props => (props.$isOpen ? '0' : '-15px')});
   transition: transform 0.35s cubic-bezier(0.33, 1, 0.68, 1);
 `;
@@ -227,7 +227,7 @@ const SubMenuItemLink = styled(Link)`
   position: relative;
   transition: color 0.2s;
   cursor: pointer;
-  display: block; 
+  display: block;
 
   &::after {
     content: '';
@@ -251,19 +251,19 @@ const SubMenuItemLink = styled(Link)`
 // ✅ Overlay도 fixed로 변경
 const Overlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
-  top: 64px; 
+  top: 0;
   left: 0;
   width: 100vw;
-  height: calc(100vh - 64px);
-  background: rgba(0, 0, 0, 0.2); 
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(4px);
-  
+
   opacity: ${props => (props.$isOpen ? '1' : '0')};
   visibility: ${props => (props.$isOpen ? 'visible' : 'hidden')};
-  
+
   transition: opacity 0.3s ease, visibility 0.3s;
   z-index: 15000; /* 서브메뉴(20000) 보다는 낮게 */
-  
+
   pointer-events: ${props => (props.$isOpen ? 'auto' : 'none')};
 `;
 
@@ -279,7 +279,7 @@ interface TopNavigationProps {
 export default function TopNavigation({ activeTab, onTabChange }: TopNavigationProps) {
   const [gliderStyle, setGliderStyle] = useState({ left: 0, width: 0 });
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
-  
+
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const menus = Object.keys(subMenuData);
 
@@ -305,19 +305,19 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
 
   return (
     <NavWrapper onMouseLeave={() => setHoveredMenu(null)}>
-      
+
       <NavContainer>
         <NavInner>
           <LogoArea onClick={() => onTabChange("AI 운송관리")}>
             <div className="logo-icon"><FiGrid /></div>
             물류 자원 회전율 및 운송 최적화 관제
           </LogoArea>
-          
+
           <MenuArea>
             <MenuGlider style={{ left: gliderStyle.left, width: gliderStyle.width }} />
-            
+
             {menus.map((menu, index) => (
-              <MenuItem 
+              <MenuItem
                 key={menu}
                 ref={(el) => { tabsRef.current[index] = el }}
                 $isActive={activeTab === menu}
@@ -342,8 +342,8 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
             <SubMenuTitle>{hoveredMenu}</SubMenuTitle>
             <SubMenuList>
               {hoveredMenu && subMenuData[hoveredMenu]?.map((subItem) => (
-                <SubMenuItemLink 
-                  key={subItem.label} 
+                <SubMenuItemLink
+                  key={subItem.label}
                   href={subItem.href}
                 >
                   {subItem.label}
@@ -354,8 +354,8 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
         </SubMenuInner>
       </SubMenuWrapper>
 
-      <Overlay 
-        $isOpen={!!hoveredMenu} 
+      <Overlay
+        $isOpen={!!hoveredMenu}
         onMouseEnter={() => setHoveredMenu(null)}
       />
 

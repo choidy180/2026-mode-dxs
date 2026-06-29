@@ -1,6 +1,5 @@
 export const PORT = 8080;
 export const MAX_CAMERA_COUNT = 6;
-export const NAV_HEIGHT = 60;
 export const DEFAULT_STREAM_HOSTS = '10.172.167.185, 192.168.0.54';
 
 const DEV_API_BASE_URL = 'https://gapi.dxsplatform.com/api';

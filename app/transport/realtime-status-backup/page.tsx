@@ -601,7 +601,7 @@ export default function LocalMapPage() {
 // ─── [Styles] ───
 
 const Container = styled.div`
-  width: 100vw; height: calc(100vh - 64px); position: relative; overflow: hidden; background: #f8fafc; font-family: 'Pretendard', sans-serif;
+  width: 100vw; height: 100vh; position: relative; overflow: hidden; background: #f8fafc; font-family: 'Pretendard', sans-serif;
 `;
 
 const MapArea = styled.div`

@@ -79,8 +79,8 @@ export const GlobalFilmAttachmentStyles = createGlobalStyle`
 
 export const PageFrame = styled.div<{ $padding: string; $gap: string }>`
     width: 100%;
-    height: calc(100vh - 64px);
-    height: calc(100dvh - 64px);
+    height: 100vh;
+    height: 100dvh;
     min-height: 0;
     padding: ${({ $padding }) => $padding};
     display: flex;
@@ -577,7 +577,7 @@ export const ModalBackdrop = styled.div`
 
 export const ModalShell = styled.div`
     width: min(1180px, calc(100vw - 44px));
-    max-height: calc(100dvh - 44px);
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;

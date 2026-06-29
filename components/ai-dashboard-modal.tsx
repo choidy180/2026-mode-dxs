@@ -50,7 +50,6 @@ interface AIDashboardModalProps {
 }
 
 const ACCENT = '#ff3b30';
-const NAV_HEIGHT = 60;
 const PROCESS_STEPS = [
   { id: 1, label: '바코드 디코딩', icon: <ScanBarcode size={14} /> },
   { id: 2, label: 'ERP 조회', icon: <Cpu size={14} /> },
@@ -501,9 +500,8 @@ const ModalShell = styled(OverlayContainer)`
     z-index: 5000;
     width: 100vw;
     max-width: none;
-    height: calc(100vh - ${NAV_HEIGHT}px);
-    height: calc(100dvh - ${NAV_HEIGHT}px);
-    /* margin-top: ${NAV_HEIGHT}px; */
+    height: 100vh;
+    height: 100dvh;
     max-height: none;
     display: block;
     transform: none;

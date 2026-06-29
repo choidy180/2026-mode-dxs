@@ -339,7 +339,7 @@ const GlobalStyle = createGlobalStyle`
 
 const Container = styled(motion.div)`
   width: 100vw;
-  height: calc(100vh - 64px);
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: #F3F4F6;

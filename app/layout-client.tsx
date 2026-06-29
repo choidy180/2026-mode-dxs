@@ -4,7 +4,7 @@ import React, { useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import styled, { keyframes } from "styled-components";
 import { Monitor, MousePointer2 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 
 import TopNavigation from "@/components/navigation/top-navigation";
 import { useViewContext } from "./view-context";
@@ -116,19 +116,27 @@ const DesktopOnlyWrapper = styled.div`
 `;
 
 const NavContainer = styled.div`
-  position: relative;
+  position: fixed;
+  inset: 0 auto 0 0;
   z-index: 5000; 
+  width: 0;
+  height: 0;
 `;
 
 const MainContent = styled.main<{ $isHidden: boolean }>`
   position: relative;
   z-index: 1;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
+  margin-left: var(--app-sidebar-offset, 76px);
+  width: calc(100% - var(--app-sidebar-offset, 76px));
   
   /* 로딩 중일 때 컨텐츠 투명 처리 */
   opacity: ${(props) => (props.$isHidden ? 0 : 1)};
   pointer-events: ${(props) => (props.$isHidden ? "none" : "auto")};
-  transition: opacity 0.8s ease-in-out; 
+  transition:
+    margin-left 240ms ease,
+    width 240ms ease,
+    opacity 0.8s ease-in-out;
 `;
 
 // --------------------------------------------------------------------------

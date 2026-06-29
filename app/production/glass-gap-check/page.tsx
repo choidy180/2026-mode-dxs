@@ -302,8 +302,8 @@ const GlobalStyles = createGlobalStyle`
 // ─── [STYLED COMPONENTS] ───
 const Container = styled.div`
   width: 100%;
-  height: calc(100vh - 64px);
-  height: calc(100dvh - 64px);
+  height: 100vh;
+  height: 100dvh;
   min-height: 0;
   position: relative;
   display: flex;
@@ -2031,7 +2031,7 @@ const HistoryModal = ({ isOpen, onClose, onImageClick }: { isOpen: boolean; onCl
       <div 
         style={{
           width: 'calc(100vw - 40px)',
-          height: 'calc(100dvh - 28px)',
+          height: '100dvh',
           backgroundColor: '#FFFFFF',
           borderRadius: '10px',
           display: 'flex',

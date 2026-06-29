@@ -665,7 +665,7 @@ export const glareMove = keyframes`
 
 export const DashboardContainer = styled.div<{ $show: boolean }>`
   width: 100%;
-  height: calc(100vh - 64px);
+  height: 100vh;
   background-color: #f8fafc;
   padding: 20px;
   box-sizing: border-box;
@@ -975,7 +975,7 @@ export const VideoCard = styled(motion.div)<{ $isFullScreen: boolean }>`
       top: 0;
       left: 0;
       width: 100vw;
-      height: calc(100vh - 64px);
+      height: 100vh;
       z-index: 999;
       border-radius: 0;
       margin: 0;

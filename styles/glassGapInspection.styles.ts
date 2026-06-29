@@ -54,8 +54,8 @@ export const GlassGapGlobalStyles = createGlobalStyle`
 
 export const PageShell = styled.main`
   width: 100%;
-  height: calc(100vh - 64px);
-  height: calc(100dvh - 64px);
+  height: 100vh;
+  height: 100dvh;
   min-height: 0;
   position: relative;
   display: flex;
@@ -783,7 +783,7 @@ export const ModalBackdrop = styled.div`
 
 export const ModalShell = styled.div`
   width: min(1120px, 92vw);
-  max-height: calc(100dvh - 48px);
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1108,7 +1108,7 @@ export const SecondaryButton = styled.button`
 
 export const HistoryModalShell = styled.div`
   width: calc(100vw - 40px);
-  height: calc(100dvh - 28px);
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;

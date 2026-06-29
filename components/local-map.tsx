@@ -35,24 +35,24 @@ export interface VWorldMarker {
 const RED_ARROW_ICON = "data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='%23ef4444' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M12 2l7 19-7-4-7 4 7-19z'/%3e%3c/svg%3e";
 
 // [수정 2] 정적 위치 데이터에 고유 ID 추가
-const GOMOTEK_POS = { 
+const GOMOTEK_POS = {
   id: "loc-gomotek", // ✅ ID 추가
-  lat: 35.1487345915681, 
-  lng: 128.859885213411, 
-  title: "고모텍 부산", 
-  imageUrl: "/icons/GMT.png" 
+  lat: 35.1487345915681,
+  lng: 128.859885213411,
+  title: "고모텍 부산",
+  imageUrl: "/icons/GMT.png"
 };
 
-const LG_POS = { 
+const LG_POS = {
   id: "loc-lg", // ✅ ID 추가
-  lat: 35.2078432680624, 
-  lng: 128.666263957419, 
-  title: "LG전자", 
-  imageUrl: "/icons/LG.jpg" 
+  lat: 35.2078432680624,
+  lng: 128.666263957419,
+  title: "LG전자",
+  imageUrl: "/icons/LG.jpg"
 };
 
 const FACILITY_MARKERS: VWorldMarker[] = [
-  { ...GOMOTEK_POS, isFacility: true }, 
+  { ...GOMOTEK_POS, isFacility: true },
   { ...LG_POS, isFacility: true }
 ];
 
@@ -102,7 +102,7 @@ export default function LocalMapPage() {
 
     setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    
+
     const fetchWeather = async () => {
       try {
         const res = await axios.get('https://api.open-meteo.com/v1/forecast?latitude=35.22&longitude=128.68&current_weather=true&timezone=auto');
@@ -144,7 +144,7 @@ export default function LocalMapPage() {
           startLat: LG_POS.lat, startLng: LG_POS.lng,
           destLat: GOMOTEK_POS.lat, destLng: GOMOTEK_POS.lng,
           progress: progress,
-          imageUrl: RED_ARROW_ICON 
+          imageUrl: RED_ARROW_ICON
         });
       }
     }
@@ -166,7 +166,7 @@ export default function LocalMapPage() {
     if (!currentTime || !isSimulationOn || !focusedTruckId) return null;
     const vehicleMarker = mapMarkers.find(m => m.title === focusedTruckId);
     if (!vehicleMarker) return null;
-    
+
     const truckIndex = parseInt(vehicleMarker.title?.split('-')[1] || "1") - 1;
     const staticInfo = TRUCK_STATIC_INFO[truckIndex % TRUCK_STATIC_INFO.length];
     const progress = vehicleMarker.progress || 0;
@@ -394,24 +394,24 @@ export default function LocalMapPage() {
 // --------------------------------------------------------------------------
 
 const Container = styled.div`
-  width: 100vw; 
-  height: calc(100vh - 64px); 
+  width: 100vw;
+  height: 100vh;
   position: relative; /* 중요: 내부 absolute 요소의 기준점 */
-  overflow: hidden; 
-  background: #f8fafc; 
+  overflow: hidden;
+  background: #f8fafc;
   font-family: 'Pretendard', sans-serif;
 `;
 
 // [수정] 로딩 오버레이: fixed -> absolute로 변경하여 컨테이너 내부에 종속시킴
 const LoadingOverlay = styled.div<{ $visible: boolean }>`
   position: fixed; /* 중요: absolute에서 fixed로 변경 */
-  top: 64px;       /* 중요: 네비게이션 바 아래부터 시작 */
+  top: 0;       /* 중요: 네비게이션 바 아래부터 시작 */
   left: 0;
   width: 100vw;
-  height: calc(100vh - 64px);
-  
+  height: 100vh;
+
   z-index: 99999; /* 중요: 세상 모든 위젯보다 높게 설정 */
-  
+
   background: rgba(248, 250, 252, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -431,19 +431,19 @@ const LoadingContent = styled.div`
   display: flex; flex-direction: column; align-items: center; gap: 20px;
   animation: floatUp 0.8s ease-out;
   @keyframes floatUp { 0% { transform: translateY(10px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-  
-  .icon-area { 
-    width: 80px; height: 80px; background: #EFF6FF; border-radius: 50%; 
-    display: flex; align-items: center; justify-content: center; 
+
+  .icon-area {
+    width: 80px; height: 80px; background: #EFF6FF; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
   }
   .text-area { text-align: center; }
   h1 { font-size: 24px; font-weight: 800; color: #1e293b; margin: 0 0 8px 0; letter-spacing: -0.5px; }
   p { font-size: 14px; color: #64748b; font-weight: 500; margin: 0; }
   .progress-bar-bg { width: 300px; height: 6px; background: #cbd5e1; border-radius: 99px; overflow: hidden; position: relative; }
-  .progress-bar-fill { 
-    height: 100%; background: linear-gradient(90deg, #3B82F6, #2563EB); 
-    border-radius: 99px; animation: loadProgress 2s ease-in-out forwards; 
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #3B82F6, #2563EB);
+    border-radius: 99px; animation: loadProgress 2s ease-in-out forwards;
   }
   @keyframes loadProgress { from { width: 0%; } to { width: 100%; } }
   .status-text { font-size: 14px; color: #94a3b8; margin-top: -10px; }
@@ -452,7 +452,7 @@ const LoadingContent = styled.div`
 const MapWrapper = styled.div` position: absolute; inset: 0; z-index: 0; `;
 
 const GlassCard = styled.div`
-  background: rgba(255, 255, 255, 0.65); 
+  background: rgba(255, 255, 255, 0.65);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.5);
@@ -463,7 +463,7 @@ const GlassCard = styled.div`
 const slideDown = keyframes` from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } `;
 const TopLeftWidget = styled(GlassCard)`
   position: absolute; top: 10px; left: 20px; padding: 16px 20px; z-index: 1000;
-  width: 340px; 
+  width: 340px;
   animation: ${slideDown} 0.5s ease-out;
 
   @media (min-width: 2200px) {
@@ -485,9 +485,9 @@ const LiveBadge = styled.span`
 const KpiGrid = styled.div` display: flex; align-items: center; justify-content: space-between; `;
 
 const KpiItem = styled.div`
-  display: flex; flex-direction: column; gap: 2px; 
-  .label { font-size: 11px; color: #94a3b8; font-weight: 600; } 
-  .value { font-size: 18px; font-weight: 800; color: #1e293b; .unit { font-size: 12px; font-weight: 600; margin-left: 1px; color: #64748b; } } 
+  display: flex; flex-direction: column; gap: 2px;
+  .label { font-size: 11px; color: #94a3b8; font-weight: 600; }
+  .value { font-size: 18px; font-weight: 800; color: #1e293b; .unit { font-size: 12px; font-weight: 600; margin-left: 1px; color: #64748b; } }
   .trend { font-size: 10px; font-weight: 700; } .trend.up { color: #10b981; } .trend.neutral { color: #94a3b8; }
 
   @media (min-width: 2200px) {
@@ -508,47 +508,47 @@ const RightColumn = styled.div`
 `;
 
 const StatusWidget = styled(GlassCard)`
-  padding: 16px; display: flex; flex-direction: column; gap: 10px; 
+  padding: 16px; display: flex; flex-direction: column; gap: 10px;
   @media (min-width: 2200px) { padding: 30px; gap: 18px; }
 `;
 
 const TimeRow = styled.div`
-  .time { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: #1e293b; line-height: 1; } 
+  .time { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: #1e293b; line-height: 1; }
   .date { font-size: 14px; color: #64748b; font-weight: 500; margin-top: 2px; }
   @media (min-width: 2200px) { .time { font-size: 36px; } .date { font-size: 20px; margin-top: 8px; } }
 `;
 
 const WeatherRow = styled.div`
-  display: flex; justify-content: space-between; align-items: center; 
-  .temp-box { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #334155; } 
+  display: flex; justify-content: space-between; align-items: center;
+  .temp-box { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: #334155; }
   .desc { font-size: 12px; color: #64748b; font-weight: 500; }
   @media (min-width: 2200px) { .temp-box { font-size: 18px; gap: 10px; svg { width: 24px; height: 24px; } } .desc { font-size: 15px; } }
 `;
 
 const EtaBox = styled.div`background: rgba(241, 245, 249, 0.4); border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.3); .line { height: 1px; background: rgba(0,0,0,0.05); margin: 6px 0; }`;
 const EtaRow = styled.div`
-  display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; 
-  .route { display: flex; align-items: center; gap: 4px; color: #475569; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 140px; } 
+  display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600;
+  .route { display: flex; align-items: center; gap: 4px; color: #475569; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 140px; }
   .time { color: #2563eb; background: rgba(37,99,235,0.1); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
   @media (min-width: 2200px) { font-size: 16px; .time { padding: 4px 10px; } }
 `;
 
 const AlertWidget = styled(GlassCard)` padding: 16px; display: flex; flex-direction: column; gap: 10px; @media (min-width: 2200px) { padding: 24px; } `;
 const WidgetTitle = styled.div`
-  font-size: 14px; font-weight: 700; color: #64748b; display: flex; align-items: center; gap: 6px; text-transform: uppercase; 
+  font-size: 14px; font-weight: 700; color: #64748b; display: flex; align-items: center; gap: 6px; text-transform: uppercase;
   .count { width:17px; height:17px; background: #ef4444; color: white; display:flex; justify-content:center; align-items:center; font-size: 12px; padding: 0; border-radius: 99px; padding-top: 1.6px; }
   @media (min-width: 2200px) { font-size: 16px; .count { width: 24px; height: 24px; font-size: 18px; } }
 `;
-const AlertList = styled.div` 
+const AlertList = styled.div`
   display: flex; flex-direction: column; gap: 8px; max-height: 120px; overflow-y: auto; &::-webkit-scrollbar { width: 3px; } &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
   @media (min-width: 2200px) { max-height: 200px; gap: 14px; }
 `;
 
 const AlertItem = styled.div<{ $type: string }>`
-  display: flex; gap: 8px; align-items: flex-start; padding: 8px; background: rgba(255,255,255,0.4); border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); 
-  .icon-wrapper { margin-top: 2px; color: ${props => props.$type === 'success' ? '#22c55e' : props.$type === 'warning' ? '#f59e0b' : '#3b82f6'}; } 
-  .content { display: flex; flex-direction: column; gap: 1px; flex: 1; overflow: hidden; } 
-  .msg { font-size: 12px; font-weight: 600; color: #1e293b; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .msg.alert-red { color: #ef4444; font-weight: 800; } 
+  display: flex; gap: 8px; align-items: flex-start; padding: 8px; background: rgba(255,255,255,0.4); border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);
+  .icon-wrapper { margin-top: 2px; color: ${props => props.$type === 'success' ? '#22c55e' : props.$type === 'warning' ? '#f59e0b' : '#3b82f6'}; }
+  .content { display: flex; flex-direction: column; gap: 1px; flex: 1; overflow: hidden; }
+  .msg { font-size: 12px; font-weight: 600; color: #1e293b; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .msg.alert-red { color: #ef4444; font-weight: 800; }
   .time { font-size: 10px; color: #575f6a; }
   @media (min-width: 2200px) { padding: 14px; .msg { font-size: 18px; white-space: normal; } .time { font-size: 16px; } svg { width: 22px; height: 22px; } }
 `;
@@ -564,12 +564,12 @@ const LegendBox = styled.div`
   display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; .item { display: flex; align-items: center; gap: 6px; color: #475569; } .dot { width: 6px; height: 6px; border-radius: 50%; }
   @media (min-width: 2200px) { font-size: 14px; gap: 10px; .dot { width: 10px; height: 10px; } }
 `;
-const SubTitle = styled.div` 
-  font-size: 14px; font-weight: 700; color: #64748b; margin-bottom: 4px; text-transform: uppercase; 
+const SubTitle = styled.div`
+  font-size: 14px; font-weight: 700; color: #64748b; margin-bottom: 4px; text-transform: uppercase;
   @media (min-width: 2200px) { font-size: 18px; margin-bottom: 10px; }
 `;
 
-const ServerWidget = styled(GlassCard)` 
+const ServerWidget = styled(GlassCard)`
   padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; .row { display: flex; flex-direction: column; gap: 2px; } .label { font-size: 14px; font-weight: 500; color: #4f565f; display: flex; align-items: center; gap: 4px; } .val { font-size: 16px; font-weight: 700; color: #334155; } .val.ok { color: #10b981; }
   @media (min-width: 2200px) { padding: 20px 24px; .label { font-size: 16px; } .val { font-size: 16px; } }
 `;

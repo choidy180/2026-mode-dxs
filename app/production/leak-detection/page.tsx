@@ -297,8 +297,8 @@ const GlobalStyles = createGlobalStyle`
 const PageContainer = styled.div`
   position: relative;
   background-color: ${THEME.bg};
-  height: calc(100vh - 60px);
-  max-height: calc(100vh - 60px);
+  height: 100vh;
+  max-height: 100vh;
   width: 100vw;
   font-family: "Inter", -apple-system, sans-serif;
   color: ${THEME.textPrimary};

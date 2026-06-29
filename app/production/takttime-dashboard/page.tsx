@@ -144,7 +144,7 @@ const GlobalStyle = createGlobalStyle`
   ::-webkit-scrollbar-thumb:hover { background: #ADB5BD; }
 `;
 
-const LayoutContainer = styled.div`display: flex; width: 100vw; height: calc(100vh - 60px); background-color: ${COLORS.bgPage}; overflow: hidden;`;
+const LayoutContainer = styled.div`display: flex; width: 100vw; height: 100vh; background-color: ${COLORS.bgPage}; overflow: hidden;`;
 
 const Sidebar = styled.div`
   width: 110px; 

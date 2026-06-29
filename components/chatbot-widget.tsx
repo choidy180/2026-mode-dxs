@@ -5,11 +5,6 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import styled, { css, keyframes } from "styled-components";
 import { AnimatePresence, LazyMotion, domAnimation, m } from "framer-motion";
-import type {
-  ChatCompletionMessageParam,
-  InitProgressReport,
-  MLCEngineInterface,
-} from "@mlc-ai/web-llm";
 import {
   Bot,
   X,
@@ -19,20 +14,10 @@ import {
   ChevronRight,
   BarChart3,
   Download,
-  Loader2,
-  Square,
   RotateCcw,
-  Zap,
-  AlertTriangle,
   ArrowDown,
-  Cpu,
+  Search,
 } from "lucide-react";
-
-/** -----------------------------
- * WebLLM / Model
- * ------------------------------*/
-const MODEL_ID = "Phi-3.5-mini-instruct-q4f16_1-MLC";
-const MODEL_LABEL = "Phi-3.5 mini";
 
 /** -----------------------------
  * Types
@@ -68,31 +53,10 @@ type Reply = {
   sideEffect?: () => void;
 };
 
-type EngineStatus = "idle" | "loading" | "ready" | "error";
-
-type EngineUIState = {
-  status: EngineStatus;
-  progress: number; // 0..100
-  text: string;
-  error?: string;
-  cached?: boolean;
-  gpuVendor?: string;
-};
-
-const GARBLED_KO_MARKERS = ["알랑", "셧셷", "압렌", "정상으0", "hidden("];
-
-function looksGarbledKorean(s: string) {
-  if (!s) return false;
-  if (s.includes(REPLACEMENT_CHAR)) return true;
-  if (GARBLED_KO_MARKERS.some((m) => s.includes(m))) return true;
-  if (/[가-힣]0[가-힣]/.test(s)) return true; // 정상으0로 같은 형태
-  return false;
-}
 /** -----------------------------
  * Design Tokens (Apple-ish)
  * ------------------------------*/
 const ACCENT = "#D31145";
-const BG = "#F5F5F7";
 const TEXT = "#0B0B0C";
 const MUTED = "#6B7280";
 const BORDER = "rgba(17, 17, 17, 0.10)";
@@ -205,11 +169,6 @@ function isGreetingLike(t: string) {
   );
 }
 
-const REPLACEMENT_CHAR = "\uFFFD";
-function sanitizeForDisplay(s: string) {
-  return (s ?? "").replace(/\uFFFD/g, "");
-}
-
 function extractLine(text: string) {
   const m = text.match(/라인\s*([a-z])/i);
   if (m?.[1]) return m[1].toUpperCase();
@@ -256,72 +215,8 @@ function fmtPct(n: number) {
 }
 
 /** -----------------------------
- * Korean Polish (2-pass)
- * ------------------------------*/
-const UI_TERMS = [
-  "기간",
-  "라인",
-  "품목",
-  "KPI 카드",
-  "데이터 내보내기",
-  "오류 리포트",
-  "조치 필요",
-  "모니터링",
-  "해결",
-].join(", ");
-
-async function polishKoreanAnswer(
-  engine: MLCEngineInterface,
-  agentKey: AgentKey,
-  agentName: string,
-  raw: string
-) {
-  const input = (raw ?? "").trim();
-  if (!input) return "";
-
-  const focus =
-    agentKey === "/master-dashboard"
-      ? "공장 KPI/생산/에너지/라인 알람 요약"
-      : "대시보드 사용법/데이터 내보내기/오류 리포트 안내";
-
-  try {
-    const res: any = await engine.chat.completions.create({
-      stream: false,
-      temperature: 0.05,
-      top_p: 0.9,
-      max_tokens: 700,
-      messages: [
-        {
-          role: "system",
-          content:
-            `너는 한국어 문장 교정/정리 편집기다.\n` +
-            `목표: 입력 텍스트를 자연스럽고 전문적인 한국어(일관된 존댓말)로 고친다.\n\n` +
-            `규칙:\n` +
-            `- 의미는 유지하되 어색한 표현/오탈자/띄어쓰기/어순/말투만 교정한다.\n` +
-            `- 단어 뜻 풀이(예: "~는 ~를 의미") 같은 사족을 붙이지 않는다.\n` +
-            `- 없는 기능/버튼/데이터를 새로 만들지 않는다.\n` +
-            `- UI 용어는 아래 목록 밖을 절대 만들어내지 않는다: ${UI_TERMS}\n` +
-            `- 버튼명이 확실치 않으면 "상단 메뉴", "필터", "버튼"처럼 일반 명칭으로 쓴다.\n` +
-            `- 불필요한 과장/감탄사 금지.\n` +
-            `- 출력은 6~10줄 이내로 짧게 정리한다.\n\n` +
-            `문맥: ${focus}\n` +
-            `에이전트 이름: ${agentName}\n\n` +
-            `출력: 교정된 텍스트만.`,
-        },
-        { role: "user", content: `[원문]\n${input}\n\n[요청]\n위 규칙대로 자연스럽게 교정해줘.` },
-      ],
-    });
-
-    const out = (res?.choices?.[0]?.message?.content ?? "").trim();
-    return sanitizeForDisplay(out || input);
-  } catch {
-    return sanitizeForDisplay(input);
-  }
-}
-
-/** -----------------------------
  * Local Tool Reply Builder
- * - "품질/불량" 같은 현업 질문은 LLM을 타면 버튼 발명/번역투가 심해질 수 있어 로컬로 처리
+ * - "품질/불량" 같은 현업 질문은 화면에 있는 도메인 응답만 로컬로 처리
  * ------------------------------*/
 function buildReply(inputText: string, agentKey: AgentKey, history?: ChatMessage[]): Reply {
   const t = normalize(inputText);
@@ -702,7 +597,7 @@ function buildReply(inputText: string, agentKey: AgentKey, history?: ChatMessage
     }
   }
 
-  // fallback -> LLM
+  // fallback -> local guide
   return {
     handled: false,
     message: {
@@ -719,71 +614,29 @@ function buildReply(inputText: string, agentKey: AgentKey, history?: ChatMessage
 }
 
 /** -----------------------------
- * System Prompt (tight + anti-hallucination)
- * ------------------------------*/
-function makeSystemPrompt(agentKey: AgentKey, name: string) {
-  const roleBlock =
-    agentKey === "/master-dashboard"
-      ? [
-          `너는 스마트공장용 대시보드 "Gomotec AI Control Center"의 "${name}"다.`,
-          `역할: 생산/KPI/에너지/알람을 빠르게 요약하고 다음 액션을 제시한다.`,
-        ].join("\n")
-      : [
-          `너는 스마트공장용 대시보드 "Gomotec AI Control Center"의 "${name}"다.`,
-          `역할: 페이지 사용법/데이터 내보내기/오류 리포트를 짧고 명확하게 안내한다.`,
-        ].join("\n");
-
-  const uiRules = [
-    `중요: UI/기능 용어는 아래 목록 밖을 절대 만들어내지 마라.`,
-    `허용 용어: ${UI_TERMS}`,
-    `버튼명이 확실치 않으면 "상단 메뉴", "필터", "버튼"처럼 일반 명칭으로 말한다.`,
-  ].join("\n");
-
-  const styleRules = [
-    `스타일 규칙:`,
-    `- 반드시 자연스러운 한국어 + 일관된 존댓말로 답한다.`,
-    `- 번역투/쓸데없는 감탄/단어 뜻 풀이 금지.`,
-    `- 답변 구조: 요약 → 근거(주어진 데이터 기준) → 다음 액션`,
-    `- 답변은 6~10줄 이내로 끝낸다.`,
-    `- 실시간 외부 정보(날씨/뉴스/주가/웹검색)는 제공하지 않는다.`,
-    `- "곧 알려주겠다/잠시만/시간 내 제공" 같은 약속을 하지 않는다.`,
-  ].join("\n");
-
-  const dataBlock = [
-    `참고용 샘플 데이터(실데이터 아님, 범위 밖 추정 금지):`,
-    `- 생산 로그 컬럼: time, line, product, planned, actual, defect_pct, energy_kwh`,
-    `- 알람 로그 컬럼: time, equip, code, message, status`,
-  ].join("\n");
-
-  return [roleBlock, uiRules, styleRules, dataBlock].join("\n\n");
-}
-
-/** -----------------------------
  * Portal
  * ------------------------------*/
 function Portal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  if (!mounted || typeof window === "undefined") return null;
+  if (typeof document === "undefined") return null;
   return createPortal(children, document.body);
 }
 
 /** -----------------------------
  * Styled
  * ------------------------------*/
-const NavbarTrigger = styled(m.button)`
+const NavbarTrigger = styled(m.button)<{ $active?: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: 10px;
   height: 42px;
   padding: 0 16px;
   border-radius: 999px;
-  border: 1px solid ${BORDER};
-  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid ${(p) => (p.$active ? "rgba(211, 17, 69, 0.72)" : BORDER)};
+  background: ${(p) => (p.$active ? "rgba(255, 241, 245, 0.96)" : "rgba(255, 255, 255, 0.75)")};
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 
-  color: ${TEXT};
+  color: ${(p) => (p.$active ? ACCENT : TEXT)};
   font-weight: 650;
   font-size: 14px;
   letter-spacing: -0.2px;
@@ -805,37 +658,31 @@ const NavbarTrigger = styled(m.button)`
 
 const ModalOverlay = styled(m.div)`
   position: fixed;
-  inset: 0;
-  z-index: 999999;
+  top: 0;
+  left: var(--app-sidebar-offset, 0px);
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-end;
 
-  background: radial-gradient(1200px 600px at 80% 20%, rgba(211, 17, 69, 0.18), transparent 60%),
-    rgba(0, 0, 0, 0.35);
+  background: rgba(17, 24, 39, 0.48);
 
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
 `;
 
 const ModalPanel = styled(m.div)`
-  /* ✅ Tablet-like wide card */
-  width: min(920px, calc(100vw - 32px));
-  height: min(620px, calc(100vh - 32px));
+  width: min(920px, calc(100vw - 96px));
+  height: 100%;
 
-  border-radius: 24px;
   overflow: hidden;
   position: relative;
 
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(245, 245, 247, 0.78));
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
-
-  display: flex;
-  flex-direction: column;
+  background: #ffffff;
+  border-left: 1px solid rgba(17, 24, 39, 0.12);
+  box-shadow: -32px 0 90px rgba(15, 23, 42, 0.22);
 
   &::before {
     content: "";
@@ -860,16 +707,221 @@ const ModalPanel = styled(m.div)`
   /* ✅ Phone fallback (세로형) */
   @media (max-width: 520px) {
     width: min(560px, calc(100vw - 28px));
-    height: min(760px, calc(100vh - 28px));
+    height: min(760px, 100vh);
+    height: min(760px, 100dvh);
     border-radius: 20px;
+  }
+
+  &::before,
+  &::after {
+    content: none;
+  }
+
+  @media (max-width: 980px) {
+    width: min(720px, calc(100vw - 24px));
+  }
+
+  @media (max-width: 720px) {
+    width: 100vw;
+    height: 100%;
+    border-left: 0;
+    border-radius: 0;
+  }
+`;
+
+const AdvisorPanelLayout = styled.div`
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 342px minmax(0, 1fr);
+  background: #ffffff;
+
+  @media (max-width: 980px) {
+    grid-template-columns: minmax(0, 1fr);
+
+    .advisor-history {
+      display: none;
+    }
+  }
+`;
+
+const HistoryPane = styled.aside`
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(17, 24, 39, 0.10);
+  background: #ffffff;
+`;
+
+const HistoryHeader = styled.div`
+  flex-shrink: 0;
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
+`;
+
+const HistoryTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+`;
+
+const HistoryTitle = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #111827;
+`;
+
+const HistoryCount = styled.span`
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2f7;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+`;
+
+const HistorySubtitle = styled.div`
+  color: #667085;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+`;
+
+const HistorySearch = styled.div`
+  margin-top: 20px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  color: #98a2b3;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 650;
+  }
+`;
+
+const HistoryList = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+`;
+
+const HistoryItem = styled.button<{ $active?: boolean }>`
+  appearance: none;
+  width: 100%;
+  min-height: 74px;
+  border-radius: 8px;
+  border: 1px solid ${(p) => (p.$active ? "rgba(211, 17, 69, 0.34)" : "rgba(17, 24, 39, 0.10)")};
+  background: ${(p) => (p.$active ? "rgba(255, 241, 245, 0.78)" : "#ffffff")};
+  color: #111827;
+  cursor: pointer;
+  text-align: left;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: rgba(211, 17, 69, 0.28);
+    background: rgba(255, 241, 245, 0.48);
+  }
+`;
+
+const HistoryItemTitle = styled.span`
+  display: block;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.35;
+  letter-spacing: -0.03em;
+  word-break: keep-all;
+`;
+
+const HistoryItemTime = styled.span<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: ${(p) => (p.$active ? ACCENT : "#98a2b3")};
+  font-size: 11px;
+  font-weight: 720;
+`;
+
+const QuickPromptBar = styled.div`
+  flex-shrink: 0;
+  padding: 14px 24px 10px;
+  background: #f5f6f8;
+  border-top: 1px solid rgba(17, 24, 39, 0.08);
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const QuickPromptButton = styled.button`
+  appearance: none;
+  min-height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.10);
+  background: #ffffff;
+  color: #344054;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: -0.03em;
+  transition: border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: rgba(211, 17, 69, 0.32);
+    color: ${ACCENT};
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
   }
 `;
 
 const ChatContainer = styled.div`
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
 
   font-family: "Pretendard Variable", "Pretendard", ui-sans-serif, system-ui, -apple-system,
     Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
@@ -877,16 +929,16 @@ const ChatContainer = styled.div`
 `;
 
 const Header = styled.div`
-  padding: 16px 18px 12px;
+  flex-shrink: 0;
+  min-height: 88px;
+  padding: 18px 24px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 
-  background: rgba(255, 255, 255, 0.70);
+  background: #ffffff;
   border-bottom: 1px solid ${BORDER};
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 `;
 
 const HeaderLeft = styled.div`
@@ -905,15 +957,14 @@ const HeaderRight = styled.div`
 `;
 
 const Avatar = styled.div`
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
 
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(245, 245, 247, 0.9));
-  border: 1px solid ${BORDER};
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10);
+  background: #fff1f5;
+  border: 1px solid rgba(211, 17, 69, 0.10);
 
   svg {
     color: ${ACCENT};
@@ -930,8 +981,8 @@ const HeaderText = styled.div`
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 16px;
-    font-weight: 760;
+    font-size: 18px;
+    font-weight: 820;
     letter-spacing: -0.3px;
     white-space: nowrap;
     overflow: hidden;
@@ -939,6 +990,9 @@ const HeaderText = styled.div`
   }
 
   .desc {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     font-size: 13px;
     color: ${MUTED};
     letter-spacing: -0.2px;
@@ -997,86 +1051,16 @@ const Dot = styled.span<{ $tone?: "good" | "warn" | "bad" }>`
       : ""}
 `;
 
-const StatusChip = styled.div<{ $tone?: "good" | "warn" | "bad" }>`
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-
-  border: 1px solid ${BORDER};
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  color: rgba(17, 17, 17, 0.76);
-
-  white-space: nowrap;
-  max-width: 160px;
-  overflow: hidden;
-
-  .label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  ${(p) =>
-    p.$tone === "good"
-      ? css`border-color: rgba(16, 185, 129, 0.25);`
-      : p.$tone === "warn"
-      ? css`border-color: rgba(245, 158, 11, 0.28);`
-      : p.$tone === "bad"
-      ? css`border-color: rgba(239, 68, 68, 0.28);`
-      : ""}
-`;
-
-const ModelChip = styled.div`
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-
-  border: 1px solid ${BORDER};
-  background: rgba(255, 255, 255, 0.60);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: -0.2px;
-  color: rgba(17, 17, 17, 0.70);
-
-  white-space: nowrap;
-  max-width: 160px;
-  overflow: hidden;
-
-  span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  @media (max-width: 430px) {
-    display: none;
-  }
-`;
-
 const MessageList = styled.div`
   flex: 1;
-  padding: 18px 18px 14px;
+  min-height: 0;
+  padding: 26px 26px 18px;
   overflow: auto;
-  background: linear-gradient(180deg, ${BG} 0%, rgba(255, 255, 255, 0.98) 55%, ${BG} 100%);
+  background: #f5f6f8;
 
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 
   scrollbar-width: none;
   &::-webkit-scrollbar {
@@ -1093,8 +1077,8 @@ const Row = styled.div<{ $role: ChatRole }>`
 `;
 
 const Bubble = styled(m.div)<{ $role: ChatRole }>`
-  max-width: min(78%, 720px);
-  padding: 14px 16px;
+  max-width: min(82%, 720px);
+  padding: 15px 18px;
   border-radius: 18px;
   font-size: 15px;
   line-height: 1.6;
@@ -1105,18 +1089,18 @@ const Bubble = styled(m.div)<{ $role: ChatRole }>`
   ${(p) =>
     p.$role === "user"
       ? css`
-          background: linear-gradient(180deg, rgba(17, 17, 17, 0.94), rgba(17, 17, 17, 0.88));
+          background: ${ACCENT};
           color: white;
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          border-bottom-right-radius: 8px;
-          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.18);
+          border: 1px solid rgba(211, 17, 69, 0.18);
+          border-bottom-right-radius: 10px;
+          box-shadow: 0 14px 30px rgba(211, 17, 69, 0.18);
         `
       : css`
-          background: rgba(255, 255, 255, 0.88);
+          background: #ffffff;
           color: ${TEXT};
           border: 1px solid ${BORDER};
-          border-bottom-left-radius: 8px;
-          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+          border-bottom-left-radius: 10px;
+          box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
         `}
 `;
 
@@ -1270,11 +1254,10 @@ const DownloadButton = styled.button`
 `;
 
 const Composer = styled.form`
-  padding: 14px 16px 16px;
-  background: rgba(255, 255, 255, 0.70);
-  border-top: 1px solid ${BORDER};
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  flex-shrink: 0;
+  padding: 0 24px 22px;
+  background: #f5f6f8;
+  border-top: 0;
 
   display: flex;
   gap: 10px;
@@ -1283,12 +1266,12 @@ const Composer = styled.form`
 
 const Input = styled.input<{ disabled?: boolean }>`
   flex: 1;
-  height: 44px;
+  height: 58px;
   border-radius: 16px;
   border: 1px solid ${BORDER};
-  background: rgba(245, 245, 247, 0.92);
-  padding: 0 14px;
-  font-size: 15px;
+  background: #ffffff;
+  padding: 0 18px;
+  font-size: 14px;
   letter-spacing: -0.2px;
   color: ${TEXT};
   outline: none;
@@ -1313,11 +1296,11 @@ const Input = styled.input<{ disabled?: boolean }>`
 `;
 
 const SendButton = styled.button<{ disabled?: boolean }>`
-  width: 44px;
-  height: 44px;
-  border-radius: 16px;
-  border: 1px solid rgba(17, 17, 17, 0.12);
-  background: rgba(17, 17, 17, 0.92);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid rgba(211, 17, 69, 0.18);
+  background: ${ACCENT};
   color: white;
   cursor: pointer;
 
@@ -1338,95 +1321,10 @@ const SendButton = styled.button<{ disabled?: boolean }>`
           cursor: not-allowed;
           &:hover {
             transform: none;
-            background: rgba(17, 17, 17, 0.92);
+            background: ${ACCENT};
           }
         `
       : ""}
-`;
-
-const NoticeCard = styled.div`
-  border: 1px solid rgba(17, 17, 17, 0.10);
-  background: rgba(255, 255, 255, 0.86);
-  border-radius: 18px;
-  padding: 12px 12px;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.06);
-
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-`;
-
-const NoticeTop = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-`;
-
-const NoticeTitle = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-
-  font-size: 13px;
-  font-weight: 820;
-  letter-spacing: -0.2px;
-`;
-
-const NoticeBody = styled.div`
-  font-size: 12px;
-  color: rgba(17, 17, 17, 0.70);
-  letter-spacing: -0.2px;
-  line-height: 1.45;
-`;
-
-const Track = styled.div`
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(17, 17, 17, 0.06);
-  overflow: hidden;
-`;
-
-const Fill = styled.div<{ $pct: number }>`
-  height: 100%;
-  width: ${(p) => `${Math.max(0, Math.min(100, p.$pct))}%`};
-  background: linear-gradient(90deg, rgba(211, 17, 69, 0.25), rgba(211, 17, 69, 0.85));
-  border-radius: 999px;
-  transition: width 0.18s ease;
-`;
-
-const NoticeActions = styled.div`
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-`;
-
-const NoticeButton = styled.button`
-  appearance: none;
-  border: 1px solid ${BORDER};
-  background: rgba(255, 255, 255, 0.80);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-
-  padding: 9px 12px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 740;
-  letter-spacing: -0.2px;
-  color: rgba(17, 17, 17, 0.84);
-  cursor: pointer;
-
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-
-  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
-
-  &:hover {
-    transform: translateY(-1px);
-    border-color: rgba(211, 17, 69, 0.35);
-    background: rgba(255, 255, 255, 0.98);
-  }
 `;
 
 const floatIn = keyframes`
@@ -1467,31 +1365,6 @@ const ScrollFab = styled.button`
   }
 `;
 
-const dotPulse = keyframes`
-  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
-  40% { transform: translateY(-2px); opacity: 0.95; }
-`;
-
-const TypingDots = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  span {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: rgba(17, 17, 17, 0.35);
-    animation: ${dotPulse} 1.1s infinite ease-in-out;
-  }
-  span:nth-child(2) {
-    animation-delay: 0.12s;
-  }
-  span:nth-child(3) {
-    animation-delay: 0.24s;
-  }
-`;
-
 /** -----------------------------
  * Memoized Message Item
  * ------------------------------*/
@@ -1499,15 +1372,12 @@ const MessageItem = React.memo(function MessageItem({
   message,
   onChipClick,
   onDownload,
-  isStreaming,
 }: {
   message: ChatMessage;
   onChipClick: (s: string) => void;
   onDownload: (payload: NonNullable<MessageMeta["download"]>) => void;
-  isStreaming: boolean;
 }) {
   const isAssistant = message.role === "assistant";
-  const showTyping = isAssistant && isStreaming && message.text.trim().length === 0;
 
   return (
     <Row $role={message.role}>
@@ -1517,15 +1387,7 @@ const MessageItem = React.memo(function MessageItem({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.18 }}
       >
-        {showTyping ? (
-          <TypingDots aria-label="Generating">
-            <span />
-            <span />
-            <span />
-          </TypingDots>
-        ) : (
-          message.text
-        )}
+        {message.text}
       </Bubble>
 
       {isAssistant && message.meta && (
@@ -1600,8 +1462,27 @@ export default function AIAgentSystem() {
   const agentKey: AgentKey = isMasterDashboard ? "/master-dashboard" : "default";
   const ctx = useMemo(() => AGENT_DATA[agentKey], [agentKey]);
 
+  const idSeq = useRef(0);
+  const nextId = useCallback(() => `m_${Date.now()}_${++idSeq.current}`, []);
+  const createInitialMessage = useCallback(
+    (): ChatMessage => ({
+      id: nextId(),
+      role: "assistant",
+      text: ctx.guide,
+      suggestions: ctx.suggestions,
+    }),
+    [ctx.guide, ctx.suggestions, nextId]
+  );
+
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    {
+      id: `m_initial_${agentKey}`,
+      role: "assistant",
+      text: ctx.guide,
+      suggestions: ctx.suggestions,
+    },
+  ]);
   const [input, setInput] = useState("");
 
   useEffect(() => {
@@ -1617,63 +1498,31 @@ export default function AIAgentSystem() {
     document.head.appendChild(link);
   }, [isOpen]);
 
-  const [engineUI, setEngineUI] = useState<EngineUIState>({
-    status: "idle",
-    progress: 0,
-    text: "모델 준비 전",
-  });
-
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isPolishing, setIsPolishing] = useState(false);
-  const [hasPending, setHasPending] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const idSeq = useRef(0);
-  const nextId = useCallback(() => `m_${Date.now()}_${++idSeq.current}`, []);
-
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
   const messagesRef = useRef<ChatMessage[]>([]);
+  const agentKeyRef = useRef(agentKey);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
-  /** --- WebLLM engine refs --- */
-  const engineRef = useRef<MLCEngineInterface | null>(null);
-  const initPromiseRef = useRef<Promise<MLCEngineInterface> | null>(null);
-
-  /** streaming update throttle */
-  const streamRef = useRef<{ id: string | null; text: string }>({ id: null, text: "" });
-  const rafRef = useRef<number | null>(null);
-
-  /** pending request when model is still loading */
-  const pendingRef = useRef<{ history: ChatMessage[]; assistantId: string } | null>(null);
-
-  const hasWebGPU = useMemo(() => {
-    if (typeof navigator === "undefined") return false;
-    return !!(navigator as any).gpu;
-  }, []);
-
-  // Init / reset when page context changes
+  // Reset when page context changes
   useEffect(() => {
-    const first = {
-      id: nextId(),
-      role: "assistant" as const,
-      text: ctx.guide,
-      suggestions: ctx.suggestions,
-    };
-    setMessages([first]);
-  }, [ctx, nextId]);
+    if (agentKeyRef.current === agentKey) return;
+    agentKeyRef.current = agentKey;
+
+    const first = createInitialMessage();
+    const timeoutId = window.setTimeout(() => {
+      setMessages([first]);
+      messagesRef.current = [first];
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [agentKey, createInitialMessage]);
 
   // Auto-scroll (only if user is already near bottom)
   useEffect(() => {
@@ -1716,279 +1565,21 @@ export default function AIAgentSystem() {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (isGenerating) engineRef.current?.interruptGenerate();
         setIsOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, isGenerating]);
-
-  // Cleanup rAF
-  useEffect(() => {
-    return () => {
-      if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
-  }, []);
+  }, [isOpen]);
 
   const runDownload = useCallback((payload: NonNullable<MessageMeta["download"]>) => {
     downloadTextFile(payload.filename, payload.content, payload.mime);
   }, []);
 
-  const scheduleStreamFlush = useCallback(() => {
-    if (typeof window === "undefined") return;
-    if (rafRef.current != null) return;
-    rafRef.current = window.requestAnimationFrame(() => {
-      rafRef.current = null;
-      const { id, text } = streamRef.current;
-      if (!id) return;
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: sanitizeForDisplay(text) } : m)));
-    });
-  }, []);
-
-  const flushStreamNow = useCallback(() => {
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    const { id, text } = streamRef.current;
-    if (!id) return;
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: sanitizeForDisplay(text) } : m)));
-  }, []);
-
-  /** -----------------------------
-   * WebLLM: ensure engine loaded
-   * ------------------------------*/
-  const ensureEngine = useCallback(async (): Promise<MLCEngineInterface> => {
-    if (engineRef.current) return engineRef.current;
-    if (initPromiseRef.current) return initPromiseRef.current;
-
-    initPromiseRef.current = (async () => {
-      if (typeof window === "undefined") {
-        throw new Error("브라우저 환경에서만 WebLLM을 초기화할 수 있습니다.");
-      }
-      if (!hasWebGPU) {
-        throw new Error("이 브라우저는 WebGPU를 지원하지 않습니다. (Chrome/Edge 최신 버전 권장)");
-      }
-      if (!window.isSecureContext) {
-        throw new Error("WebGPU는 HTTPS(또는 localhost)에서만 동작합니다.");
-      }
-
-      if (mountedRef.current) {
-        setEngineUI((prev) => ({
-          ...prev,
-          status: "loading",
-          progress: 0,
-          text: "WebLLM 엔진 준비 중…",
-          error: undefined,
-        }));
-      }
-
-      const webllm = await import("@mlc-ai/web-llm");
-
-      const cached = await webllm.hasModelInCache(MODEL_ID).catch(() => false);
-      if (mountedRef.current) {
-        setEngineUI((prev) => ({
-          ...prev,
-          status: "loading",
-          cached,
-          text: cached ? "캐시된 모델 확인됨. 초기화 중…" : "모델 다운로드/초기화 중…",
-        }));
-      }
-
-      const initProgressCallback = (r: InitProgressReport) => {
-        if (!mountedRef.current) return;
-        const raw = typeof r.progress === "number" ? r.progress : 0;
-        const pct = raw <= 1 ? raw * 100 : raw;
-        const clamped = Math.max(0, Math.min(100, pct));
-        setEngineUI((prev) => ({
-          ...prev,
-          status: "loading",
-          progress: Math.max(prev.progress ?? 0, clamped),
-          text: r.text || prev.text,
-        }));
-      };
-
-      const engine = new webllm.MLCEngine({ initProgressCallback });
-      engine.setLogLevel("WARN");
-      await engine.reload(MODEL_ID);
-
-      let gpuVendor = "";
-      try {
-        gpuVendor = await engine.getGPUVendor();
-      } catch {
-        gpuVendor = "";
-      }
-
-      engineRef.current = engine;
-
-      if (mountedRef.current) {
-        setEngineUI((prev) => ({
-          ...prev,
-          status: "ready",
-          progress: 100,
-          text: "Ready",
-          gpuVendor,
-        }));
-      }
-
-      return engine;
-    })().catch((err) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (mountedRef.current) {
-        setEngineUI((prev) => ({
-          ...prev,
-          status: "error",
-          error: msg,
-          text: "초기화 실패",
-        }));
-      }
-      initPromiseRef.current = null;
-      throw err;
-    });
-
-    return initPromiseRef.current;
-  }, [hasWebGPU]);
-
-  // Auto start loading when modal opens
-  useEffect(() => {
-    if (!isOpen) return;
-    void ensureEngine();
-  }, [isOpen, ensureEngine]);
-
-  /** -----------------------------
-   * WebLLM: streaming generation + final polish
-   * ------------------------------*/
-  const streamLLM = useCallback(
-    async (history: ChatMessage[], assistantId?: string) => {
-      const systemPrompt = makeSystemPrompt(agentKey, ctx.name);
-
-      const base = history
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map<ChatCompletionMessageParam>((m) =>
-          m.role === "user"
-            ? { role: "user", content: m.text }
-            : { role: "assistant", content: m.text }
-        );
-
-      const MAX_TURNS = 18; // 품질 안정: 컨텍스트 과다로 번역투/잡문 증가 방지
-      const trimmed = base.length <= MAX_TURNS ? base : [base[0], ...base.slice(-MAX_TURNS + 1)];
-
-      const llmMessages: ChatCompletionMessageParam[] = [
-        { role: "system", content: systemPrompt },
-        ...trimmed,
-      ];
-
-      const id = assistantId ?? nextId();
-
-      if (!assistantId) {
-        setMessages((prev) => [...prev, { id, role: "assistant", text: "" }]);
-      } else {
-        setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: "" } : m)));
-      }
-
-      streamRef.current = { id, text: "" };
-
-      setIsGenerating(true);
-      try {
-        const engine = await ensureEngine();
-
-        // ✅ 한국어 자연스러움: temperature 낮춤
-        const temperature = agentKey === "/master-dashboard" ? 0.12 : 0.20;
-
-        const chunks = await engine.chat.completions.create({
-          messages: llmMessages,
-          stream: true,
-          stream_options: { include_usage: true },
-          temperature,
-          top_p: 0.9,
-          max_tokens: 850,
-        });
-
-        let finishReason: string | null = null;
-
-        for await (const chunk of chunks as AsyncIterable<any>) {
-          const choice = chunk?.choices?.[0];
-          if (!choice) continue;
-
-          const delta: string = choice?.delta?.content ?? "";
-          if (delta) {
-            streamRef.current.text += delta;
-            scheduleStreamFlush();
-          }
-          if (choice.finish_reason) finishReason = choice.finish_reason;
-        }
-
-        flushStreamNow();
-
-        // ✅ 스트리밍 종료 후 "정본" 덮어쓰기 (깨짐/조합 문제 완화)
-        let finalText = streamRef.current.text;
-        try {
-          const full = await engine.getMessage();
-          if (typeof full === "string" && full.trim().length > 0) finalText = full;
-        } catch {
-          // ignore
-        }
-
-        // ✅ 마지막 2-pass: 한국어 교정(말투/맞춤법/번역투 정리)
-        if (finishReason !== "abort") {
-          setIsPolishing(true);
-          finalText = await polishKoreanAnswer(engine, agentKey, ctx.name, finalText);
-          const lastUser = [...history].reverse().find((m) => m.role === "user")?.text ?? "";
-          if (finishReason !== "abort" && looksGarbledKorean(finalText)) {
-            const safe = buildReply(lastUser, agentKey, history);
-            if (safe.handled) finalText = safe.message.text;
-          }
-          setIsPolishing(false);
-        }
-
-        if (finishReason === "abort") {
-          finalText = finalText.trimEnd() + "\n\n⏹ 생성이 중지되었습니다.";
-        } else if (finishReason === "length") {
-          finalText =
-            finalText.trimEnd() +
-            "\n\n(길이 제한으로 일부가 잘렸을 수 있어요 — “요약만”이라고 요청하면 더 안정적입니다.)";
-        }
-
-        streamRef.current.text = finalText;
-        flushStreamNow();
-      } catch (err) {
-        setIsPolishing(false);
-        const msg = err instanceof Error ? err.message : String(err);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === id
-              ? {
-                  ...m,
-                  text:
-                    "⚠️ 답변 생성 중 오류가 발생했습니다.\n" +
-                    msg +
-                    "\n\n(필요하면 모델을 다시 로드하거나, max_tokens/context를 낮춰주세요.)",
-                }
-              : m
-          )
-        );
-      } finally {
-        setIsGenerating(false);
-        streamRef.current.id = null;
-      }
-    },
-    [agentKey, ctx.name, ensureEngine, flushStreamNow, nextId, scheduleStreamFlush]
-  );
-
   /** -----------------------------
    * Actions
    * ------------------------------*/
-  const stopGenerating = useCallback(() => {
-    engineRef.current?.interruptGenerate();
-  }, []);
-
   const resetChat = useCallback(() => {
-    if (isGenerating) engineRef.current?.interruptGenerate();
-
     const first: ChatMessage = {
       id: nextId(),
       role: "assistant",
@@ -1997,186 +1588,137 @@ export default function AIAgentSystem() {
     };
     setMessages([first]);
     messagesRef.current = [first];
-    setHasPending(false);
-    pendingRef.current = null;
-
-    void engineRef.current?.resetChat(true).catch(() => {});
-  }, [ctx.guide, ctx.suggestions, isGenerating, nextId]);
+  }, [ctx.guide, ctx.suggestions, nextId]);
 
   const handleSend = useCallback(
     (raw: string) => {
       const text = raw.trim();
       if (!text) return;
-      if (isGenerating) return;
-      if (isPolishing) return;
-      if (hasPending) return;
 
       const userMsg: ChatMessage = { id: nextId(), role: "user", text };
       const historySnapshot = [...messagesRef.current, userMsg];
+      const reply = buildReply(text, agentKey, historySnapshot);
+      const assistantMsg: ChatMessage = { id: nextId(), ...reply.message };
 
+      reply.sideEffect?.();
       setMessages(historySnapshot);
       messagesRef.current = historySnapshot;
       setInput("");
-
-      // 1) 로컬 먼저
-      const reply = buildReply(text, agentKey, historySnapshot);
-      if (reply.handled) {
-        reply.sideEffect?.();
-        const assistantMsg: ChatMessage = { id: nextId(), ...reply.message };
-        window.setTimeout(() => setMessages((prev) => [...prev, assistantMsg]), 120);
-        return;
-      }
-
-      // 2) LLM
-      if (engineUI.status === "error") {
-        const assistantMsg: ChatMessage = {
-          id: nextId(),
-          role: "assistant",
-          text:
-            "WebLLM 엔진 초기화에 실패한 상태예요.\n" +
-            (engineUI.error ? `• 원인: ${engineUI.error}\n\n` : "\n") +
-            "상단의 다시 시도로 모델을 로드한 뒤 다시 질문해 주세요.",
-        };
+      window.setTimeout(() => {
         setMessages((prev) => [...prev, assistantMsg]);
-        return;
-      }
-
-      if (engineUI.status !== "ready") {
-        const assistantId = nextId();
-        setMessages((prev) => [...prev, { id: assistantId, role: "assistant", text: "" }]);
-
-        pendingRef.current = { history: historySnapshot, assistantId };
-        setHasPending(true);
-
-        void ensureEngine()
-          .then(() => {
-            const pending = pendingRef.current;
-            if (!pending || pending.assistantId !== assistantId) return;
-            pendingRef.current = null;
-            setHasPending(false);
-            return streamLLM(pending.history, pending.assistantId);
-          })
-          .catch((err) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            pendingRef.current = null;
-            setHasPending(false);
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? {
-                      ...m,
-                      text:
-                        "⚠️ 모델 로드에 실패했습니다.\n" +
-                        msg +
-                        "\n\n(Chrome/Edge 최신 + HTTPS/localhost + WebGPU 활성화를 확인해 주세요.)",
-                    }
-                  : m
-              )
-            );
-          });
-
-        return;
-      }
-
-      void streamLLM(historySnapshot);
+        messagesRef.current = [...historySnapshot, assistantMsg];
+      }, 120);
     },
-    [
-      agentKey,
-      engineUI.error,
-      engineUI.status,
-      ensureEngine,
-      hasPending,
-      isGenerating,
-      isPolishing,
-      nextId,
-      streamLLM,
-    ]
+    [agentKey, nextId]
   );
 
   const onChipClick = useCallback((s: string) => handleSend(s), [handleSend]);
 
-  const canSend = useMemo(() => {
-    if (isGenerating) return false;
-    if (isPolishing) return false;
-    if (hasPending) return false;
-    return input.trim().length > 0;
-  }, [hasPending, input, isGenerating, isPolishing]);
+  const canSend = input.trim().length > 0;
+  const tone: 'good' | 'warn' | 'bad' = 'good';
 
-  /** -----------------------------
-   * Header status chips
-   * ------------------------------*/
-  const tone: "good" | "warn" | "bad" = useMemo(() => {
-    if (!hasWebGPU) return "bad";
-    if (engineUI.status === "ready") return "good";
-    if (engineUI.status === "error") return "bad";
-    return "warn";
-  }, [engineUI.status, hasWebGPU]);
+  const advisorTitle = isMasterDashboard ? ctx.name : "AI Advisor 실시간 가이드 파트너";
+  const advisorDescription = isMasterDashboard ? ctx.description : "실시간 공정 모니터링 중";
 
-  const statusLabel = useMemo(() => {
-    if (!hasWebGPU) return "WebGPU Off";
-    if (engineUI.status === "ready") return "Ready";
-    if (engineUI.status === "error") return "Error";
-    if (engineUI.status === "loading") return `Loading ${Math.round(engineUI.progress || 0)}%`;
-    return "Idle";
-  }, [engineUI.progress, engineUI.status, hasWebGPU]);
+  const quickPrompts = useMemo(
+    () =>
+      isMasterDashboard
+        ? ["전체 KPI 위험 요약", "라인별 병목 원인 분석", "오늘 생산 목표 점검"]
+        : ["현재 화면 주요 지표 요약", "이상 요인 상세 원인 분석", "우회 프로세스 가상 테스트"],
+    [isMasterDashboard]
+  );
 
-  const statusTooltip = useMemo(() => {
-    const parts = [
-      `Model: ${MODEL_ID}`,
-      `Status: ${engineUI.status}`,
-      engineUI.cached != null ? `Cache: ${engineUI.cached ? "hit" : "miss"}` : "",
-      engineUI.gpuVendor ? `GPU: ${engineUI.gpuVendor}` : "",
-      `Secure: ${typeof window !== "undefined" && window.isSecureContext ? "Yes" : "No"}`,
-    ].filter(Boolean);
-    return parts.join(" | ");
-  }, [engineUI.cached, engineUI.gpuVendor, engineUI.status]);
+  const historyItems = useMemo(
+    () => [
+      {
+        title: "현재 대시보드 화면 실시간 이상 징후 분석 및 가이드",
+        time: "오늘 오전 10:10",
+        prompt: "현재 화면 주요 지표를 요약하고 이상 징후가 있으면 조치 방안을 알려줘.",
+      },
+      {
+        title: "공정 설비 종합 가동률 및 유지보수 지연 요인 분석",
+        time: "어제 오후 03:45",
+        prompt: "공정 설비 종합 가동률과 유지보수 지연 요인을 분석해줘.",
+      },
+      {
+        title: "공정 B라인 품질 데이터 연동 결함 원인 파악",
+        time: "어제 오전 10:30",
+        prompt: "공정 B라인 품질 데이터 기준으로 결함 원인을 파악해줘.",
+      },
+      {
+        title: "출하 대기 물량 적재 지연 위험 조치 건",
+        time: "10월 24일 14:15",
+        prompt: "출하 대기 물량 적재 지연 위험과 우선 조치 항목을 정리해줘.",
+      },
+    ],
+    []
+  );
+
+  const fillPrompt = useCallback((prompt: string) => {
+    setInput(prompt);
+    if (typeof window === "undefined") return;
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  const HistoryUI = (
+    <HistoryPane className="advisor-history">
+      <HistoryHeader>
+        <HistoryTitleRow>
+          <HistoryTitle>
+            <MessageSquare size={20} />
+            대화 기록
+            <HistoryCount>{historyItems.length}</HistoryCount>
+          </HistoryTitle>
+          <ChevronRight size={18} color="#98A2B3" />
+        </HistoryTitleRow>
+        <HistorySubtitle>활성화된 대시보드 화면별 실시간 진단 이력</HistorySubtitle>
+        <HistorySearch>
+          <Search size={16} />
+          <span>과거 대화방 검색</span>
+        </HistorySearch>
+      </HistoryHeader>
+
+      <HistoryList>
+        {historyItems.map((item, index) => (
+          <HistoryItem
+            key={item.title}
+            type="button"
+            $active={index === 0}
+            onClick={() => fillPrompt(item.prompt)}
+          >
+            <HistoryItemTitle>{item.title}</HistoryItemTitle>
+            <HistoryItemTime $active={index === 0}>{item.time}</HistoryItemTime>
+          </HistoryItem>
+        ))}
+      </HistoryList>
+    </HistoryPane>
+  );
 
   const ChatUI = (
-    <ChatContainer>
+    <AdvisorPanelLayout>
+      {HistoryUI}
+      <ChatContainer>
       <Header>
         <HeaderLeft>
           <Avatar>{ctx.role === "manager" ? <BarChart3 size={22} /> : <Bot size={22} />}</Avatar>
           <HeaderText>
             <div className="title">
-              {ctx.name} <Sparkles size={14} color="#FFD700" fill="#FFD700" />
+              {advisorTitle} <Sparkles size={14} color="#FFD700" fill="#FFD700" />
             </div>
-            <div className="desc">{ctx.description}</div>
+            <div className="desc">
+              <Dot $tone={tone} />
+              {advisorDescription}
+            </div>
           </HeaderText>
         </HeaderLeft>
 
         <HeaderRight>
-          <ModelChip title={MODEL_ID}>
-            <Cpu size={14} />
-            <span>{MODEL_LABEL}</span>
-          </ModelChip>
-
-          <StatusChip $tone={tone} title={statusTooltip}>
-            <Dot $tone={tone} />
-            {engineUI.status === "loading" ? (
-              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" } as any} />
-            ) : engineUI.status === "ready" ? (
-              <Zap size={14} />
-            ) : engineUI.status === "error" ? (
-              <AlertTriangle size={14} />
-            ) : (
-              <Bot size={14} />
-            )}
-            <span className="label">{statusLabel}</span>
-          </StatusChip>
-
-          <IconButton onClick={resetChat} aria-label="Reset chat" title="대화 초기화" disabled={hasPending}>
+          <IconButton onClick={resetChat} aria-label="Reset chat" title="대화 초기화">
             <RotateCcw size={16} />
           </IconButton>
 
-          <IconButton $danger onClick={stopGenerating} aria-label="Stop generating" title="생성 중지" disabled={!isGenerating}>
-            <Square size={16} />
-          </IconButton>
-
           <IconButton
-            onClick={() => {
-              if (isGenerating) engineRef.current?.interruptGenerate();
-              setIsOpen(false);
-            }}
+            onClick={() => setIsOpen(false)}
             aria-label="Close"
             title="닫기"
           >
@@ -2186,81 +1728,6 @@ export default function AIAgentSystem() {
       </Header>
 
       <MessageList ref={listRef} onScroll={onScrollList}>
-        {engineUI.status !== "ready" && (
-          <NoticeCard>
-            <NoticeTop>
-              <NoticeTitle>
-                {engineUI.status === "loading" ? (
-                  <>
-                    <Loader2 size={16} style={{ animation: "spin 1s linear infinite" } as any} />
-                    모델 로딩 중
-                  </>
-                ) : engineUI.status === "error" ? (
-                  <>
-                    <AlertTriangle size={16} />
-                    초기화 실패
-                  </>
-                ) : (
-                  <>
-                    <Bot size={16} />
-                    모델 준비
-                  </>
-                )}
-              </NoticeTitle>
-
-              <div style={{ fontSize: 11, color: "rgba(17,17,17,0.55)", fontWeight: 650 }}>
-                {MODEL_LABEL}
-              </div>
-            </NoticeTop>
-
-            <NoticeBody>
-              {!hasWebGPU ? (
-                <>
-                  이 환경은 WebGPU를 사용할 수 없어요. <br />
-                  Chrome/Edge 최신 버전에서 WebGPU가 활성화되어 있는지 확인해 주세요.
-                </>
-              ) : engineUI.status === "error" ? (
-                <>
-                  {engineUI.error ?? "알 수 없는 오류"} <br />
-                  (HTTPS/localhost, WebGPU, 브라우저 확장 프로그램 충돌 등을 확인해 주세요.)
-                </>
-              ) : engineUI.status === "loading" ? (
-                <>
-                  {engineUI.text}
-                  {engineUI.cached ? " (cache hit)" : ""} <br />
-                  처음 한 번만 다운로드가 오래 걸릴 수 있어요.
-                </>
-              ) : (
-                <>
-                  모델을 로드하면 서버 없이 브라우저에서 바로 답변을 생성합니다. <br />
-                  (WebGPU + 로컬 실행)
-                </>
-              )}
-            </NoticeBody>
-
-            <Track aria-label="Loading progress">
-              <Fill $pct={engineUI.status === "loading" ? engineUI.progress : 0} />
-            </Track>
-
-            <NoticeActions>
-              <NoticeButton type="button" onClick={() => void ensureEngine()} disabled={!hasWebGPU}>
-                <Zap size={16} />
-                다시 시도
-              </NoticeButton>
-
-              <NoticeButton
-                type="button"
-                onClick={() => {
-                  const info = statusTooltip.replace(/\s\|\s/g, "\n");
-                  navigator.clipboard?.writeText(info).catch(() => {});
-                }}
-              >
-                <MessageSquare size={16} />
-                상태 복사
-              </NoticeButton>
-            </NoticeActions>
-          </NoticeCard>
-        )}
 
         {messages.map((m) => (
           <MessageItem
@@ -2268,7 +1735,6 @@ export default function AIAgentSystem() {
             message={m}
             onChipClick={onChipClick}
             onDownload={runDownload}
-            isStreaming={isGenerating && streamRef.current.id === m.id}
           />
         ))}
         <div ref={scrollEndRef} />
@@ -2280,6 +1746,18 @@ export default function AIAgentSystem() {
         </ScrollFab>
       )}
 
+      <QuickPromptBar>
+        {quickPrompts.map((prompt) => (
+          <QuickPromptButton
+            key={prompt}
+            type="button"
+            onClick={() => handleSend(prompt)}
+          >
+            {prompt}
+          </QuickPromptButton>
+        ))}
+      </QuickPromptBar>
+
       <Composer
         onSubmit={(e) => {
           e.preventDefault();
@@ -2290,22 +1768,26 @@ export default function AIAgentSystem() {
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            isPolishing ? "답변 문장 정리 중…" : "예) 라인 B 불량률 원인 / 데이터 내보내기 / 오류 리포트"
-          }
-          disabled={hasPending || isPolishing}
+          placeholder="현재 화면에서 분석이 필요한 지표나 작업을 물어보세요"
         />
         <SendButton type="submit" disabled={!canSend} aria-disabled={!canSend}>
           <Send size={18} />
         </SendButton>
       </Composer>
-    </ChatContainer>
+      </ChatContainer>
+    </AdvisorPanelLayout>
   );
 
   return (
     <LazyMotion features={domAnimation}>
       {!isMasterDashboard && (
-        <NavbarTrigger onClick={() => setIsOpen(true)} whileTap={{ scale: 0.98 }}>
+        <NavbarTrigger
+          type="button"
+          $active={isOpen}
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((prev) => !prev)}
+          whileTap={{ scale: 0.98 }}
+        >
           <Bot size={18} />
           <span>AI Advisor</span>
         </NavbarTrigger>
@@ -2318,19 +1800,17 @@ export default function AIAgentSystem() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => {
-                if (isGenerating) engineRef.current?.interruptGenerate();
-                setIsOpen(false);
-              }}
+              onClick={() => setIsOpen(false)}
             >
               <ModalPanel
                 role="dialog"
-                aria-modal="true"
+                aria-modal="false"
+                aria-label="AI Advisor conversation panel"
                 onClick={(e) => e.stopPropagation()}
-                initial={{ opacity: 0, y: 18, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 18, scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 260, damping: 24 }}
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 320, damping: 34 }}
               >
                 {ChatUI}
               </ModalPanel>

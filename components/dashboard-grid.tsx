@@ -92,7 +92,7 @@ const fadeInUp = keyframes`
 
 const Container = styled.div`
   width: 100%;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;

@@ -29,7 +29,7 @@ const Container = styled.div`
   justify-content: center;
   align-items: center;
   width: 100%;
-  height: calc(100vh - 64px); // 혹은 calc(100vh - 상단헤더높이)
+  height: 100vh;
   background-color: #0b0c15; /* 깊은 우주색 */
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),

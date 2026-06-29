@@ -91,7 +91,7 @@ const pulse = keyframes`
 const Layout = styled.div`
   display: flex;
   width: 100vw;
-  height: calc(100vh - 64px);
+  height: 100vh;
   padding: 16px;
   gap: 16px;
   background-color: #F1F5F9;

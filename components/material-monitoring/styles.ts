@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
-import { NAV_HEIGHT } from '@/constants/material-monitoring';
 
 export const VideoHeader = styled.div`
   display: flex;
@@ -174,13 +173,13 @@ export const CameraFullscreenOverlay = styled(motion.div)`
   --accent: #ff3b30;
 
   position: fixed;
-  top: ${NAV_HEIGHT}px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 5000;
-  height: calc(100vh - ${NAV_HEIGHT}px);
-  height: calc(100dvh - ${NAV_HEIGHT}px);
+  height: 100vh;
+  height: 100dvh;
   padding: 0;
   color: #0f172a;
   background: #fff;

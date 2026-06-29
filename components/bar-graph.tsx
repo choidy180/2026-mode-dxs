@@ -93,7 +93,7 @@ const PageContainer = styled.div`
   
   /* 🔥 요청사항 반영 */
   width: calc(100vw);    /* 가로: 전체 - 60px */
-  height: calc(100vh - 66px);   /* 세로: 전체 - 66px */
+  height: 100vh;
   padding-top: 24px;             /* 상단 마진 50px */
   margin-left: auto;            /* 중앙 정렬 */
   margin-right: auto;           /* 중앙 정렬 */

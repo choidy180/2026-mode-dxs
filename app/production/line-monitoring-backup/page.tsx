@@ -179,7 +179,7 @@ const modalPop = keyframes` from { opacity: 0; transform: scale(0.95); } to { op
 const emergencyBlink = keyframes` 0%, 100% { box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.2); background-color: rgba(50, 0, 0, 0.3); } 50% { box-shadow: inset 0 0 150px rgba(239, 68, 68, 0.6); background-color: rgba(50, 0, 0, 0.6); } `;
 const textGlow = keyframes` 0%, 100% { text-shadow: 0 0 10px rgba(255, 0, 0, 0.5); } 50% { text-shadow: 0 0 20px rgba(255, 0, 0, 1), 0 0 40px rgba(255, 0, 0, 0.8); } `;
 
-const PageContainer = styled.div` display: flex; flex-direction: column; width: 100%; height: calc(100vh - 64px); background-image: url('${FACTORY_BG_IMAGE}'); background-size: cover; background-position: center; background-repeat: no-repeat; background-color: #0f172a; color: #f8fafc; font-family: 'Pretendard', sans-serif; overflow: hidden; position: relative; &::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 15, 30, 0.85); z-index: 0; pointer-events: none; } `;
+const PageContainer = styled.div` display: flex; flex-direction: column; width: 100%; height: 100vh; background-image: url('${FACTORY_BG_IMAGE}'); background-size: cover; background-position: center; background-repeat: no-repeat; background-color: #0f172a; color: #f8fafc; font-family: 'Pretendard', sans-serif; overflow: hidden; position: relative; &::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 15, 30, 0.85); z-index: 0; pointer-events: none; } `;
 const MainContent = styled.main` flex: 1; width: 100%; height: 100%; position: relative; z-index: 10; `;
 const ViewerContainer = styled.div` width: 100%; height: 100%; padding-top: 4rem; position: relative; isolation: isolate; `;
 

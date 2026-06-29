@@ -131,7 +131,7 @@ const MOCK_API_RESPONSE: ApiResponse = {
 // --------------------------------------------------------------------------
 const PageContainer = styled.div`
   width: 100vw;
-  height: calc(100vh - 60px);
+  height: 100vh;
   padding: 24px 32px;
   display: flex;
   flex-direction: column;

@@ -306,7 +306,7 @@ export default function PhysicalAIDashboard() {
 // -------------------------------------------------------------------------
 
 // --- Layout ---
-const Container = styled.div` width: 100vw; height: calc(100vh - 64px); background: ${p=>p.theme.bg}; color: ${p=>p.theme.text}; display: flex; flex-direction: column; `;
+const Container = styled.div` width: 100vw; height: 100vh; background: ${p=>p.theme.bg}; color: ${p=>p.theme.text}; display: flex; flex-direction: column; `;
 const Header = styled.header` height: 64px; flex-shrink: 0; background: ${p=>p.theme.cardBg}; border-bottom: 1px solid ${p=>p.theme.border}; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; box-shadow: ${p=>p.theme.shadow}; z-index: 10; `;
 const Brand = styled.div` display: flex; align-items: center; gap: 12px; `;
 const LogoIcon = styled.div` width: 36px; height: 36px; background: #0F172A; border-radius: 8px; display: flex; align-items: center; justify-content: center; `;

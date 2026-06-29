@@ -11,7 +11,7 @@ interface GmtLoadingScreenProps {
 }
 
 // --- Assets ---
-// const LOGO_URL = '/logo/gmt_logo.png'; 
+// const LOGO_URL = '/logo/gmt_logo.png';
 
 // --- Keyframes ---
 const pulseGreen = keyframes`
@@ -37,19 +37,19 @@ const Container = styled.div`
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: 100%; 
-  height: calc(100vh - 64px); 
-  margin-top: 64px; 
+  width: 100%;
+  height: 100vh;
+  margin-top: 0;
 
   background-color: #ffffff;
-  background-image: 
+  background-image:
     linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
   background-size: 40px 40px;
   position: relative;
   overflow: hidden;
   font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-  z-index: 50; 
+  z-index: 50;
 `;
 
 const EcoBackground = styled(motion.div)`
@@ -69,7 +69,7 @@ const ContentWrapper = styled.div`
   flex-direction: column;
   align-items: center;
   position: relative;
-  transform: translateY(-20px); 
+  transform: translateY(-20px);
 `;
 
 const LogoCircle = styled(motion.div)`
@@ -80,20 +80,20 @@ const LogoCircle = styled(motion.div)`
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 
-    0 20px 50px rgba(0, 0, 0, 0.05), 
-    0 1px 0 rgba(255, 255, 255, 1) inset; 
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.05),
+    0 1px 0 rgba(255, 255, 255, 1) inset;
   position: relative;
   backdrop-filter: blur(5px);
   will-change: transform, opacity; /* [최적화] */
-  
+
   /* Green Pulse Aura */
   &::before {
     content: '';
     position: absolute;
     inset: -5px;
     border-radius: 50%;
-    border: 2px solid rgba(16, 185, 129, 0.15); 
+    border: 2px solid rgba(16, 185, 129, 0.15);
     animation: ${pulseGreen} 3s infinite cubic-bezier(0.4, 0, 0.6, 1);
   }
 
@@ -104,7 +104,7 @@ const LogoCircle = styled(motion.div)`
     inset: -20px;
     border-radius: 50%;
     border: 1.5px solid transparent;
-    border-top-color: #ef4444; 
+    border-top-color: #ef4444;
     border-bottom-color: #ef4444;
     opacity: 0.3;
     animation: ${spin} 15s linear infinite;
@@ -136,10 +136,10 @@ const TitleGroup = styled(motion.div)`
 
 const MainTitle = styled.h1`
   font-size: 38px;
-  font-weight: 800; 
+  font-weight: 800;
   margin: 0;
   line-height: 1;
-  color: #0f172a; 
+  color: #0f172a;
   letter-spacing: -0.03em;
   text-shadow: 0 4px 10px rgba(0,0,0,0.05);
 
@@ -156,15 +156,15 @@ const SubTitleBadge = styled.div`
   display: inline-flex;
   align-items: center;
   padding: 6px 16px;
-  background-color: #f1f5f9; 
-  border: 1px solid #e2e8f0; 
-  border-radius: 20px; 
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
   font-size: 13px;
   font-weight: 700;
-  color: #475569; 
+  color: #475569;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.03); 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
 `;
 
 const ProgressTrack = styled.div`
@@ -179,7 +179,7 @@ const ProgressTrack = styled.div`
 
 const ProgressBar = styled(motion.div)`
   height: 100%;
-  background: linear-gradient(90deg, #34d399, #059669); 
+  background: linear-gradient(90deg, #34d399, #059669);
   border-radius: 10px;
   position: relative;
   will-change: width; /* [최적화] */
@@ -189,7 +189,7 @@ const ProgressBar = styled(motion.div)`
     position: absolute;
     top: 0; right: 0; bottom: 0;
     width: 12px;
-    background: #ef4444; 
+    background: #ef4444;
     box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
     border-radius: 0 10px 10px 0;
   }
@@ -213,14 +213,14 @@ const StatusText = styled(motion.div)`
   span.percent {
     font-size: 26px;
     font-weight: 800;
-    color: #059669; 
+    color: #059669;
     font-variant-numeric: tabular-nums;
   }
 
   span.detail {
     font-size: 15px;
     font-weight: 600;
-    color: #64748b; 
+    color: #64748b;
     min-height: 20px; // 높이 고정으로 텍스트 변경 시 레이아웃 흔들림 방지
   }
 `;
@@ -232,9 +232,9 @@ const GmtLoadingScreen = ({ onComplete }: GmtLoadingScreenProps) => {
 
   useEffect(() => {
     // [최적화] 3000 -> 2000 (2초)로 단축
-    const DURATION = 2000; 
+    const DURATION = 2000;
     const startTime = Date.now();
-    
+
     const messages = [
       { p: 10, msg: "AI 생산 공정 분석 중..." },
       { p: 40, msg: "실시간 데이터 동기화..." },
@@ -273,7 +273,7 @@ const GmtLoadingScreen = ({ onComplete }: GmtLoadingScreenProps) => {
 
   return (
     <Container>
-      <EcoBackground 
+      <EcoBackground
         animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.7, 0.5] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -282,9 +282,9 @@ const GmtLoadingScreen = ({ onComplete }: GmtLoadingScreenProps) => {
         {/* 1. Logo */}
         <LogoCircle
           initial={{ scale: 0.8, opacity: 0, y: 30 }}
-          animate={{ 
-            scale: 1, 
-            opacity: 1, 
+          animate={{
+            scale: 1,
+            opacity: 1,
             y: 0,
             transition: {
               scale: { duration: 0.8, type: 'spring', bounce: 0.4 },
@@ -294,14 +294,14 @@ const GmtLoadingScreen = ({ onComplete }: GmtLoadingScreenProps) => {
           }}
         >
           <ImageWrapper
-            animate={{ scale: [1, 1.05, 1] }} 
+            animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           >
             {/* [최적화] Next/Image 사용 + priority 적용 */}
-            <Image 
+            <Image
               src={'/logo/gmt_logo_copy.png'}
-              // src={LOGO_URL} 
-              alt="GMT Logo" 
+              // src={LOGO_URL}
+              alt="GMT Logo"
               width={160}
               height={160}
               priority
@@ -335,7 +335,7 @@ const GmtLoadingScreen = ({ onComplete }: GmtLoadingScreenProps) => {
             {Math.floor(progress)}%
           </motion.span>
           <AnimatePresence mode="wait">
-            <motion.span 
+            <motion.span
               className="detail"
               key={statusMessage}
               initial={{ opacity: 0, y: 5 }}

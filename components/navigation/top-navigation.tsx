@@ -1,384 +1,1040 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import styled, { css } from 'styled-components';
-import { usePathname, useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { FiBell, FiSearch } from 'react-icons/fi';
-import AIAgentSystem from '../chatbot-widget';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import styled from "styled-components";
+import {
+  Activity,
+  Bell,
+  Bot,
+  Boxes,
+  CheckCircle2,
+  ChevronRight,
+  CircleHelp,
+  CircleDotDashed,
+  ClipboardCheck,
+  Cog,
+  Droplets,
+  Factory,
+  Folder,
+  LayoutGrid,
+  Layers,
+  Package,
+  PackageCheck,
+  Route,
+  ScanSearch,
+  Search,
+  Send,
+  Settings,
+  ShieldCheck,
+  Truck,
+  UsersRound,
+  Warehouse,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import AIAgentSystem from "../chatbot-widget";
 
-// --- Types & Data ---
-export type SubMenuItemType = { label: string; href: string; detail: string; };
-export type MenuDataType = { description: string; items: SubMenuItemType[]; };
+type NavKey =
+  | "dashboard"
+  | "material"
+  | "quality"
+  | "equipment"
+  | "production"
+  | "work"
+  | "shipping";
+type PanelKey = Exclude<NavKey, "dashboard"> | "search";
+type NoticeTone = "danger" | "warning" | "success" | "info";
 
-const MENU_KEYS = ["자재관리", "공정품질", "공정설비", "생산관리", "작업관리", "출하관리"];
-
-const subMenuData: Record<string, MenuDataType> = {
-  "자재관리": {
-    description: "",
-    items: [
-      { label: "입고검수", href: "/material/inbound-inspection", detail: "" },
-      { label: "자재창고", href: "/material/warehouse", detail: "" },
-      { label: "공정재고", href: "/production/smart-factory-dashboard", detail: "" },
-    ]
-  },
-  "공정품질": {
-    description: "",
-    items: [
-      { label: "유리틈새검사", href: "/production/glass-gap-check", detail: "" },
-      { label: "발포액누설 검사", href: "/production/leak-detection", detail: "" },
-      { label: "가스켓 이상 탐지", href: "/production/gasket-check", detail: "" },
-      { label: "필름부착확인", href: "/production/film-attachment", detail: "" },
-    ]
-  },
-  "공정설비": {
-    description: "",
-    items: [
-      { label: "발포 품질 예측", href: "/production/line-monitoring", detail: "" },
-      { label: "발포설비 예지보전", href: "/production/foaming-inspection", detail: "" },
-    ]
-  },
-  "생산관리": {
-    description: "",
-    items: [
-      { label: "작업시간관리", href: "/production/takttime-dashboard", detail: "" },
-    ]
-  },
-  "작업관리": {
-    description: "",
-    items: [
-      { label: "Pysical AI", href: "/production/pysical-ai", detail: "" },
-    ]
-  },
-  "출하관리": {
-    description: "",
-    items: [
-      { label: "운송관리", href: "/transport/realtime-status", detail: "" },
-      { label: "제품창고", href: "/transport/warehouse-management", detail: "" },
-      { label: "출하처리", href: "/transport/shipment", detail: "" },
-    ]
-  },
+type NavChild = {
+  label: string;
+  href: string;
+  detail: string;
+  icon: LucideIcon;
 };
 
+type NavEntry = {
+  key: NavKey;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  href?: string;
+  children?: NavChild[];
+};
 
-// --- Styled Components ---
+type NoticeItem = {
+  id: number;
+  title: string;
+  message: string;
+  time: string;
+  category: string;
+  tone: NoticeTone;
+  unread?: boolean;
+};
 
-const NavWrapper = styled.div<{ $isDisabled: boolean }>`
-  position: sticky; top: 0; width: 100%; 
-  z-index: 9999; 
-  ${props => props.$isDisabled && css`pointer-events: none; opacity: 0.6; cursor: not-allowed;`}
-`;
+const RAIL_WIDTH = 76;
+const SUB_SIDEBAR_WIDTH = 356;
 
-const NavContainer = styled.nav`
-  position: relative;
-  z-index: 10001; 
-  height: 64px; background: #ffffff;
-  display: flex; justify-content: center;
-  font-family: var(--font-pretendard), 'Pretendard', sans-serif; 
-  border-bottom: 1px solid #e5e7eb; 
-`;
+const NAV_ITEMS: NavEntry[] = [
+  {
+    key: "dashboard",
+    label: "대시보드",
+    description: "전체 운영 현황",
+    icon: LayoutGrid,
+    href: "/master-dashboard",
+  },
+  {
+    key: "material",
+    label: "자재관리",
+    description: "입고, 창고, 공정 재고",
+    icon: Package,
+    children: [
+      { label: "입고검사", href: "/material/inbound-inspection", detail: "자재 입고 품질 확인", icon: ClipboardCheck },
+      { label: "자재창고", href: "/material/warehouse", detail: "창고 재고와 위치 관리", icon: Warehouse },
+      { label: "공정재고", href: "/production/smart-factory-dashboard", detail: "라인 투입 전 재고 현황", icon: Boxes },
+    ],
+  },
+  {
+    key: "quality",
+    label: "공정품질",
+    description: "비전 검사와 품질 판정",
+    icon: ShieldCheck,
+    children: [
+      { label: "유리간격검사", href: "/production/glass-gap-check", detail: "Glass gap 실시간 검사", icon: ScanSearch },
+      { label: "발포누수검사", href: "/production/leak-detection", detail: "누수 및 기포 이상 감지", icon: Droplets },
+      { label: "가스켓 이상 감지", href: "/production/gasket-check", detail: "가스켓 결함 모니터링", icon: CircleDotDashed },
+      { label: "필름부착확인", href: "/production/film-attachment", detail: "필름 부착 상태 판정", icon: Layers },
+    ],
+  },
+  {
+    key: "equipment",
+    label: "공정설비",
+    description: "설비 상태와 예지보전",
+    icon: Cog,
+    children: [
+      { label: "발포 설비 예측", href: "/production/line-monitoring", detail: "라인 가동 상태 모니터링", icon: Activity },
+      { label: "발포설비 예지보전", href: "/production/foaming-inspection", detail: "설비 이상 징후 추적", icon: Cog },
+    ],
+  },
+  {
+    key: "production",
+    label: "생산관리",
+    description: "생산 시간과 목표 관리",
+    icon: Factory,
+    children: [
+      { label: "작업시간관리", href: "/production/takttime-dashboard", detail: "택타임과 생산 흐름 분석", icon: CheckCircle2 },
+    ],
+  },
+  {
+    key: "work",
+    label: "작업관리",
+    description: "작업자 보조와 자동화",
+    icon: ClipboardCheck,
+    children: [
+      { label: "Physical AI", href: "/production/pysical-ai", detail: "현장 작업 AI 지원", icon: Bot },
+    ],
+  },
+  {
+    key: "shipping",
+    label: "출하관리",
+    description: "운송, 제품창고, 출하 처리",
+    icon: Truck,
+    children: [
+      { label: "운송관리", href: "/transport/realtime-status", detail: "차량 및 이동 현황", icon: Route },
+      { label: "제품창고", href: "/transport/warehouse-management", detail: "완제품 재고 관리", icon: PackageCheck },
+      { label: "출하처리", href: "/transport/shipment", detail: "출하 지시와 처리 현황", icon: Send },
+    ],
+  },
+];
 
-const NavInner = styled.div`
-  width: 100%; padding: 0 24px; height: 100%;
-  display: flex; align-items: center; justify-content: space-between;
-`;
+const NOTICES: NoticeItem[] = [
+  {
+    id: 1,
+    title: "유리간격검사 NG 발생",
+    message: "A2 우측 상단 카메라에서 기준값 초과 항목이 감지되었습니다.",
+    time: "방금 전",
+    category: "품질",
+    tone: "danger",
+    unread: true,
+  },
+  {
+    id: 2,
+    title: "입고검사 데이터 동기화",
+    message: "금일 입고검사 18건이 ERP 데이터와 정상 동기화되었습니다.",
+    time: "8분 전",
+    category: "자재",
+    tone: "success",
+    unread: true,
+  },
+  {
+    id: 3,
+    title: "발포 설비 점검 권장",
+    message: "온도 편차가 3회 연속 발생했습니다. 예방 점검을 권장합니다.",
+    time: "22분 전",
+    category: "설비",
+    tone: "warning",
+  },
+  {
+    id: 4,
+    title: "출하 차량 도착 예정",
+    message: "GMT-02 차량이 14:30 도크에 도착 예정입니다.",
+    time: "43분 전",
+    category: "출하",
+    tone: "info",
+  },
+];
 
-// 💡 1. 좌측 로고 영역에 flex: 1 할당
-const LogoArea = styled.div`
-  flex: 1; /* 💡 공간 균형을 위해 추가 */
-  display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; color: #111; cursor: pointer;
-  letter-spacing: -0.5px;
-  h4 {
-    font-family: 'A2z'; font-weight: 600 !important;
-  }
-`;
+const isActivePath = (pathname: string | null, href: string) => {
+  if (!pathname) return false;
+  return pathname === href || pathname.startsWith(`${href}/`);
+};
 
-// 💡 2. 우측 아이콘 영역에 flex: 1과 justify-content: flex-end 할당
-const IconActions = styled.div`
-  flex: 1; /* 💡 공간 균형을 위해 추가 */
-  display: flex; gap: 12px; align-items: center; justify-content: flex-end; /* 💡 우측으로 밀어주기 */
-`;
+const getActiveKey = (pathname: string | null): NavKey => {
+  const exact = NAV_ITEMS.find((item) => item.href && isActivePath(pathname, item.href));
+  if (exact) return exact.key;
 
-const MenuPillContainer = styled.div`
-  display: flex; align-items: center; position: relative; 
-  background-color: #f3f4f6;
-  border-radius: 40px;
-  padding: 4px;
-`;
+  const parent = NAV_ITEMS.find((item) => item.children?.some((child) => isActivePath(pathname, child.href)));
+  if (parent) return parent.key;
 
-const MenuGlider = styled.div`
-  position: absolute; 
-  height: calc(100% - 8px); 
-  background-color: #D31145 !important; 
-  border-radius: 30px; 
-  z-index: 0;
-  top: 4px;
-  left: 0;
-  transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1), width 0.4s cubic-bezier(0.2, 0, 0.2, 1);
-  will-change: transform, width;
-`;
+  if (pathname?.includes("/material")) return "material";
+  if (pathname?.includes("/transport")) return "shipping";
+  if (pathname?.includes("/production")) return "quality";
+  return "dashboard";
+};
 
-const MenuItem = styled.button<{ $isActive?: boolean }>`
-  border: none; background: transparent; 
-  color: ${props => props.$isActive ? '#ffffff' : '#333333'}; 
-  padding: 8px 24px; 
-  border-radius: 30px; 
-  font-size: 15px; font-weight: 600; cursor: pointer;
-  position: relative; z-index: 1; transition: color 0.2s ease; font-family: inherit;
-  display: flex; align-items: center; justify-content: center; white-space: nowrap;
-  
-  &:hover {
-    color: ${props => props.$isActive ? '#ffffff' : '#D31145'};
-  }
-`;
-
-const IconButton = styled.div`
-  width: 40px; height: 40px; border-radius: 50%;
-  background-color: #f3f4f6;
-  display: flex; align-items: center; justify-content: center;
-  color: #333; cursor: pointer; position: relative;
-  transition: background-color 0.2s;
-  &:hover { background-color: #e5e7eb; }
-`;
-
-const Badge = styled.span`
-  position: absolute; top: -2px; right: -2px;
-  background-color: #ef4444; color: white;
-  font-size: 10px; font-weight: 800;
-  width: 18px; height: 18px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid white;
-`;
-
-const SubMenuBar = styled.div<{ $isOpen: boolean }>`
-  position: absolute;
-  top: 64px; 
-  left: 0;
-  width: 100%; 
-  height: 48px; 
-  background: #ffffff;
-  display: flex; justify-content: center; align-items: center;
-  z-index: 10000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); 
-  
-  opacity: ${props => props.$isOpen ? 1 : 0};
-  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
-  transform: translateY(${props => props.$isOpen ? '0' : '-5px'});
-  transition: all 0.2s ease-in-out;
-`;
-
-const SubMenuInnerBar = styled.div`
-  width: 100%; max-width: 1680px; padding: 0 24px;
-  height: 100%; 
-  display: flex; gap: 40px; justify-content: center;
-`;
-
-const SubMenuItem = styled.button<{ $isActive: boolean }>`
-  background: none; border: none; cursor: pointer;
-  font-size: 14px; 
-  height: 100%; 
-  display: flex; align-items: center; justify-content: center;
-  position: relative; 
-  font-weight: ${props => props.$isActive ? '700' : '500'};
-  color: ${props => props.$isActive ? '#D31145' : '#888888'};
-  transition: color 0.2s;
-  font-family: inherit;
-  
-  &:hover { color: #D31145; }
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background-color: #D31145;
-    opacity: ${props => props.$isActive ? 1 : 0}; 
-    transition: opacity 0.2s ease;
-  }
-`;
-
-const BlurOverlay = styled.div<{ $isOpen: boolean }>`
-  position: fixed;
-  top: 64px; 
-  left: 0;
-  width: 100vw;
-  height: calc(100vh - 64px);
-  background: rgba(0, 0, 0, 0.35); 
-  backdrop-filter: blur(6px); 
-  opacity: ${props => props.$isOpen ? 1 : 0};
-  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
-  pointer-events: ${props => props.$isOpen ? 'auto' : 'none'};
-  transition: opacity 0.3s ease, visibility 0.3s ease;
-  z-index: 9998;
-`;
-
-
-// --- Component ---
-
-interface TopNavigationProps { isLoading?: boolean; }
+interface TopNavigationProps {
+  isLoading?: boolean;
+}
 
 export default function TopNavigation({ isLoading = false }: TopNavigationProps) {
-  const [gliderStyle, setGliderStyle] = useState({ x: 0, width: 0 });
-  const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  
-  const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
-  const menuAreaRef = useRef<HTMLDivElement>(null);
-  const subMenuRef = useRef<HTMLDivElement>(null); 
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const activeKey = useMemo(() => getActiveKey(pathname), [pathname]);
+  const [openPanel, setOpenPanel] = useState<PanelKey | null>(null);
+  const [searchValue, setSearchValue] = useState("");
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  const selectedEntry = useMemo(
+    () => NAV_ITEMS.find((item) => item.key === openPanel && item.children),
+    [openPanel],
+  );
+  const trimmedSearch = searchValue.trim().toLowerCase();
+  const unreadCount = NOTICES.filter((notice) => notice.unread).length;
 
-  const getCurrentActiveMenu = useCallback(() => {
-    if (!mounted || !pathname) return null;
-    const activeKey = MENU_KEYS.find(key => 
-      subMenuData[key].items.some(item => pathname === item.href || pathname.startsWith(item.href))
-    );
-    if (activeKey) return activeKey;
-    
-    if (pathname.includes('/material')) return "자재관리";
-    if (pathname.includes('/production')) return "공정품질";
-    if (pathname.includes('/transport')) return "출하관리";
-    return "자재관리"; 
-  }, [pathname, mounted]);
+  const filteredGroups = useMemo(() => {
+    const groups = NAV_ITEMS.filter((item) => item.children?.length);
 
-  const currentActiveMenu = getCurrentActiveMenu();
-  const activeSubMenuData = hoveredMenu ? subMenuData[hoveredMenu] : null;
-  const isMenuOpen = !!hoveredMenu && !isLoading;
-
-  const handleMenuClick = (e: React.MouseEvent, menu: string) => {
-    e.preventDefault(); if (isLoading) return;
-    const subItems = subMenuData[menu]?.items;
-    if (subItems && subItems.length > 0) {
-      setHoveredMenu(null);
-      router.push(subItems[0].href);
+    if (!trimmedSearch) {
+      if (openPanel === "search") return groups;
+      return selectedEntry ? [selectedEntry] : [];
     }
-  };
 
-  const handleSubMenuClick = (e: React.MouseEvent, href: string) => {
-    e.preventDefault(); 
-    if (isLoading) return;
-    setHoveredMenu(null);
-    router.push(href);
-  };
-
-  const updateGliderPosition = useCallback(() => {
-    if (!mounted || !currentActiveMenu) { setGliderStyle({ x: 0, width: 0 }); return; }
-    
-    const activeIndex = MENU_KEYS.indexOf(currentActiveMenu);
-    const currentTabElement = tabsRef.current[activeIndex];
-    const parentElement = menuAreaRef.current;
-    
-    if (currentTabElement && parentElement) {
-      const parentRect = parentElement.getBoundingClientRect();
-      const childRect = currentTabElement.getBoundingClientRect();
-      const relativeX = childRect.left - parentRect.left;
-      
-      setGliderStyle(prev => {
-        if (Math.abs(prev.x - relativeX) < 0.5 && Math.abs(prev.width - childRect.width) < 0.5) return prev;
-        return { x: relativeX, width: childRect.width };
-      });
-    }
-  }, [currentActiveMenu, mounted]);
+    return groups
+      .map((group) => ({
+        ...group,
+        children: group.children?.filter((child) =>
+          [group.label, group.description, child.label, child.detail, child.href]
+            .join(" ")
+            .toLowerCase()
+            .includes(trimmedSearch),
+        ),
+      }))
+      .filter((group) => group.children?.length);
+  }, [openPanel, selectedEntry, trimmedSearch]);
 
   useEffect(() => {
-    if (!mounted) return;
-    updateGliderPosition();
-    const resizeObserver = new ResizeObserver(() => updateGliderPosition());
-    if (menuAreaRef.current) resizeObserver.observe(menuAreaRef.current);
-    tabsRef.current.forEach(tab => { if (tab) resizeObserver.observe(tab); });
-    return () => resizeObserver.disconnect();
-  }, [updateGliderPosition, mounted]);
-
-  useEffect(() => {
-    if (!hoveredMenu) return; 
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (subMenuRef.current) {
-        const rect = subMenuRef.current.getBoundingClientRect();
-        if (e.clientY > rect.bottom + 100) {
-          setHoveredMenu(null);
-        }
-      }
-    };
-
-    const handleMouseLeaveDoc = () => {
-      setHoveredMenu(null);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseleave', handleMouseLeaveDoc);
+    document.documentElement.style.setProperty("--app-sidebar-offset", `${RAIL_WIDTH}px`);
+    document.documentElement.dataset.sidebarMode = "rail";
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseleave', handleMouseLeaveDoc);
+      document.documentElement.style.removeProperty("--app-sidebar-offset");
+      delete document.documentElement.dataset.sidebarMode;
     };
-  }, [hoveredMenu]);
+  }, []);
+
+  useEffect(() => {
+    if (openPanel) window.setTimeout(() => searchInputRef.current?.focus(), 120);
+  }, [openPanel]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpenPanel(null);
+      setIsNotificationOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleEntryClick = (entry: NavEntry) => {
+    if (isLoading) return;
+
+    setIsNotificationOpen(false);
+
+    if (entry.href) {
+      router.push(entry.href);
+      setOpenPanel(null);
+      return;
+    }
+
+    setSearchValue("");
+    setOpenPanel((current) => (current === entry.key ? null : (entry.key as PanelKey)));
+  };
+
+  const handleSearchOpen = () => {
+    if (isLoading) return;
+    setSearchValue("");
+    setOpenPanel("search");
+    setIsNotificationOpen(false);
+  };
+
+  const handleChildClick = (child: NavChild) => {
+    if (isLoading) return;
+    router.push(child.href);
+    setOpenPanel(null);
+    setSearchValue("");
+  };
+
+  const closePanel = () => {
+    setOpenPanel(null);
+    setSearchValue("");
+  };
 
   return (
-    <NavWrapper $isDisabled={isLoading}>
-      {/* 1단: 메인 내비게이션 바 */}
-      <NavContainer>
-        <NavInner>
-          <LogoArea onClick={() => router.push('/master-dashboard')}>
-            <div style={{ position: 'relative', width: '60px', height: '24px' }}>
-              <Image src="/logo/gmt_logo.png" alt="Company Logo" fill style={{ objectFit: 'contain' }} priority />
-            </div>
-            <h4>고모텍 AI 관제센터</h4>
-          </LogoArea>
+    <>
+      {openPanel && <ScreenBlur type="button" onClick={closePanel} aria-label="하위 메뉴 닫기" />}
 
-          <MenuPillContainer ref={menuAreaRef}>
-            {mounted && (
-              <MenuGlider style={{ transform: `translateX(${gliderStyle.x}px)`, width: gliderStyle.width }} />
-            )}
-            {MENU_KEYS.map((menu, index) => {
-              const isActive = mounted ? currentActiveMenu === menu : false;
-              return (
-                <MenuItem 
-                  key={menu}
-                  ref={(el) => { if(el) tabsRef.current[index] = el; }}
-                  $isActive={isActive} 
-                  onClick={(e) => handleMenuClick(e, menu)}
-                  onMouseEnter={() => !isLoading && setHoveredMenu(menu)}
-                >
-                  {menu}
-                </MenuItem>
-              );
-            })}
-          </MenuPillContainer>
+      <RailShell $disabled={isLoading} aria-label="메인 네비게이션">
+        <RailSection>
+          <RailButton
+            type="button"
+            $active={activeKey === "dashboard"}
+            onClick={() => handleEntryClick(NAV_ITEMS[0])}
+            title="대시보드"
+            aria-label="대시보드"
+          >
+            <LayoutGrid size={21} />
+          </RailButton>
 
-          <IconActions>
+          <RailDivider />
+
+          {NAV_ITEMS.slice(1).map((entry) => {
+            const Icon = entry.icon;
+            const active = activeKey === entry.key || openPanel === entry.key;
+
+            return (
+              <RailButton
+                key={entry.key}
+                type="button"
+                $active={active}
+                onClick={() => handleEntryClick(entry)}
+                title={entry.label}
+                aria-label={entry.label}
+                aria-expanded={openPanel === entry.key}
+              >
+                <Icon size={21} />
+              </RailButton>
+            );
+          })}
+        </RailSection>
+
+        <RailSection>
+          <AdvisorRailSlot title="AI Advisor">
             <AIAgentSystem />
-            <IconButton><FiSearch size={18} /></IconButton>
-            <IconButton><FiBell size={18} /><Badge>2</Badge></IconButton>
-          </IconActions>
-        </NavInner>
-      </NavContainer>
+          </AdvisorRailSlot>
+          <RailButton
+            type="button"
+            $active={openPanel === "search"}
+            onClick={handleSearchOpen}
+            title="메뉴 검색"
+            aria-label="메뉴 검색"
+            aria-expanded={openPanel === "search"}
+          >
+            <Search size={21} />
+          </RailButton>
+          <RailButton type="button" $active={false} title="사용자" aria-label="사용자">
+            <UsersRound size={21} />
+          </RailButton>
+          <RailButton type="button" $active={false} title="파일" aria-label="파일">
+            <Folder size={21} />
+          </RailButton>
+          <RailButton type="button" $active={false} title="도움말" aria-label="도움말">
+            <CircleHelp size={21} />
+          </RailButton>
+          <RailButton type="button" $active={false} title="설정" aria-label="설정">
+            <Settings size={21} />
+          </RailButton>
+        </RailSection>
+      </RailShell>
 
-      {/* 2단: 서브메뉴 바 */}
-      <SubMenuBar ref={subMenuRef} $isOpen={isMenuOpen}>
-        <SubMenuInnerBar>
-          {activeSubMenuData?.items.map((subItem) => (
-            <SubMenuItem 
-              key={subItem.label} 
-              $isActive={mounted ? pathname === subItem.href : false}
-              onClick={(e) => handleSubMenuClick(e, subItem.href)}
-            >
-              {subItem.label}
-            </SubMenuItem>
-          ))}
-        </SubMenuInnerBar>
-      </SubMenuBar>
+      <SubSidebar $open={!!openPanel} aria-hidden={!openPanel}>
+        {openPanel && (
+          <>
+            <SubHeader>
+              <SubTitleBlock>
+                <span>{openPanel === "search" ? "Search" : "Menu"}</span>
+                <strong>{openPanel === "search" ? "메뉴 검색" : selectedEntry?.label}</strong>
+                <p>{openPanel === "search" ? "원하는 화면을 빠르게 찾아 이동합니다." : selectedEntry?.description}</p>
+              </SubTitleBlock>
+              <CloseButton type="button" onClick={closePanel} aria-label="하위 메뉴 닫기">
+                <X size={18} />
+              </CloseButton>
+            </SubHeader>
 
-      {/* 메뉴 호버 시 배경 블러 처리 */}
-      <BlurOverlay 
-        $isOpen={isMenuOpen} 
-        onClick={() => setHoveredMenu(null)}
-      />
-      
-    </NavWrapper>
+            <SearchBox>
+              <Search size={18} />
+              <input
+                ref={searchInputRef}
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                placeholder="메뉴명, 업무명, 경로 검색"
+                aria-label="사이드바 메뉴 검색"
+              />
+              {searchValue && (
+                <ClearSearchButton type="button" onClick={() => setSearchValue("")} aria-label="검색어 지우기">
+                  <X size={15} />
+                </ClearSearchButton>
+              )}
+            </SearchBox>
+
+            <ResultSummary>
+              <span>{filteredGroups.reduce((total, group) => total + (group.children?.length ?? 0), 0)}개 메뉴</span>
+              <em>{trimmedSearch ? "검색 결과" : "바로가기"}</em>
+            </ResultSummary>
+
+            <SubContent className="custom-scrollbar">
+              {filteredGroups.length > 0 ? (
+                filteredGroups.map((group) => {
+                  const GroupIcon = group.icon;
+
+                  return (
+                    <ResultGroup key={group.key}>
+                      <GroupTitle>
+                        <GroupTitleIcon>
+                          <GroupIcon size={16} />
+                        </GroupTitleIcon>
+                        <span>{group.label}</span>
+                      </GroupTitle>
+
+                      {group.children?.map((child) => {
+                        const ChildIcon = child.icon;
+                        const active = isActivePath(pathname, child.href);
+
+                        return (
+                          <ResultButton
+                            key={child.href}
+                            type="button"
+                            $active={active}
+                            onClick={() => handleChildClick(child)}
+                            aria-current={active ? "page" : undefined}
+                          >
+                            <ResultIcon $active={active}>
+                              <ChildIcon size={18} />
+                            </ResultIcon>
+                            <ResultText>
+                              <strong>{child.label}</strong>
+                              <span>{child.detail}</span>
+                              <small>{child.href}</small>
+                            </ResultText>
+                            <ChevronRight size={17} />
+                          </ResultButton>
+                        );
+                      })}
+                    </ResultGroup>
+                  );
+                })
+              ) : (
+                <EmptySearch>
+                  <Search size={30} />
+                  <strong>검색 결과가 없습니다.</strong>
+                  <span>다른 메뉴명이나 업무 키워드를 입력해 주세요.</span>
+                </EmptySearch>
+              )}
+            </SubContent>
+          </>
+        )}
+      </SubSidebar>
+
+      <NotificationFab
+        type="button"
+        $active={isNotificationOpen}
+        onClick={() => {
+          setIsNotificationOpen((current) => !current);
+          setOpenPanel(null);
+        }}
+        aria-label="알림 열기"
+      >
+        <Bell size={21} />
+        {unreadCount > 0 && <NotificationBadge>{unreadCount}</NotificationBadge>}
+      </NotificationFab>
+
+      {isNotificationOpen && (
+        <NotificationPanel role="dialog" aria-label="알림">
+          <NotificationHeader>
+            <div>
+              <span>Notifications</span>
+              <strong>알림</strong>
+            </div>
+            <CloseButton type="button" onClick={() => setIsNotificationOpen(false)} aria-label="알림 닫기">
+              <X size={18} />
+            </CloseButton>
+          </NotificationHeader>
+
+          <NotificationList>
+            {NOTICES.map((notice) => (
+              <NoticeCard key={notice.id} $tone={notice.tone} $unread={!!notice.unread}>
+                <NoticeDot $tone={notice.tone} />
+                <NoticeBody>
+                  <div>
+                    <strong>{notice.title}</strong>
+                    <span>{notice.time}</span>
+                  </div>
+                  <p>{notice.message}</p>
+                  <em>{notice.category}</em>
+                </NoticeBody>
+              </NoticeCard>
+            ))}
+          </NotificationList>
+        </NotificationPanel>
+      )}
+    </>
   );
 }
+
+const RailShell = styled.nav<{ $disabled: boolean }>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 10020;
+  width: ${RAIL_WIDTH}px;
+  height: 100vh;
+  height: 100dvh;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, #fbfffd 0%, #eef7f3 100%);
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 10px 0 34px rgba(15, 23, 42, 0.07);
+  opacity: ${({ $disabled }) => ($disabled ? 0.55 : 1)};
+  pointer-events: ${({ $disabled }) => ($disabled ? "none" : "auto")};
+`;
+
+const RailSection = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+`;
+
+const RailDivider = styled.div`
+  width: 30px;
+  height: 1px;
+  margin: 2px 0;
+  background: rgba(15, 23, 42, 0.10);
+`;
+
+const RailButton = styled.button<{ $active: boolean }>`
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 999px;
+  border: 1px solid ${({ $active }) => ($active ? "rgba(15, 23, 42, 0.84)" : "rgba(15, 23, 42, 0.08)")};
+  background: ${({ $active }) => ($active ? "#172623" : "rgba(255, 255, 255, 0.94)")};
+  color: ${({ $active }) => ($active ? "#ffffff" : "#475467")};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${({ $active }) =>
+    $active ? "0 16px 30px rgba(15, 23, 42, 0.22)" : "0 9px 22px rgba(15, 23, 42, 0.08)"};
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: ${({ $active }) => ($active ? "rgba(15, 23, 42, 0.84)" : "rgba(211, 17, 69, 0.26)")};
+    color: ${({ $active }) => ($active ? "#ffffff" : "#d31145")};
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+  }
+`;
+
+const AdvisorRailSlot = styled.div`
+  width: 48px;
+  height: 48px;
+
+  > button {
+    width: 48px;
+    height: 48px;
+    min-width: 0;
+    padding: 0;
+    border-radius: 999px;
+    border-color: rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.94);
+    color: #475467;
+    box-shadow: 0 9px 22px rgba(15, 23, 42, 0.08);
+  }
+
+  > button span {
+    display: none;
+  }
+`;
+
+const ScreenBlur = styled.button`
+  position: fixed;
+  inset: 0;
+  left: ${RAIL_WIDTH}px;
+  z-index: 10000;
+  border: 0;
+  background: rgba(248, 250, 252, 0.56);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: default;
+`;
+
+const SubSidebar = styled.aside<{ $open: boolean }>`
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: ${RAIL_WIDTH}px;
+  z-index: 10010;
+  width: ${SUB_SIDEBAR_WIDTH}px;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.96);
+  border-right: 1px solid rgba(15, 23, 42, 0.10);
+  box-shadow: 18px 0 60px rgba(15, 23, 42, 0.12);
+  transform: translateX(${({ $open }) => ($open ? "0" : "-20px")});
+  opacity: ${({ $open }) => ($open ? 1 : 0)};
+  pointer-events: ${({ $open }) => ($open ? "auto" : "none")};
+  transition:
+    transform 190ms ease,
+    opacity 190ms ease;
+`;
+
+const SubHeader = styled.div`
+  flex: 0 0 auto;
+  padding: 22px 18px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+`;
+
+const SubTitleBlock = styled.div`
+  min-width: 0;
+
+  span {
+    display: block;
+    margin-bottom: 6px;
+    color: #d31145;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    display: block;
+    color: #111827;
+    font-size: 22px;
+    font-weight: 850;
+    letter-spacing: -0.05em;
+  }
+
+  p {
+    margin: 6px 0 0;
+    color: #667085;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
+    word-break: keep-all;
+  }
+`;
+
+const CloseButton = styled.button`
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: #ffffff;
+  color: #667085;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+
+  &:hover {
+    background: #fff1f5;
+    border-color: rgba(211, 17, 69, 0.24);
+    color: #d31145;
+  }
+`;
+
+const SearchBox = styled.label`
+  flex: 0 0 auto;
+  margin: 16px 16px 10px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: #f8fafc;
+  color: #98a2b3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+
+  input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 750;
+  }
+
+  input::placeholder {
+    color: #98a2b3;
+  }
+`;
+
+const ClearSearchButton = styled.button`
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #98a2b3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+`;
+
+const ResultSummary = styled.div`
+  flex: 0 0 auto;
+  margin: 0 18px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+
+  em {
+    color: #98a2b3;
+    font-style: normal;
+  }
+`;
+
+const SubContent = styled.div`
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 14px 18px;
+`;
+
+const ResultGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+`;
+
+const GroupTitle = styled.div`
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+`;
+
+const GroupTitleIcon = styled.span`
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  background: #fff1f5;
+  color: #d31145;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ResultButton = styled.button<{ $active: boolean }>`
+  width: 100%;
+  min-height: 74px;
+  border-radius: 16px;
+  border: 1px solid ${({ $active }) => ($active ? "rgba(211, 17, 69, 0.34)" : "rgba(15, 23, 42, 0.08)")};
+  background: ${({ $active }) => ($active ? "#fff1f5" : "#ffffff")};
+  color: ${({ $active }) => ($active ? "#d31145" : "#344054")};
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+  transition: transform 150ms ease, border-color 150ms ease, color 150ms ease, background 150ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    border-color: rgba(211, 17, 69, 0.30);
+    color: #d31145;
+  }
+
+  > svg {
+    flex: 0 0 auto;
+    color: #98a2b3;
+  }
+`;
+
+const ResultIcon = styled.span<{ $active: boolean }>`
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 14px;
+  background: ${({ $active }) => ($active ? "#ffffff" : "#f2f4f7")};
+  color: ${({ $active }) => ($active ? "#d31145" : "#667085")};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ResultText = styled.span`
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  strong {
+    color: inherit;
+    font-size: 14px;
+    font-weight: 850;
+    letter-spacing: -0.04em;
+  }
+
+  span {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  small {
+    color: #98a2b3;
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+`;
+
+const EmptySearch = styled.div`
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-align: center;
+  color: #98a2b3;
+
+  strong {
+    color: #344054;
+    font-size: 15px;
+    font-weight: 850;
+  }
+
+  span {
+    font-size: 12px;
+    font-weight: 700;
+  }
+`;
+
+const NotificationFab = styled.button<{ $active: boolean }>`
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 10030;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 1px solid ${({ $active }) => ($active ? "rgba(211, 17, 69, 0.34)" : "rgba(15, 23, 42, 0.10)")};
+  background: ${({ $active }) => ($active ? "#fff1f5" : "#ffffff")};
+  color: ${({ $active }) => ($active ? "#d31145" : "#475467")};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  transition: transform 150ms ease, color 150ms ease, border-color 150ms ease, background 150ms ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    color: #d31145;
+    border-color: rgba(211, 17, 69, 0.28);
+  }
+`;
+
+const NotificationBadge = styled.span`
+  position: absolute;
+  top: -4px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+`;
+
+const NotificationPanel = styled.aside`
+  position: fixed;
+  top: 74px;
+  right: 20px;
+  z-index: 10030;
+  width: 386px;
+  max-height: min(620px, 80dvh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 28px 90px rgba(15, 23, 42, 0.18);
+`;
+
+const NotificationHeader = styled.div`
+  padding: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+
+  span {
+    display: block;
+    margin-bottom: 5px;
+    color: #d31145;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 20px;
+    font-weight: 850;
+    letter-spacing: -0.05em;
+  }
+`;
+
+const NotificationList = styled.div`
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const toneColor = (tone: NoticeTone) => {
+  if (tone === "danger") return "#d31145";
+  if (tone === "warning") return "#f59e0b";
+  if (tone === "success") return "#12b76a";
+  return "#3b82f6";
+};
+
+const NoticeCard = styled.div<{ $tone: NoticeTone; $unread: boolean }>`
+  position: relative;
+  display: flex;
+  gap: 11px;
+  padding: 13px;
+  border-radius: 16px;
+  border: 1px solid ${({ $tone, $unread }) => ($unread ? `${toneColor($tone)}35` : "rgba(15, 23, 42, 0.08)")};
+  background: ${({ $tone, $unread }) => ($unread ? `${toneColor($tone)}0F` : "#ffffff")};
+`;
+
+const NoticeDot = styled.span<{ $tone: NoticeTone }>`
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: ${({ $tone }) => toneColor($tone)};
+  box-shadow: 0 0 0 5px ${({ $tone }) => `${toneColor($tone)}16`};
+`;
+
+const NoticeBody = styled.div`
+  min-width: 0;
+  flex: 1;
+
+  div {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 13px;
+    font-weight: 850;
+    letter-spacing: -0.04em;
+  }
+
+  span {
+    flex: 0 0 auto;
+    color: #98a2b3;
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  p {
+    margin: 7px 0 9px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+    word-break: keep-all;
+  }
+
+  em {
+    display: inline-flex;
+    height: 24px;
+    align-items: center;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #f2f4f7;
+    color: #667085;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 850;
+  }
+`;

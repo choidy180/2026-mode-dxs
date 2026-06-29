@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    Layers, ZoomIn, X, RefreshCw, Monitor, Clock, 
+import {
+    Layers, ZoomIn, X, RefreshCw, Monitor, Clock,
     CheckCircle2, XCircle, Volume2, VolumeX, Siren,
     FileText, ChevronRight, Info, ScanLine, AlertTriangle,
     ClipboardX, Home, Calendar, ChevronDown, ChevronLeft
@@ -43,7 +43,7 @@ const theme = {
     border: '#E2E8F0',
     shadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
     status: {
-        ok: { bg: '#ECFDF5', text: '#10B981', border: '#10B981' }, 
+        ok: { bg: '#ECFDF5', text: '#10B981', border: '#10B981' },
         ng: { bg: '#FEF2F2', text: '#EF4444', border: '#EF4444' },
         wait: { bg: '#F8FAFC', text: '#94A3B8', border: '#E2E8F0' }
     }
@@ -104,7 +104,7 @@ const GlobalStyles = () => (
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 3px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94A3B8; }
-        
+
         body { margin: 0; padding: 0; background-color: ${theme.bg}; font-family: "Inter", -apple-system, sans-serif; overflow: hidden; }
         * { box-sizing: border-box; }
     `}</style>
@@ -124,13 +124,13 @@ const generateInitialLogs = (): SystemLog[] => {
     ];
 
     let currentTime = new Date();
-    
+
     for (let i = 0; i < 15; i++) {
-        const diffMinutes = Math.floor(Math.random() * 6) + 5; 
+        const diffMinutes = Math.floor(Math.random() * 6) + 5;
         currentTime = new Date(currentTime.getTime() - diffMinutes * 60000);
-        
+
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
-        
+
         logs.push({
             id: i,
             time: currentTime.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -152,11 +152,11 @@ const InspectionOverlay = ({ isVisible }: { isVisible: boolean }) => {
         pointerEvents: 'none', zIndex: 10,
     };
     const crossHairH: React.CSSProperties = {
-        position: 'absolute', top: '50%', left: '0', width: '100%', height: '1px', 
+        position: 'absolute', top: '50%', left: '0', width: '100%', height: '1px',
         backgroundColor: theme.danger, opacity: 0.3
     };
     const crossHairV: React.CSSProperties = {
-        position: 'absolute', top: '0', left: '50%', width: '1px', height: '100%', 
+        position: 'absolute', top: '0', left: '50%', width: '1px', height: '100%',
         backgroundColor: theme.danger, opacity: 0.3
     };
 
@@ -197,8 +197,8 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
     }, []);
 
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-    const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay(); 
-    
+    const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
+
     const days = [];
     for (let i = 0; i < firstDayOfWeek; i++) { days.push(null); }
     for (let i = 1; i <= daysInMonth; i++) { days.push(i); }
@@ -211,13 +211,13 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
 
     const handlePrevMonth = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); } 
+        if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
         else { setViewMonth(viewMonth - 1); }
     };
 
     const handleNextMonth = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); } 
+        if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
         else { setViewMonth(viewMonth + 1); }
     };
 
@@ -271,7 +271,7 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
 // [수정점] X 버튼을 눌러 모달을 닫을 수 있도록 onClose 프로퍼티 추가 및 연결
 const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => void, onClose: () => void }) => {
     return (
-        <div style={{ 
+        <div style={{
             position: 'absolute', inset: 0, zIndex: 9999999, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Inter", -apple-system, sans-serif'
         }}>
@@ -280,8 +280,8 @@ const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => vo
                 display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '460px', maxWidth: '90%', position: 'relative', transform: 'translateY(-20px)'
             }}>
                 {/* 닫기 (X) 버튼 추가 */}
-                <button 
-                    onClick={onClose} 
+                <button
+                    onClick={onClose}
                     style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s' }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F1F5F9'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -289,7 +289,7 @@ const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => vo
                     <X size={24} />
                 </button>
 
-                <div className="animate-float" style={{ 
+                <div className="animate-float" style={{
                     width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#EFF6FF', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)'
                 }}>
                     <ClipboardX size={48} strokeWidth={1.5} />
@@ -466,7 +466,7 @@ export default function FilmAttachmentCheck() {
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isEmptyStateClosed, setIsEmptyStateClosed] = useState(false);
-  
+
   const [apiData, setApiData] = useState<ApiData | null>(null);
   const [totalStats, setTotalStats] = useState<TotalData | null>(null);
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
@@ -490,7 +490,7 @@ export default function FilmAttachmentCheck() {
       try {
           const response = await fetch("http://192.168.2.147:24828/api/DX_API000027");
           const json = await response.json();
-          
+
           if (json.success) {
               if (json.data && json.data.length > 0) {
                   const data = json.data[0];
@@ -498,7 +498,7 @@ export default function FilmAttachmentCheck() {
                   const resultVal = data.RESULT;
                   const isPass = resultVal === "정상" || resultVal === "OK";
                   const hasError = !isPass && !!resultVal;
-                  
+
                   setIsDefectMode(hasError);
                   if (hasError && !audioAllowed && !showPermissionModal && !audioCtxRef.current) {
                       setShowPermissionModal(true);
@@ -564,7 +564,7 @@ export default function FilmAttachmentCheck() {
 
   const layout = LAYOUT_CONFIGS[screenMode];
   const isPass = apiData?.RESULT === "정상" || apiData?.RESULT === "OK";
-  
+
   const resultVal = apiData?.RESULT || '';
   const isFail = !isPass && !!resultVal;
 
@@ -574,14 +574,14 @@ export default function FilmAttachmentCheck() {
   let animClass = "";
 
   if (isPass) {
-      headerStyle = theme.status.ok; 
-      Icon = CheckCircle2; 
-      headerLabel = "정상 (OK)"; 
+      headerStyle = theme.status.ok;
+      Icon = CheckCircle2;
+      headerLabel = "정상 (OK)";
       animClass = "animate-ok";
   } else if (isFail) {
-      headerStyle = theme.status.ng; 
-      Icon = XCircle; 
-      headerLabel = "불량 (NG)"; 
+      headerStyle = theme.status.ng;
+      Icon = XCircle;
+      headerLabel = "불량 (NG)";
       animClass = "animate-ng";
   }
 
@@ -590,10 +590,10 @@ export default function FilmAttachmentCheck() {
   const woValue = apiData?.STATUS002 || '-';
 
   return (
-      <div style={{ 
+      <div style={{
           backgroundColor: theme.bg, boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
-          fontFamily: '"Inter", -apple-system, sans-serif', width: '100%', 
-          height: 'calc(100vh - 60px)', maxHeight: 'calc(100vh - 60px)', overflow: 'hidden', 
+          fontFamily: '"Inter", -apple-system, sans-serif', width: '100%',
+          height: '100vh', maxHeight: '100vh', overflow: 'hidden',
           padding: layout.padding, position: 'relative'
       }}>
           <GlobalStyles />
@@ -617,7 +617,7 @@ export default function FilmAttachmentCheck() {
 
           {/* 상단 헤더 영역 */}
           <div style={{ display: 'flex', gap: layout.gap, height: layout.headerHeight, marginBottom: layout.gap, flexShrink: 0 }}>
-              
+
               {/* 1. 전체 판정 결과 카드 */}
               <div className={animClass} style={{ width: '320px', backgroundColor: theme.cardBg, borderRadius: '12px', border: `2px solid ${headerStyle.border}`, display: 'flex', alignItems: 'center', padding: '0 32px', gap: '24px', position: 'relative', overflow: 'hidden', boxShadow: theme.shadow }}>
                   {/* 우측 상단 음소거 버튼 */}
@@ -670,7 +670,7 @@ export default function FilmAttachmentCheck() {
           </div>
 
           <div style={{ flex: 1, display: 'flex', gap: layout.gap, minHeight: 0 }}>
-              
+
               {/* 1. 좌측 메인 이미지 뷰어 */}
               <div style={{ flex: 3, display: 'flex', flexDirection: 'column', backgroundColor: theme.cardBg, borderRadius: '16px', boxShadow: theme.shadow, padding: '16px', border: `1px solid ${theme.border}` }}>
                   <div style={{ flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: '#FFFFFF', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -684,7 +684,7 @@ export default function FilmAttachmentCheck() {
                                <span style={{fontWeight: 500, color: '#9CA3AF'}}>이미지 수신 대기 중...</span>
                           </div>
                       )}
-                      
+
                       {apiData?.FILEPATH1 && (
                           <button onClick={(e) => { e.stopPropagation(); handleImageClick("Film Attachment Detail", apiData.FILEPATH1); }} style={{ position: 'absolute', bottom: '16px', right: '16px', backgroundColor: '#FFFFFF', width: '44px', height: '44px', borderRadius: '12px', border: `1px solid ${theme.border}`, cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s', color: theme.textPrimary }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
                               <ZoomIn size={20} strokeWidth={2} />
@@ -702,17 +702,17 @@ export default function FilmAttachmentCheck() {
                           LIVE
                       </div>
                   </div>
-                  
+
                   <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto' }}>
                       <div style={{ display: 'flex', flexDirection: 'column-reverse' }}>
                           {systemLogs.map((log) => {
                               let bgColor = '#FFFFFF';
-                              let dotColor = theme.success; 
-                              
-                              if (log.type === 'ERROR') { 
-                                  dotColor = theme.danger; bgColor = '#FEF2F2'; 
-                              } else if (log.type === 'WARNING') { 
-                                  dotColor = theme.warning; bgColor = '#FEF9C3'; 
+                              let dotColor = theme.success;
+
+                              if (log.type === 'ERROR') {
+                                  dotColor = theme.danger; bgColor = '#FEF2F2';
+                              } else if (log.type === 'WARNING') {
+                                  dotColor = theme.warning; bgColor = '#FEF9C3';
                               }
 
                               return (
@@ -738,12 +738,12 @@ export default function FilmAttachmentCheck() {
           <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onImageClick={handleImageClick} />
           {showPermissionModal && <SoundPermissionModal onConfirm={() => { setAudioAllowed(true); setShowPermissionModal(false); }} />}
           {modalInfo && <ImageModal isOpen={modalInfo.isOpen} onClose={() => setModalInfo(null)} title={modalInfo.title} imgUrl={modalInfo.imgUrl} />}
-          
+
           {/* 데이터 없음 모달 (닫기 X버튼 동작 추가) */}
           {totalStats && totalStats.total_count === 0 && !isEmptyStateClosed && (
-              <EmptyStateModal 
-                  onNavigateHome={handleNavigateHome} 
-                  onClose={() => setIsEmptyStateClosed(true)} 
+              <EmptyStateModal
+                  onNavigateHome={handleNavigateHome}
+                  onClose={() => setIsEmptyStateClosed(true)}
               />
           )}
       </div>

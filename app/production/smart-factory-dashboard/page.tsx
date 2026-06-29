@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
-import { 
-  FiVideo, FiMoreHorizontal, FiUser, FiClock, FiAlertCircle, 
+import {
+  FiVideo, FiMoreHorizontal, FiUser, FiClock, FiAlertCircle,
   FiCheck, FiMinus, FiPlayCircle, FiArrowUp, FiX, FiPackage
 } from 'react-icons/fi';
 import { FaRobot } from 'react-icons/fa';
@@ -12,7 +12,7 @@ import { useVehicleImageUrl } from '@/hooks/useVehicleImageUrl';
 // --- 1. Global Style ---
 const GlobalStyle = createGlobalStyle`
   @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
-  
+
   * {
     box-sizing: border-box;
     font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
@@ -25,7 +25,7 @@ const GlobalStyle = createGlobalStyle`
     color: #1E293B;
     overflow: hidden;
   }
-  
+
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
@@ -33,7 +33,7 @@ const GlobalStyle = createGlobalStyle`
 
 // --- 2. Theme ---
 const theme = {
-  primary: '#C1124F', 
+  primary: '#C1124F',
   lightPink: '#FCE7F3',
   green: '#10B981',
   lightGreen: '#ECFDF5',
@@ -102,8 +102,8 @@ const backdropFadeIn = keyframes`
 // --- Styled Components ---
 const DashboardContainer = styled.div`
   width: 100%;
-  height: calc(100vh - 60px); 
-  padding: 32px; 
+  height: 100vh;
+  padding: 32px;
   display: flex;
   background-color: ${theme.bg};
   overflow: hidden;
@@ -111,8 +111,8 @@ const DashboardContainer = styled.div`
 
 const MainGrid = styled.div`
   display: grid;
-  grid-template-columns: 1.2fr 1.4fr 380px; 
-  gap: 32px; 
+  grid-template-columns: 1.2fr 1.4fr 380px;
+  gap: 32px;
   flex: 1;
   min-height: 0;
   height: 100%;
@@ -167,7 +167,7 @@ const CamTag = styled.div`
   color: white;
   padding: 8px 14px;
   border-radius: 8px;
-  font-size: 15px; 
+  font-size: 15px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -194,15 +194,15 @@ const MiniDashboardOverlay = styled.div`
 `;
 
 const MiniTitle = styled.div`
-  font-size: 16px; 
+  font-size: 16px;
   font-weight: 700;
   color: #F8FAFC;
   margin-bottom: 10px;
 `;
 
 const MiniLabel = styled.div`
-  font-size: 13px; 
-  color: #94A3B8; 
+  font-size: 13px;
+  color: #94A3B8;
   font-weight: 600;
   margin-bottom: 6px;
 `;
@@ -215,25 +215,25 @@ const MiniValueRow = styled.div`
 `;
 
 const MiniValueBig = styled.span`
-  font-size: 28px; 
+  font-size: 28px;
   font-weight: 800;
   color: ${theme.green};
 `;
 
 const MiniValueSub = styled.span`
-  font-size: 20px; 
+  font-size: 20px;
   color: #F1F5F9;
   font-weight: 600;
 `;
 
 const MiniProgressBar = styled.div<{ $percent: number }>`
   width: 100%;
-  height: 6px; 
+  height: 6px;
   background: rgba(255,255,255,0.2);
   border-radius: 3px;
   position: relative;
   overflow: hidden;
-  
+
   &::after {
     content: '';
     position: absolute;
@@ -270,7 +270,7 @@ const SectionHeader = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 28px; 
+  font-size: 28px;
   font-weight: 700;
   color: ${theme.textMain};
   margin: 0;
@@ -288,7 +288,7 @@ const ViewAllBtn = styled.button`
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
-  
+
   &:hover {
     background: #CBD5E1;
     color: #0F172A;
@@ -296,7 +296,7 @@ const ViewAllBtn = styled.button`
 `;
 
 const WorkInfoCard = styled(Card)`
-  padding: 28px; 
+  padding: 28px;
   border-radius: 20px;
   flex-shrink: 0;
 `;
@@ -309,7 +309,7 @@ const WorkInfoTopRow = styled.div`
 `;
 
 const WorkOrderBadge = styled.span`
-  font-size: 18px; 
+  font-size: 18px;
   font-weight: 700;
   color: ${theme.primary};
   background: ${theme.lightPink};
@@ -318,7 +318,7 @@ const WorkOrderBadge = styled.span`
 `;
 
 const WorkStatusPlay = styled.div`
-  font-size: 15px; 
+  font-size: 15px;
   font-weight: 600;
   color: #475569;
   display: flex;
@@ -327,7 +327,7 @@ const WorkStatusPlay = styled.div`
 `;
 
 const ItemNameText = styled.div`
-  font-size: 26px; 
+  font-size: 26px;
   font-weight: 800;
   color: ${theme.textMain};
   margin-bottom: 28px;
@@ -347,7 +347,7 @@ const WorkDetailItem = styled.div`
 `;
 
 const WorkLabel = styled.span`
-  font-size: 18px; 
+  font-size: 18px;
   color: #6c727a;
   display: flex;
   align-items: center;
@@ -356,7 +356,7 @@ const WorkLabel = styled.span`
 `;
 
 const WorkValue = styled.span`
-  font-size: 18px; 
+  font-size: 18px;
   font-weight: 700;
   color: ${theme.textMain};
 `;
@@ -369,14 +369,14 @@ const ProgressLabelRow = styled.div`
   display: flex;
   justify-content: space-between;
   margin-bottom: 10px;
-  font-size: 18px; 
+  font-size: 18px;
   font-weight: 700;
   color: ${theme.textMain};
 `;
 
 const ProgressBarBg = styled.div`
   width: 100%;
-  height: 16px; 
+  height: 16px;
   background: #F1F5F9;
   border-radius: 8px;
   overflow: hidden;
@@ -392,9 +392,9 @@ const ProgressBarFill = styled.div<{ $percent: number }>`
 const NoticeBanner = styled.div`
   background: #FFFBEB;
   color: #D97706;
-  padding: 16px 20px; 
+  padding: 16px 20px;
   border-radius: 12px;
-  font-size: 14px; 
+  font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -405,12 +405,12 @@ const NoticeBanner = styled.div`
 
 const ListScrollArea = styled.div`
   overflow-y: auto;
-  flex: 1; 
-  min-height: 0; 
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  
+
   &::-webkit-scrollbar { width: 6px; }
   &::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
 `;
@@ -419,7 +419,7 @@ const SlotItem = styled.div<{ $occupied: boolean }>`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px; 
+  padding: 20px 24px;
   border-radius: 16px;
   background: white;
   border: 1px solid ${props => props.$occupied ? theme.green : '#E2E8F0'};
@@ -433,7 +433,7 @@ const ItemLeft = styled.div`
 `;
 
 const IconCircle = styled.div<{ $occupied: boolean }>`
-  width: 32px; 
+  width: 32px;
   height: 32px;
   border-radius: 50%;
   border: 1px solid ${props => props.$occupied ? theme.green : '#CBD5E1'};
@@ -441,7 +441,7 @@ const IconCircle = styled.div<{ $occupied: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px; 
+  font-size: 18px;
 `;
 
 const ItemInfo = styled.div`
@@ -451,13 +451,13 @@ const ItemInfo = styled.div`
 `;
 
 const ItemTitle = styled.span<{ $occupied: boolean }>`
-  font-size: 17px; 
+  font-size: 17px;
   font-weight: 800;
   color: ${props => props.$occupied ? '#0F172A' : '#64748B'};
 `;
 
 const ItemSub = styled.span`
-  font-size: 14px; 
+  font-size: 14px;
   color: #94A3B8;
   display: flex;
   align-items: center;
@@ -468,13 +468,13 @@ const StatusTextRow = styled.div<{ $occupied: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px; 
+  font-size: 15px;
   font-weight: 700;
   color: ${props => props.$occupied ? theme.green : '#94A3B8'};
 `;
 
 const StatusDot = styled.div<{ $occupied: boolean }>`
-  width: 8px; 
+  width: 8px;
   height: 8px;
   border-radius: 50%;
   background-color: ${props => props.$occupied ? theme.green : 'transparent'};
@@ -496,7 +496,7 @@ const ChatHeader = styled.div`
 `;
 
 const AiAvatar = styled.div`
-  width: 48px; 
+  width: 48px;
   height: 48px;
   background-color: ${theme.lightPink};
   color: ${theme.primary};
@@ -504,7 +504,7 @@ const AiAvatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px; 
+  font-size: 24px;
 `;
 
 const AiTitleInfo = styled.div`
@@ -514,13 +514,13 @@ const AiTitleInfo = styled.div`
 `;
 
 const AiTitle = styled.div`
-  font-size: 18px; 
+  font-size: 18px;
   font-weight: 800;
   color: ${theme.textMain};
 `;
 
 const AiSub = styled.div`
-  font-size: 13px; 
+  font-size: 13px;
   color: #64748B;
   display: flex;
   align-items: center;
@@ -532,7 +532,7 @@ const ChatBody = styled.div`
   background: white;
   padding: 24px;
   overflow-y: auto;
-  min-height: 0; 
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -549,17 +549,17 @@ const MessageRow = styled.div<{ $isUser: boolean }>`
 const Bubble = styled.div<{ $isUser: boolean }>`
   background: ${props => props.$isUser ? theme.primary : '#F8FAFC'};
   color: ${props => props.$isUser ? 'white' : '#1E293B'};
-  padding: 16px 20px; 
+  padding: 16px 20px;
   border-radius: 20px;
   border-bottom-right-radius: ${props => props.$isUser ? '4px' : '20px'};
   border-top-left-radius: ${props => props.$isUser ? '20px' : '4px'};
-  font-size: 16px; 
+  font-size: 16px;
   max-width: 85%;
   line-height: 1.5;
 `;
 
 const TimeText = styled.div`
-  font-size: 15px; 
+  font-size: 15px;
   color: #757b81;
   margin: 0 2px;
 `;
@@ -576,7 +576,7 @@ const InputWrapper = styled.div`
   align-items: center;
   background: #F8FAFC;
   border-radius: 99px;
-  padding: 8px 8px 8px 24px; 
+  padding: 8px 8px 8px 24px;
   border: 1px solid #E2E8F0;
 `;
 
@@ -584,7 +584,7 @@ const Input = styled.input`
   flex: 1;
   background: transparent;
   border: none;
-  font-size: 16px; 
+  font-size: 16px;
   outline: none;
   color: ${theme.textMain};
   &::placeholder {
@@ -593,7 +593,7 @@ const Input = styled.input`
 `;
 
 const SendBtn = styled.button`
-  width: 44px; 
+  width: 44px;
   height: 44px;
   border-radius: 50%;
   background: ${theme.primary};
@@ -603,7 +603,7 @@ const SendBtn = styled.button`
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  font-size: 22px; 
+  font-size: 22px;
   transition: transform 0.1s;
   &:active {
     transform: scale(0.95);
@@ -663,7 +663,7 @@ const CloseBtn = styled.button`
   cursor: pointer;
   color: #64748B;
   transition: background 0.2s;
-  
+
   &:hover {
     background: #E2E8F0;
     color: #0F172A;
@@ -676,7 +676,7 @@ const ModalBody = styled.div`
   display: flex;
   flex-direction: column;
   gap: 12px;
-  
+
   &::-webkit-scrollbar { width: 8px; }
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
@@ -917,7 +917,7 @@ const WsVideoStream = ({ wsUrl }: { wsUrl: string }) => {
         const url = URL.createObjectURL(event.data);
         setImageSrc(url);
         previousUrl = url;
-      } 
+      }
       // 케이스 B: 백엔드가 Base64 문자열 형태로 프레임을 보낼 때
       else if (typeof event.data === 'string') {
         if (event.data.startsWith('data:image')) {
@@ -946,9 +946,9 @@ const WsVideoStream = ({ wsUrl }: { wsUrl: string }) => {
   }, [wsUrl]);
 
   return (
-    <StyledWebsocketImg 
-      src={imageSrc || "https://via.placeholder.com/600x400/1e293b/ffffff?text=Connecting+Stream..."} 
-      alt="Live Production Stream" 
+    <StyledWebsocketImg
+      src={imageSrc || "https://via.placeholder.com/600x400/1e293b/ffffff?text=Connecting+Stream..."}
+      alt="Live Production Stream"
     />
   );
 };
@@ -967,7 +967,7 @@ const MOCK_DATA: ApiResult = {
     "NmProce": "발포 / 조립 1라인",
     "PlnSTime": "09:00 ~ 17:35",
     "PlnETime": "09:00 ~ 17:35",
-  }, 
+  },
   "camData": {
     "207": {
       "total": 7,
@@ -995,7 +995,7 @@ const SmartFactoryDashboard: React.FC = () => {
   const [camData, setCamData] = useState<CamDataMap>(MOCK_DATA.camData);
   const [camDataError, setCamDataError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false); 
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAutoOrderModalOpen, setIsAutoOrderModalOpen] = useState(false);
 
   // Chat State
@@ -1107,7 +1107,7 @@ const SmartFactoryDashboard: React.FC = () => {
       <GlobalStyle />
       <DashboardContainer>
         <MainGrid>
-          
+
           {/* 1. LEFT: Video Feed */}
           <VideoColumn>
             {CAMERAS.map((camera) => {
@@ -1122,7 +1122,7 @@ const SmartFactoryDashboard: React.FC = () => {
                     <CamTag><FiVideo size={18} /> {camera.title}</CamTag>
                     <FiMoreHorizontal color="white" size={24} />
                   </VideoOverlayTop>
-                  
+
                   <WsVideoStream wsUrl={camera.wsUrl} />
 
                   <MiniDashboardOverlay>
@@ -1143,7 +1143,7 @@ const SmartFactoryDashboard: React.FC = () => {
           {/* 2. CENTER: Data List */}
           <MiddleColumn>
             <SectionTitle>실시간 생산 및 적재 데이터</SectionTitle>
-            
+
             <WorkInfoCard>
               <WorkInfoTopRow>
                 <WorkOrderBadge>{wkData.NoWkOrd}</WorkOrderBadge>
@@ -1208,7 +1208,7 @@ const SmartFactoryDashboard: React.FC = () => {
                         공정 #{item.camId} - {getSlotDisplayName(item)}
                       </ItemTitle>
                       <ItemSub>
-                        <FiClock size={14} /> 
+                        <FiClock size={14} />
                         입고: {formatEntryTime(item.entry_time)}
                       </ItemSub>
                     </ItemInfo>
@@ -1235,7 +1235,7 @@ const SmartFactoryDashboard: React.FC = () => {
                 </AiSub>
               </AiTitleInfo>
             </ChatHeader>
-            
+
             <ChatBody>
               {messages.map((m) => (
                 <MessageRow key={m.id} $isUser={m.user}>
@@ -1247,13 +1247,13 @@ const SmartFactoryDashboard: React.FC = () => {
               ))}
               <div ref={chatEndRef} />
             </ChatBody>
-            
+
             <InputArea onSubmit={handleSend}>
               <InputWrapper>
-                <Input 
-                  placeholder="지시사항 입력..." 
-                  value={chatInput} 
-                  onChange={(e) => setChatInput(e.target.value)} 
+                <Input
+                  placeholder="지시사항 입력..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
                 />
                 <SendBtn type="submit">
                   <FiArrowUp />
@@ -1287,7 +1287,7 @@ const SmartFactoryDashboard: React.FC = () => {
                         공정 #{item.camId} - {getSlotDisplayName(item)}
                       </ItemTitle>
                       <ItemSub>
-                        <FiClock size={14} /> 
+                        <FiClock size={14} />
                         입고: {formatEntryTime(item.entry_time)}
                       </ItemSub>
                     </ItemInfo>

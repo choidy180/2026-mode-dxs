@@ -14,7 +14,7 @@ const LAYOUT_CONFIGS = {
     headerHeight: '60px',
     fontSize: { title: '22px', sub: '14px', badge: '13px', value: '18px' },
     iconSize: 20,
-    borderRadius: '16px', 
+    borderRadius: '16px',
   },
   QHD: {
     padding: '40px',
@@ -27,12 +27,12 @@ const LAYOUT_CONFIGS = {
 };
 
 const theme = {
-  bg: '#F3F4F6', 
-  cardBg: '#FFFFFF', 
-  textPrimary: '#111827', 
+  bg: '#F3F4F6',
+  cardBg: '#FFFFFF',
+  textPrimary: '#111827',
   textSecondary: '#6B7280',
   accent: '#6366F1',   // Indigo (선택됨)
-  success: '#10B981', 
+  success: '#10B981',
   successBg: '#D1FAE5',
   danger: '#EF4444',   // Error
   dangerBg: '#FEE2E2',
@@ -44,11 +44,11 @@ const theme = {
 
 // ─── [DATA TYPES] ───
 interface CartData {
-    id: string;         
-    status: CartStatus; 
+    id: string;
+    status: CartStatus;
     image: string;
-    upperAvg: number;   
-    lowerAvg: number;   
+    upperAvg: number;
+    lowerAvg: number;
     boxes: Array<{ top: number, left: number, width: number, height: number, color: string }>;
 }
 
@@ -57,12 +57,12 @@ interface CartData {
 // 1. 고퀄리티 로딩 스크린
 const LoadingScreen = ({ onComplete }: { onComplete: () => void }) => {
     const [progress, setProgress] = useState(0);
-    const [step, setStep] = useState(0); 
+    const [step, setStep] = useState(0);
 
     useEffect(() => {
         const timer = setInterval(() => {
             setProgress(prev => {
-                const next = prev + 1.5; 
+                const next = prev + 1.5;
                 if (next > 20 && step === 0) setStep(1);
                 if (next > 50 && step === 1) setStep(2);
                 if (next > 80 && step === 2) setStep(3);
@@ -97,16 +97,16 @@ const LoadingScreen = ({ onComplete }: { onComplete: () => void }) => {
             <h2 style={{ fontSize: '24px', fontWeight: 900, color: theme.textPrimary, marginBottom: '8px' }}>
                 Foaming Cart Analysis
             </h2>
-            
+
             <div style={{ height: '30px', display: 'flex', alignItems: 'center', gap: '8px', color: theme.textSecondary, fontSize: '14px', fontWeight: 500, marginBottom: '24px' }}>
                 {loadingSteps[Math.min(step, 3)].icon}
                 <span>{loadingSteps[Math.min(step, 3)].text}</span>
             </div>
 
             <div style={{ width: '300px', height: '6px', background: '#F3F4F6', borderRadius: '10px', overflow:'hidden', position: 'relative' }}>
-                <div style={{ 
-                    height: '100%', width: `${progress}%`, 
-                    background: `linear-gradient(90deg, ${theme.accent}, #A5B4FC)`, 
+                <div style={{
+                    height: '100%', width: `${progress}%`,
+                    background: `linear-gradient(90deg, ${theme.accent}, #A5B4FC)`,
                     borderRadius: '10px', transition: 'width 0.1s linear',
                     boxShadow: `0 0 10px ${theme.accent}60`
                 }} />
@@ -171,8 +171,8 @@ export default function FoamingCartPosition() {
     useEffect(() => {
         const dummyData: CartData[] = Array.from({ length: 26 }, (_, i) => {
             const id = `C${i + 1}`;
-            const isError = Math.random() < 0.2; 
-            
+            const isError = Math.random() < 0.2;
+
             const generateSafeBox = (baseTop: number, baseLeft: number, color: string) => {
                 const height = 8 + Math.random() * 6;
                 const width = 8 + Math.random() * 6;
@@ -190,9 +190,9 @@ export default function FoamingCartPosition() {
             return {
                 id,
                 status: isError ? 'Error' : 'Normal',
-                image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1000&auto=format&fit=crop", 
-                upperAvg: parseFloat((0.5 + Math.random() * 0.1).toFixed(4)), 
-                lowerAvg: parseFloat((0.5 + Math.random() * 0.1).toFixed(4)), 
+                image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1000&auto=format&fit=crop",
+                upperAvg: parseFloat((0.5 + Math.random() * 0.1).toFixed(4)),
+                lowerAvg: parseFloat((0.5 + Math.random() * 0.1).toFixed(4)),
                 boxes
             };
         });
@@ -205,18 +205,18 @@ export default function FoamingCartPosition() {
     if (isLoading) return <LoadingScreen onComplete={() => setIsLoading(false)} />;
 
     return (
-        <div style={{ 
-            width: '100%', height: 'calc(100vh - 64px)', 
-            backgroundColor: theme.bg, padding: layout.padding, 
+        <div style={{
+            width: '100%', height: '100vh',
+            backgroundColor: theme.bg, padding: layout.padding,
             boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
             fontFamily: '"Pretendard", -apple-system, sans-serif'
         }}>
             <ImageModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} data={currentData} />
 
             {/* [HEADER] */}
-            <div style={{ 
-                height: layout.headerHeight, display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                marginBottom: layout.gap, flexShrink: 0 
+            <div style={{
+                height: layout.headerHeight, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                marginBottom: layout.gap, flexShrink: 0
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ padding: '10px', backgroundColor: theme.cardBg, borderRadius: '12px', boxShadow: theme.shadow }}>
@@ -231,8 +231,8 @@ export default function FoamingCartPosition() {
                         </div>
                     </div>
                 </div>
-                <div style={{ 
-                    padding: '8px 20px', backgroundColor: theme.cardBg, borderRadius: '12px', 
+                <div style={{
+                    padding: '8px 20px', backgroundColor: theme.cardBg, borderRadius: '12px',
                     boxShadow: theme.shadow, fontSize: '14px', fontWeight: 600, color: theme.textSecondary,
                     display: 'flex', alignItems: 'center', gap: '8px'
                 }}>
@@ -242,9 +242,9 @@ export default function FoamingCartPosition() {
             </div>
 
             {/* [BUTTON AREA - 그리드 적용 및 범례 추가] */}
-            <div style={{ 
+            <div style={{
                 marginBottom: layout.gap,
-                position: 'relative', 
+                position: 'relative',
                 borderRadius: layout.borderRadius, boxShadow: theme.shadow,
                 backgroundColor: theme.cardBg,
                 border: `1px solid ${theme.border}`,
@@ -274,17 +274,17 @@ export default function FoamingCartPosition() {
                 </div>
 
                 {/* 2. 버튼 그리드 컨테이너 (스크롤 제거 -> Grid 적용) */}
-                <div style={{ 
-                    display: 'grid', 
+                <div style={{
+                    display: 'grid',
                     // FHD 기준 대략 한 줄에 13~14개씩 들어가서 2줄로 보이도록 설정 (반응형)
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', 
-                    gap: '10px', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))',
+                    gap: '10px',
                     width: '100%'
                 }}>
                     {cartDataList.map((cart) => {
                         const isSelected = selectedCartId === cart.id;
                         const isError = cart.status === 'Error';
-                        
+
                         let bg = theme.normalBtn;
                         let color = theme.normalText;
                         let border = `1px solid ${theme.border}`;
@@ -327,46 +327,46 @@ export default function FoamingCartPosition() {
 
             {/* [MAIN CONTENT] */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: layout.gap, minHeight: 0 }}>
-                
+
                 {/* 1. 상태 헤더 및 이미지 뷰어 */}
-                <div style={{ 
-                    flex: 1, backgroundColor: theme.cardBg, borderRadius: layout.borderRadius, 
+                <div style={{
+                    flex: 1, backgroundColor: theme.cardBg, borderRadius: layout.borderRadius,
                     boxShadow: theme.shadow, border: `1px solid ${theme.border}`,
                     padding: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden'
                 }}>
                     {/* 상단 결과 텍스트 */}
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-                        <div style={{ 
+                        <div style={{
                             display: 'flex', alignItems: 'center', gap: '12px',
                             padding: '12px 32px', borderRadius: '12px',
                             backgroundColor: currentData.status === 'Normal' ? theme.successBg : theme.dangerBg,
                             color: currentData.status === 'Normal' ? theme.success : theme.danger,
                             border: `1px solid ${currentData.status === 'Normal' ? theme.success : theme.danger}30`
                         }}>
-                            {currentData.status === 'Normal' ? 
-                                <><CheckCircle size={24} /> <span style={{fontSize: '18px', fontWeight: 800}}>정상 (Normal)</span></> : 
+                            {currentData.status === 'Normal' ?
+                                <><CheckCircle size={24} /> <span style={{fontSize: '18px', fontWeight: 800}}>정상 (Normal)</span></> :
                                 <><AlertTriangle size={24} /> <span style={{fontSize: '18px', fontWeight: 800}}>불량 감지 (Anomaly)</span></>
                             }
                         </div>
                     </div>
 
                     {/* 이미지 영역 */}
-                    <div style={{ 
-                        flex: 1, position: 'relative', borderRadius: '16px', overflow: 'hidden', 
+                    <div style={{
+                        flex: 1, position: 'relative', borderRadius: '16px', overflow: 'hidden',
                         border: `1px solid ${theme.border}`, backgroundColor: '#000',
                         boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)'
                     }}>
                         <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                            <img 
-                                src={currentData.image} 
-                                alt="Cart View" 
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            <img
+                                src={currentData.image}
+                                alt="Cart View"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
                             {/* 바운딩 박스 */}
                             {currentData.boxes.map((box, idx) => (
                                 <div key={idx} style={{
-                                    position: 'absolute', 
-                                    top: `${box.top}%`, left: `${box.left}%`, 
+                                    position: 'absolute',
+                                    top: `${box.top}%`, left: `${box.left}%`,
                                     width: `${box.width}%`, height: `${box.height}%`,
                                     border: `3px solid ${box.color}`,
                                     boxShadow: `0 0 15px ${box.color}`,
@@ -375,7 +375,7 @@ export default function FoamingCartPosition() {
                             ))}
                         </div>
 
-                        <button 
+                        <button
                             onClick={() => setIsModalOpen(true)}
                             style={{
                                 position: 'absolute', bottom: '16px', right: '16px',
@@ -395,17 +395,17 @@ export default function FoamingCartPosition() {
 
                 {/* 2. 하단 데이터 */}
                 <div style={{ display: 'flex', gap: layout.gap, height: '110px', flexShrink: 0 }}>
-                    <StatCard 
-                        label="상반기(Upper) 평균값" 
-                        value={currentData.upperAvg.toFixed(4)} 
-                        color={currentData.status === 'Normal' ? theme.accent : theme.danger} 
-                        icon={<Database size={24} />} 
+                    <StatCard
+                        label="상반기(Upper) 평균값"
+                        value={currentData.upperAvg.toFixed(4)}
+                        color={currentData.status === 'Normal' ? theme.accent : theme.danger}
+                        icon={<Database size={24} />}
                     />
-                    <StatCard 
-                        label="하반기(Lower) 평균값" 
-                        value={currentData.lowerAvg.toFixed(4)} 
-                        color={theme.success} 
-                        icon={<BarChart3 size={24} />} 
+                    <StatCard
+                        label="하반기(Lower) 평균값"
+                        value={currentData.lowerAvg.toFixed(4)}
+                        color={theme.success}
+                        icon={<BarChart3 size={24} />}
                     />
                 </div>
             </div>
@@ -415,7 +415,7 @@ export default function FoamingCartPosition() {
 
 // 하단 통계 카드 컴포넌트
 const StatCard = ({ label, value, color, icon }: { label: string, value: string, color: string, icon: React.ReactNode }) => (
-    <div style={{ 
+    <div style={{
         flex: 1, backgroundColor: theme.cardBg, borderRadius: '16px',
         border: `1px solid ${theme.border}`, boxShadow: theme.shadow,
         display: 'flex', alignItems: 'center', padding: '0 32px', gap: '24px',
@@ -424,9 +424,9 @@ const StatCard = ({ label, value, color, icon }: { label: string, value: string,
     onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
     onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
     >
-        <div style={{ 
-            padding: '16px', borderRadius: '16px', backgroundColor: `${color}15`, 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: color 
+        <div style={{
+            padding: '16px', borderRadius: '16px', backgroundColor: `${color}15`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: color
         }}>
             {icon}
         </div>

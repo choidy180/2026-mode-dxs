@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    Layers, ZoomIn, X, RefreshCw, Monitor, Clock, 
+import {
+    Layers, ZoomIn, X, RefreshCw, Monitor, Clock,
     CheckCircle2, XCircle, Volume2, VolumeX, Siren,
     FileText, ChevronRight, Info, ScanLine, AlertTriangle,
     ClipboardX, Home, Calendar, ChevronDown, ChevronLeft
@@ -104,7 +104,7 @@ const GlobalStyles = () => (
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 3px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background-color: #94A3B8; }
-        
+
         body { margin: 0; padding: 0; background-color: ${theme.bg}; font-family: "Inter", -apple-system, sans-serif; overflow: hidden; }
         * { box-sizing: border-box; }
     `}</style>
@@ -123,13 +123,13 @@ const generateInitialLogs = (): SystemLog[] => {
     ];
 
     let currentTime = new Date();
-    
+
     for (let i = 0; i < 15; i++) {
-        const diffMinutes = Math.floor(Math.random() * 6) + 5; 
+        const diffMinutes = Math.floor(Math.random() * 6) + 5;
         currentTime = new Date(currentTime.getTime() - diffMinutes * 60000);
-        
+
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
-        
+
         logs.push({
             id: i,
             time: currentTime.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
@@ -195,8 +195,8 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
     }, []);
 
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-    const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay(); 
-    
+    const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
+
     const days = [];
     for (let i = 0; i < firstDayOfWeek; i++) { days.push(null); }
     for (let i = 1; i <= daysInMonth; i++) { days.push(i); }
@@ -209,13 +209,13 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
 
     const handlePrevMonth = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); } 
+        if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
         else { setViewMonth(viewMonth - 1); }
     };
 
     const handleNextMonth = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); } 
+        if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
         else { setViewMonth(viewMonth + 1); }
     };
 
@@ -271,7 +271,7 @@ const CustomDatePicker = ({ value, onChange }: { value: string, onChange: (val: 
 
 const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => void; onClose: () => void }) => {
     return (
-        <div style={{ 
+        <div style={{
             position: 'absolute', inset: 0, zIndex: 9999999, backgroundColor: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"Inter", -apple-system, sans-serif'
         }}>
@@ -279,19 +279,19 @@ const EmptyStateModal = ({ onNavigateHome, onClose }: { onNavigateHome: () => vo
                 backgroundColor: theme.cardBg, padding: '48px', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', border: `1px solid ${theme.border}`,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '460px', maxWidth: '90%', position: 'relative', transform: 'translateY(-20px)'
             }}>
-                <button 
-                    onClick={onClose} 
-                    style={{ 
-                        position: 'absolute', top: '20px', right: '20px', width: '36px', height: '36px', borderRadius: '50%', 
-                        backgroundColor: '#F8FAFC', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                        color: theme.textSecondary, transition: 'all 0.2s' 
+                <button
+                    onClick={onClose}
+                    style={{
+                        position: 'absolute', top: '20px', right: '20px', width: '36px', height: '36px', borderRadius: '50%',
+                        backgroundColor: '#F8FAFC', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: theme.textSecondary, transition: 'all 0.2s'
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = theme.textPrimary; }} 
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F1F5F9'; e.currentTarget.style.color = theme.textPrimary; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#F8FAFC'; e.currentTarget.style.color = theme.textSecondary; }}
                 >
                     <X size={20} />
                 </button>
-                <div className="animate-float" style={{ 
+                <div className="animate-float" style={{
                     width: '100px', height: '100px', borderRadius: '50%', backgroundColor: '#EFF6FF', color: theme.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 10px 20px -5px rgba(59, 130, 246, 0.2)'
                 }}>
                     <ClipboardX size={48} strokeWidth={1.5} />
@@ -477,7 +477,7 @@ const DashboardHeader = ({ layout, data, totalStats, isSoundOn, onToggleSound, o
 
             {/* 1. TOTAL RESULT 카드 (이미지 스타일 100% 매칭) */}
             <div className={animClass} style={{ width: '320px', backgroundColor: theme.cardBg, borderRadius: '16px', border: `2px solid ${style.border}`, display: 'flex', alignItems: 'center', padding: '0 32px', gap: '24px', position: 'relative', overflow: 'hidden', boxShadow: theme.shadow }}>
-                
+
                 {/* 상단 우측 사운드 버튼 이동 배치 */}
                 <button onClick={onToggleSound} style={{ position: 'absolute', top: '12px', right: '12px', background: 'transparent', border: `1px solid ${theme.border}`, borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: theme.textSecondary, transition: 'all 0.2s' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F1F5F9'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                     {isSoundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
@@ -553,7 +553,7 @@ const AutoFitImage = ({ src, alt, onZoom, showOverlay }: { src: string, alt: str
 const LogItem = ({ log }: { log: SystemLog }) => {
     let bgColor = 'transparent';
     let dotColor = theme.textSecondary;
-    
+
     if (log.type === 'SUCCESS') { dotColor = theme.success; }
     else if (log.type === 'WARNING') { dotColor = theme.warning; bgColor = '#FEF2F2'; }
     else if (log.type === 'ERROR') { dotColor = theme.danger; bgColor = '#FEF2F2'; }
@@ -582,7 +582,7 @@ export default function FilmAttachmentCheck() {
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isEmptyStateClosed, setIsEmptyStateClosed] = useState(false);
-  
+
   const [apiData, setApiData] = useState<ApiData | null>(null);
   const [totalStats, setTotalStats] = useState<TotalData | null>(null);
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
@@ -606,7 +606,7 @@ export default function FilmAttachmentCheck() {
       try {
           const response = await fetch("http://192.168.2.147:24828/api/DX_API000026");
           const json = await response.json();
-          
+
           if (json.success) {
               if (json.data && json.data.length > 0) {
                   const data = json.data[0];
@@ -614,7 +614,7 @@ export default function FilmAttachmentCheck() {
                   const resultVal = data.RESULT;
                   const isPass = resultVal === "정상" || resultVal === "OK";
                   const hasError = !isPass && !!resultVal;
-                  
+
                   setIsDefectMode(hasError);
                   if (hasError && !audioAllowed && !showPermissionModal && !audioCtxRef.current) {
                       setShowPermissionModal(true);
@@ -683,10 +683,10 @@ export default function FilmAttachmentCheck() {
   const borderStyle = (apiData && !isPass && apiData.RESULT) ? `2px solid ${theme.danger}` : `1px solid ${theme.border}`;
 
   return (
-      <div style={{ 
+      <div style={{
           backgroundColor: theme.bg, boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
-          fontFamily: '"Inter", -apple-system, sans-serif', width: '100%', 
-          height: 'calc(100vh - 60px)', maxHeight: 'calc(100vh - 60px)', overflow: 'hidden', 
+          fontFamily: '"Inter", -apple-system, sans-serif', width: '100%',
+          height: '100vh', maxHeight: '100vh', overflow: 'hidden',
           padding: layout.padding, position: 'relative'
       }}>
           <GlobalStyles />
@@ -707,31 +707,31 @@ export default function FilmAttachmentCheck() {
               이전 검사기록 조회
           </button>
 
-          <DashboardHeader 
-              layout={layout} 
-              data={apiData} 
+          <DashboardHeader
+              layout={layout}
+              data={apiData}
               totalStats={totalStats}
-              isSoundOn={audioAllowed} 
-              onToggleSound={() => setAudioAllowed(!audioAllowed)} 
+              isSoundOn={audioAllowed}
+              onToggleSound={() => setAudioAllowed(!audioAllowed)}
               onNavigateHome={handleNavigateHome}
           />
 
           <div style={{ flex: 1, display: 'flex', gap: layout.gap, minHeight: 0 }}>
-              
+
               {/* 1. 이미지 뷰어 (padding 축소하여 이미지 면적 확장) */}
-              <div style={{ 
+              <div style={{
                   flex: 3, display: 'flex', flexDirection: 'column', backgroundColor: theme.cardBg, borderRadius: '24px',
                   boxShadow: theme.shadow, padding: '16px', border: borderStyle, transition: 'border 0.3s'
               }}>
                   <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                      <AutoFitImage 
-                          src={apiData?.FILEPATH1 || ''} 
-                          alt="Inspection Result" 
+                      <AutoFitImage
+                          src={apiData?.FILEPATH1 || ''}
+                          alt="Inspection Result"
                           onZoom={() => handleImageClick("Film Attachment Detail", apiData?.FILEPATH1 || '')}
                           showOverlay={!!apiData?.FILEPATH1}
                       />
                       {apiData?.FILENAME1 && (
-                          <div style={{ 
+                          <div style={{
                               position: 'absolute', top: '16px', left: '16px', backgroundColor: 'rgba(255, 255, 255, 0.95)', padding: '10px 16px', borderRadius: '12px',
                               color: theme.textSecondary, fontSize: '13px', fontWeight: 600, backdropFilter: 'blur(8px)',
                               display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: `1px solid ${theme.border}`
@@ -744,7 +744,7 @@ export default function FilmAttachmentCheck() {
               </div>
 
               {/* 2. 로그 패널 (LIVE 뱃지 및 제목 매칭) */}
-              <div style={{ 
+              <div style={{
                   flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: theme.cardBg, borderRadius: '24px',
                   boxShadow: theme.shadow, border: `1px solid ${theme.border}`, overflow: 'hidden'
               }}>
@@ -755,7 +755,7 @@ export default function FilmAttachmentCheck() {
                           LIVE
                       </div>
                   </div>
-                  
+
                   <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto' }}>
                       <div style={{ display: 'flex', flexDirection: 'column-reverse' }}>
                           {systemLogs.map((log) => (
@@ -765,7 +765,7 @@ export default function FilmAttachmentCheck() {
                   </div>
 
                   <div style={{ padding: '16px 24px', borderTop: `1px solid ${theme.border}`, backgroundColor: '#FFFFFF' }}>
-                      <button style={{ 
+                      <button style={{
                           width: '100%', padding: '12px', borderRadius: '10px', backgroundColor: '#F1F5F9', border: 'none',
                           color: theme.textSecondary, fontSize: '14px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                       }}>
@@ -779,12 +779,12 @@ export default function FilmAttachmentCheck() {
           <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} onImageClick={handleImageClick} />
           {showPermissionModal && <SoundPermissionModal onConfirm={() => { setAudioAllowed(true); setShowPermissionModal(false); }} />}
           {modalInfo && <ImageModal isOpen={modalInfo.isOpen} onClose={() => setModalInfo(null)} title={modalInfo.title} imgUrl={modalInfo.imgUrl} />}
-          
+
           {/* 변경점: onClose 속성 추가 및 함수 연결 */}
           {totalStats && totalStats.total_count === 0 && !isEmptyStateClosed && (
-              <EmptyStateModal 
-                  onNavigateHome={handleNavigateHome} 
-                  onClose={() => setIsEmptyStateClosed(true)} 
+              <EmptyStateModal
+                  onNavigateHome={handleNavigateHome}
+                  onClose={() => setIsEmptyStateClosed(true)}
               />
           )}
       </div>

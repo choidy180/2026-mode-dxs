@@ -11,7 +11,7 @@ import { FiAlertTriangle, FiArrowLeft } from 'react-icons/fi';
 // 배경에 은은한 그리드 패턴을 넣어 'AI/물류' 시스템 느낌을 줌
 const Container = styled.div`
   width: 100vw;
-  height: calc(100vh - 64px); /* 네비게이션 높이 제외 (필요 시 조정) */
+  height: 100vh; /* 네비게이션 높이 제외 (필요 시 조정) */
   display: flex;
   align-items: center;
   justify-content: center;

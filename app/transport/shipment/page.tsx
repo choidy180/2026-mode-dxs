@@ -64,9 +64,9 @@ const COLORS = {
 
 const Container = styled.div`
   /* 수정됨: 높이를 정확히 고정하고 내부 스크롤 처리 */
-  height: calc(100vh - 64px); 
+  height: 100vh;
   overflow-y: auto;
-  
+
   background-color: ${COLORS.bgGray};
   padding: 2rem;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -101,7 +101,7 @@ const IconBox = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   svg {
     color: ${COLORS.mixed};
   }
@@ -184,8 +184,8 @@ const Card = styled.div<{ $highlight?: boolean }>`
   background-color: white;
   border-radius: 1rem;
   padding: 1.5rem;
-  box-shadow: ${props => props.$highlight 
-    ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' 
+  box-shadow: ${props => props.$highlight
+    ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
     : '0 1px 2px 0 rgba(0, 0, 0, 0.05)'};
   border: 1px solid ${props => props.$highlight ? 'transparent' : '#F3F4F6'};
   border-left: ${props => props.$highlight ? `4px solid ${COLORS.mixed}` : '1px solid #F3F4F6'};
@@ -201,7 +201,7 @@ const CardHeader = styled.div<{ $color?: string }>`
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 0.5rem;
-  
+
   span {
     font-size: 0.875rem;
     font-weight: ${props => props.$color ? '700' : '500'};
@@ -306,7 +306,7 @@ const DateSelectBtn = styled.button`
   font-size: 0.875rem;
   color: #4B5563;
   cursor: pointer;
-  
+
   &:hover {
     background-color: #F3F4F6;
   }
@@ -387,7 +387,7 @@ const ShipmentManagementPage = () => {
             </span>
           </TooltipRow>
           <p style={{ fontSize: '0.75rem', color: '#9CA3AF', marginTop: '0.25rem' }}>
-            {data.type === 'interpolated' ? '⚠️ 데이터 보간됨' : 
+            {data.type === 'interpolated' ? '⚠️ 데이터 보간됨' :
              data.type === 'prediction' ? '🔮 AI 예측값' : '✅ 확정 실적'}
           </p>
         </TooltipBox>
@@ -398,7 +398,7 @@ const ShipmentManagementPage = () => {
 
   return (
     <Container>
-      
+
       {/* Header */}
       <Header>
         <IconBox>
@@ -460,7 +460,7 @@ const ShipmentManagementPage = () => {
 
       {/* Main Chart Section */}
       <Section>
-        
+
         {/* Controls */}
         <SectionHeader>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -468,17 +468,17 @@ const ShipmentManagementPage = () => {
               <BarChart2 size={20} color="#9CA3AF" />
               출하량 추이 (Shipment Trend)
             </SectionTitle>
-            
+
             <ToggleContainer>
-              <ToggleBtn 
-                $active={viewMode === 'weekly'} 
+              <ToggleBtn
+                $active={viewMode === 'weekly'}
                 $color={COLORS.mixed}
                 onClick={() => setViewMode('weekly')}
               >
                 주간 보기
               </ToggleBtn>
-              <ToggleBtn 
-                $active={viewMode === 'daily'} 
+              <ToggleBtn
+                $active={viewMode === 'daily'}
                 $color={COLORS.actual}
                 onClick={() => setViewMode('daily')}
               >
@@ -502,29 +502,29 @@ const ShipmentManagementPage = () => {
               barSize={viewMode === 'daily' ? 60 : 20}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis 
-                dataKey={viewMode === 'daily' ? 'date' : 'name'} 
-                axisLine={false} 
-                tickLine={false} 
-                dy={10} 
+              <XAxis
+                dataKey={viewMode === 'daily' ? 'date' : 'name'}
+                axisLine={false}
+                tickLine={false}
+                dy={10}
                 tick={{ fill: '#6B7280', fontSize: 12 }}
               />
-              <YAxis 
-                axisLine={false} 
-                tickLine={false} 
+              <YAxis
+                axisLine={false}
+                tickLine={false}
                 tick={{ fill: '#9CA3AF', fontSize: 11 }}
                 tickFormatter={(value) => `${value / 1000}k`}
               />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: '#F3F4F6', opacity: 0.5 }} />
-              
+
               {viewMode === 'weekly' && (
                 <ReferenceLine x="이번 주" stroke={COLORS.mixed} strokeDasharray="3 3">
-                  <Label 
-                    value="This Week" 
-                    position="top" 
-                    fill={COLORS.mixed} 
-                    fontSize={12} 
-                    fontWeight="bold" 
+                  <Label
+                    value="This Week"
+                    position="top"
+                    fill={COLORS.mixed}
+                    fontSize={12}
+                    fontWeight="bold"
                   />
                 </ReferenceLine>
               )}

@@ -136,9 +136,9 @@ const PageContainer = styled.div`
   top: 0;
   left: 0;
   width: 100vw;
-  height: calc(100vh - 60px);
-  height: calc(100dvh - 60px);
-  margin-top: 60px;
+  height: 100vh;
+  height: 100dvh;
+  margin-top: 0;
   padding: 24px 32px 28px;
   display: flex;
   flex-direction: column;
@@ -233,7 +233,7 @@ const ModalOverlay = styled.div`
 
 const ModalContainer = styled.div`
   width: min(760px, calc(100vw - 48px));
-  max-height: calc(100dvh - 96px);
+  max-height: 100dvh;
   padding: 24px;
   background: #ffffff;
   border: 1px solid #e8edf4;
@@ -283,7 +283,7 @@ const MachineGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
-  max-height: calc(100dvh - 190px);
+  max-height: 100dvh;
   padding-right: 2px;
   overflow-y: auto;
 

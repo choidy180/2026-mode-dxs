@@ -70,7 +70,7 @@ type Message = {
 
 const PageContainer = styled.div`
   width: 100vw;
-  height: calc(100vh - 64px);
+  height: 100vh;
   display: flex;
   overflow: hidden;
   background-color: #000;

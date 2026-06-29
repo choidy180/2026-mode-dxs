@@ -1119,7 +1119,7 @@ const glassPanel = `
 
 const Container = styled.div`
   width: 100vw;
-  height: calc(100vh - 64px);
+  height: 100vh;
   position: relative;
   overflow: hidden;
   background: #eef3f8;
