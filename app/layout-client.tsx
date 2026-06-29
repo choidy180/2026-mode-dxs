@@ -123,12 +123,12 @@ const NavContainer = styled.div`
   height: 0;
 `;
 
-const MainContent = styled.main<{ $isHidden: boolean }>`
+const MainContent = styled.main<{ $isHidden: boolean; $isFullWidth: boolean }>`
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  margin-left: var(--app-sidebar-offset, 76px);
-  width: calc(100% - var(--app-sidebar-offset, 76px));
+  margin-left: ${(props) => (props.$isFullWidth ? "0" : "var(--app-sidebar-offset, 84px)")};
+  width: ${(props) => (props.$isFullWidth ? "100%" : "calc(100% - var(--app-sidebar-offset, 84px))")};
   
   /* 로딩 중일 때 컨텐츠 투명 처리 */
   opacity: ${(props) => (props.$isHidden ? 0 : 1)};
@@ -152,6 +152,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
 
   // 로딩 애니메이션을 건너뛸 경로인지 확인
   const isSkipLoading = pathname?.includes("master-dashboard");
+  const isMasterDashboard = pathname?.includes("master-dashboard") ?? false;
 
   useLayoutEffect(() => {
     // 💡 1. 서비스에 최초로 접속했을 때만 로딩을 띄웁니다.
@@ -203,12 +204,14 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
           )}
         </AnimatePresence>
 
-        <NavContainer>
-          <TopNavigation isLoading={isLoading && !isSkipLoading} />
-        </NavContainer>
+        {!isMasterDashboard && (
+          <NavContainer>
+            <TopNavigation isLoading={isLoading && !isSkipLoading} />
+          </NavContainer>
+        )}
         
         {/* 로딩 중일 때 내용 숨김 ($isHidden) */}
-        <MainContent $isHidden={isLoading && !isSkipLoading}>
+        <MainContent $isHidden={isLoading && !isSkipLoading} $isFullWidth={isMasterDashboard}>
             {children}
         </MainContent>
         

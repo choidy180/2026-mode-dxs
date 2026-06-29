@@ -625,24 +625,28 @@ function Portal({ children }: { children: React.ReactNode }) {
  * Styled
  * ------------------------------*/
 const NavbarTrigger = styled(m.button)<{ $active?: boolean }>`
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10030;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  height: 42px;
-  padding: 0 16px;
-  border-radius: 999px;
+  height: 52px;
+  padding: 0 18px;
+  border-radius: 12px;
   border: 1px solid ${(p) => (p.$active ? "rgba(211, 17, 69, 0.72)" : BORDER)};
-  background: ${(p) => (p.$active ? "rgba(255, 241, 245, 0.96)" : "rgba(255, 255, 255, 0.75)")};
+  background: ${(p) => (p.$active ? "rgba(255, 241, 245, 0.98)" : "rgba(255, 255, 255, 0.96)")};
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 
   color: ${(p) => (p.$active ? ACCENT : TEXT)};
-  font-weight: 650;
+  font-weight: 800;
   font-size: 14px;
-  letter-spacing: -0.2px;
+  letter-spacing: 0;
   cursor: pointer;
 
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 
   svg {
@@ -651,8 +655,8 @@ const NavbarTrigger = styled(m.button)<{ $active?: boolean }>`
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.12);
-    border-color: rgba(211, 17, 69, 0.25);
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.20);
+    border-color: rgba(211, 17, 69, 0.34);
   }
 `;
 

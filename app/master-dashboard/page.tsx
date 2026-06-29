@@ -10,6 +10,7 @@ import {
 import { 
   FaDolly, FaEye, FaCogs, FaChartLine, FaHardHat, FaTruck, FaArrowRight 
 } from 'react-icons/fa';
+import type { IconType } from 'react-icons';
 import { AnimatePresence, motion } from "framer-motion";
 
 // ==========================================
@@ -26,7 +27,15 @@ const SMOOTH_TRANSITION = {
 // 1. DATA & CONFIG & TYPES
 // ==========================================
 
-const AGENT_DATA: Record<string, any> = {
+type AgentContext = {
+  role: "manager" | "specialist";
+  name: string;
+  description: string;
+  guide: string;
+  suggestions: string[];
+};
+
+const AGENT_DATA: Record<string, AgentContext> = {
   "/master-dashboard": {
     role: "manager",
     name: "GMT 공장장 AI",
@@ -44,7 +53,7 @@ const AGENT_DATA: Record<string, any> = {
 };
 
 type CardData = {
-  id: string; title: string; desc: string; icon: any; color: string; href: string;
+  id: string; title: string; desc: string; icon: IconType; color: string; href: string;
 };
 
 const DASHBOARD_ITEMS: CardData[] = [
@@ -69,7 +78,7 @@ type Message = {
 // ==========================================
 
 const PageContainer = styled.div`
-  width: 100vw;
+  width: 100%;
   height: 100vh;
   display: flex;
   overflow: hidden;
@@ -140,7 +149,7 @@ const FloatingButtonWrapper = styled.div`
 
 const NavbarTrigger = styled(motion.button)`
   display: flex; align-items: center; gap: 8px;
-  padding: 12px 24px; height: 52px; border-radius: 26px;
+  padding: 12px 24px; height: 52px; border-radius: 12px;
   border: none;
   background: #ffffff; color: #374151;
   font-weight: 600; font-size: 15px; cursor: pointer;
@@ -363,7 +372,7 @@ const ChatInterface = memo(({ onClose }: { onClose: () => void }) => {
         role: 'assistant',
         content: typeof data?.answer === 'string' && data.answer.trim() ? data.answer : '응답이 비어 있습니다.',
       }]);
-    } catch (error) {
+    } catch {
       setMessages((prev) => [...prev, {
         role: 'assistant',
         content: '네트워크 오류가 발생했습니다.',

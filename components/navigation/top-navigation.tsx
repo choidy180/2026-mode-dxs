@@ -10,13 +10,11 @@ import {
   Boxes,
   CheckCircle2,
   ChevronRight,
-  CircleHelp,
   CircleDotDashed,
   ClipboardCheck,
   Cog,
   Droplets,
   Factory,
-  Folder,
   LayoutGrid,
   Layers,
   Package,
@@ -25,10 +23,8 @@ import {
   ScanSearch,
   Search,
   Send,
-  Settings,
   ShieldCheck,
   Truck,
-  UsersRound,
   Warehouse,
   X,
 } from "lucide-react";
@@ -72,13 +68,13 @@ type NoticeItem = {
   unread?: boolean;
 };
 
-const RAIL_WIDTH = 76;
+const RAIL_WIDTH = 84;
 const SUB_SIDEBAR_WIDTH = 356;
 
 const NAV_ITEMS: NavEntry[] = [
   {
     key: "dashboard",
-    label: "대시보드",
+    label: "관제센터",
     description: "전체 운영 현황",
     icon: LayoutGrid,
     href: "/master-dashboard",
@@ -245,13 +241,13 @@ export default function TopNavigation({ isLoading = false }: TopNavigationProps)
 
   useEffect(() => {
     document.documentElement.style.setProperty("--app-sidebar-offset", `${RAIL_WIDTH}px`);
-    document.documentElement.dataset.sidebarMode = "rail";
+    document.documentElement.dataset.sidebarMode = openPanel ? "expanded" : "rail";
 
     return () => {
       document.documentElement.style.removeProperty("--app-sidebar-offset");
       delete document.documentElement.dataset.sidebarMode;
     };
-  }, []);
+  }, [openPanel]);
 
   useEffect(() => {
     if (openPanel) window.setTimeout(() => searchInputRef.current?.focus(), 120);
@@ -304,70 +300,58 @@ export default function TopNavigation({ isLoading = false }: TopNavigationProps)
 
   return (
     <>
-      {openPanel && <ScreenBlur type="button" onClick={closePanel} aria-label="하위 메뉴 닫기" />}
-
       <RailShell $disabled={isLoading} aria-label="메인 네비게이션">
         <RailSection>
           <RailButton
             type="button"
-            $active={activeKey === "dashboard"}
+            $state={activeKey === "dashboard" ? "active" : "idle"}
             onClick={() => handleEntryClick(NAV_ITEMS[0])}
             title="대시보드"
             aria-label="대시보드"
           >
-            <LayoutGrid size={21} />
+            <DashboardLogoIcon aria-hidden="true" />
+            <span>{NAV_ITEMS[0].label}</span>
           </RailButton>
 
           <RailDivider />
 
           {NAV_ITEMS.slice(1).map((entry) => {
             const Icon = entry.icon;
-            const active = activeKey === entry.key || openPanel === entry.key;
+            const state = openPanel === entry.key ? "open" : activeKey === entry.key ? "active" : "idle";
 
             return (
               <RailButton
                 key={entry.key}
                 type="button"
-                $active={active}
+                $state={state}
                 onClick={() => handleEntryClick(entry)}
                 title={entry.label}
                 aria-label={entry.label}
                 aria-expanded={openPanel === entry.key}
               >
                 <Icon size={21} />
+                <span>{entry.label}</span>
               </RailButton>
             );
           })}
         </RailSection>
 
         <RailSection>
-          <AdvisorRailSlot title="AI Advisor">
-            <AIAgentSystem />
-          </AdvisorRailSlot>
           <RailButton
             type="button"
-            $active={openPanel === "search"}
+            $state={openPanel === "search" ? "open" : "idle"}
             onClick={handleSearchOpen}
             title="메뉴 검색"
             aria-label="메뉴 검색"
             aria-expanded={openPanel === "search"}
           >
             <Search size={21} />
-          </RailButton>
-          <RailButton type="button" $active={false} title="사용자" aria-label="사용자">
-            <UsersRound size={21} />
-          </RailButton>
-          <RailButton type="button" $active={false} title="파일" aria-label="파일">
-            <Folder size={21} />
-          </RailButton>
-          <RailButton type="button" $active={false} title="도움말" aria-label="도움말">
-            <CircleHelp size={21} />
-          </RailButton>
-          <RailButton type="button" $active={false} title="설정" aria-label="설정">
-            <Settings size={21} />
+            <span>검색</span>
           </RailButton>
         </RailSection>
       </RailShell>
+
+      <AIAgentSystem />
 
       <SubSidebar $open={!!openPanel} aria-hidden={!openPanel}>
         {openPanel && (
@@ -512,14 +496,14 @@ const RailShell = styled.nav<{ $disabled: boolean }>`
   width: ${RAIL_WIDTH}px;
   height: 100vh;
   height: 100dvh;
-  padding: 14px 10px;
+  padding: 16px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, #fbfffd 0%, #eef7f3 100%);
-  border-right: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 10px 0 34px rgba(15, 23, 42, 0.07);
+  background: #ffffff;
+  border-right: 1px solid #eceff3;
+  box-shadow: 8px 0 24px rgba(15, 23, 42, 0.06);
   opacity: ${({ $disabled }) => ($disabled ? 0.55 : 1)};
   pointer-events: ${({ $disabled }) => ($disabled ? "none" : "auto")};
 `;
@@ -529,31 +513,54 @@ const RailSection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 `;
 
 const RailDivider = styled.div`
-  width: 30px;
+  width: 100%;
   height: 1px;
-  margin: 2px 0;
-  background: rgba(15, 23, 42, 0.10);
+  margin: 4px 0;
+  background: #eef0f4;
 `;
 
-const RailButton = styled.button<{ $active: boolean }>`
+const DashboardLogoIcon = styled.span`
+  width: 42px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: block;
+  background: url("/icons/GMT.png") no-repeat center / contain;
+  transform: scale(1.25);
+`;
+
+const RailButton = styled.button<{ $state: "idle" | "active" | "open" }>`
   position: relative;
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
-  border-radius: 999px;
-  border: 1px solid ${({ $active }) => ($active ? "rgba(15, 23, 42, 0.84)" : "rgba(15, 23, 42, 0.08)")};
-  background: ${({ $active }) => ($active ? "#172623" : "rgba(255, 255, 255, 0.94)")};
-  color: ${({ $active }) => ($active ? "#ffffff" : "#475467")};
-  display: inline-flex;
+  width: 100%;
+  height: 58px;
+  flex: 0 0 58px;
+  border-radius: 12px;
+  border: 1px solid
+    ${({ $state }) =>
+      $state === "open"
+        ? "rgba(211, 17, 69, 0.56)"
+        : $state === "active"
+          ? "rgba(211, 17, 69, 0.20)"
+          : "transparent"};
+  background: ${({ $state }) =>
+    $state === "active" ? "#fff1f5" : $state === "open" ? "#ffffff" : "#ffffff"};
+  color: ${({ $state }) =>
+    $state === "active" || $state === "open" ? "#d31145" : "#4b5563"};
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   cursor: pointer;
-  box-shadow: ${({ $active }) =>
-    $active ? "0 16px 30px rgba(15, 23, 42, 0.22)" : "0 9px 22px rgba(15, 23, 42, 0.08)"};
+  box-shadow: ${({ $state }) =>
+    $state === "active"
+      ? "0 10px 20px rgba(211, 17, 69, 0.10)"
+      : $state === "open"
+        ? "inset 0 0 0 2px rgba(211, 17, 69, 0.08)"
+        : "none"};
   transition:
     transform 160ms ease,
     background 160ms ease,
@@ -561,45 +568,30 @@ const RailButton = styled.button<{ $active: boolean }>`
     color 160ms ease,
     box-shadow 160ms ease;
 
+  span {
+    max-width: 100%;
+    overflow: hidden;
+    color: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+
+  svg {
+    flex: 0 0 auto;
+    color: inherit;
+  }
+
   &:hover {
-    transform: translateY(-2px);
-    border-color: ${({ $active }) => ($active ? "rgba(15, 23, 42, 0.84)" : "rgba(211, 17, 69, 0.26)")};
-    color: ${({ $active }) => ($active ? "#ffffff" : "#d31145")};
-    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+    transform: translateY(-1px);
+    background: #fff7f9;
+    border-color: rgba(211, 17, 69, 0.22);
+    color: #d31145;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
   }
-`;
-
-const AdvisorRailSlot = styled.div`
-  width: 48px;
-  height: 48px;
-
-  > button {
-    width: 48px;
-    height: 48px;
-    min-width: 0;
-    padding: 0;
-    border-radius: 999px;
-    border-color: rgba(15, 23, 42, 0.08);
-    background: rgba(255, 255, 255, 0.94);
-    color: #475467;
-    box-shadow: 0 9px 22px rgba(15, 23, 42, 0.08);
-  }
-
-  > button span {
-    display: none;
-  }
-`;
-
-const ScreenBlur = styled.button`
-  position: fixed;
-  inset: 0;
-  left: ${RAIL_WIDTH}px;
-  z-index: 10000;
-  border: 0;
-  background: rgba(248, 250, 252, 0.56);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  cursor: default;
 `;
 
 const SubSidebar = styled.aside<{ $open: boolean }>`
@@ -613,9 +605,9 @@ const SubSidebar = styled.aside<{ $open: boolean }>`
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.96);
-  border-right: 1px solid rgba(15, 23, 42, 0.10);
-  box-shadow: 18px 0 60px rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  border-right: 1px solid #eceff3;
+  box-shadow: 16px 0 42px rgba(15, 23, 42, 0.10);
   transform: translateX(${({ $open }) => ($open ? "0" : "-20px")});
   opacity: ${({ $open }) => ($open ? 1 : 0)};
   pointer-events: ${({ $open }) => ($open ? "auto" : "none")};
@@ -690,7 +682,7 @@ const SearchBox = styled.label`
   flex: 0 0 auto;
   margin: 16px 16px 10px;
   height: 46px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid rgba(15, 23, 42, 0.10);
   background: #f8fafc;
   color: #98a2b3;
@@ -782,7 +774,7 @@ const GroupTitleIcon = styled.span`
 const ResultButton = styled.button<{ $active: boolean }>`
   width: 100%;
   min-height: 74px;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid ${({ $active }) => ($active ? "rgba(211, 17, 69, 0.34)" : "rgba(15, 23, 42, 0.08)")};
   background: ${({ $active }) => ($active ? "#fff1f5" : "#ffffff")};
   color: ${({ $active }) => ($active ? "#d31145" : "#344054")};
@@ -811,7 +803,7 @@ const ResultIcon = styled.span<{ $active: boolean }>`
   width: 42px;
   height: 42px;
   flex: 0 0 42px;
-  border-radius: 14px;
+  border-radius: 12px;
   background: ${({ $active }) => ($active ? "#ffffff" : "#f2f4f7")};
   color: ${({ $active }) => ($active ? "#d31145" : "#667085")};
   display: inline-flex;
@@ -877,7 +869,7 @@ const NotificationFab = styled.button<{ $active: boolean }>`
   z-index: 10030;
   width: 46px;
   height: 46px;
-  border-radius: 999px;
+  border-radius: 12px;
   border: 1px solid ${({ $active }) => ($active ? "rgba(211, 17, 69, 0.34)" : "rgba(15, 23, 42, 0.10)")};
   background: ${({ $active }) => ($active ? "#fff1f5" : "#ffffff")};
   color: ${({ $active }) => ($active ? "#d31145" : "#475467")};
@@ -902,7 +894,7 @@ const NotificationBadge = styled.span`
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: 9px;
   background: #ef4444;
   color: #ffffff;
   border: 2px solid #ffffff;
@@ -923,7 +915,7 @@ const NotificationPanel = styled.aside`
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: 12px;
   border: 1px solid rgba(15, 23, 42, 0.10);
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 28px 90px rgba(15, 23, 42, 0.18);
@@ -976,7 +968,7 @@ const NoticeCard = styled.div<{ $tone: NoticeTone; $unread: boolean }>`
   display: flex;
   gap: 11px;
   padding: 13px;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid ${({ $tone, $unread }) => ($unread ? `${toneColor($tone)}35` : "rgba(15, 23, 42, 0.08)")};
   background: ${({ $tone, $unread }) => ($unread ? `${toneColor($tone)}0F` : "#ffffff")};
 `;
@@ -986,7 +978,7 @@ const NoticeDot = styled.span<{ $tone: NoticeTone }>`
   height: 9px;
   flex: 0 0 9px;
   margin-top: 7px;
-  border-radius: 999px;
+  border-radius: 5px;
   background: ${({ $tone }) => toneColor($tone)};
   box-shadow: 0 0 0 5px ${({ $tone }) => `${toneColor($tone)}16`};
 `;
@@ -1030,7 +1022,7 @@ const NoticeBody = styled.div`
     height: 24px;
     align-items: center;
     padding: 0 9px;
-    border-radius: 999px;
+    border-radius: 12px;
     background: #f2f4f7;
     color: #667085;
     font-size: 11px;
